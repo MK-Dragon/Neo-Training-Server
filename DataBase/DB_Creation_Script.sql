@@ -53,7 +53,7 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mydb`.`audit` (
   `audit_id` INT NOT NULL AUTO_INCREMENT,
   `user_id` INT NOT NULL,
-  `token` VARCHAR(256) NULL,
+  `token` TEXT NULL,
   `created_at` DATETIME NOT NULL,
   `expires_at` DATETIME NOT NULL,
   `platform` VARCHAR(45) NULL,

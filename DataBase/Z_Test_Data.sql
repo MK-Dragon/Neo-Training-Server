@@ -9,6 +9,7 @@ INSERT INTO `user_roles` (`title`, `description`) VALUES
 -- 2. Users (Updated to use role_id)
 -- Roles: 1=Admin, 2=Teacher, 3=Student
 INSERT INTO `users` (`username`, `email`, `pass_hash`, `role_id`, `activeted`, `birth_date`) VALUES 
+('mc', 'mc@example.com', '123', 1, 1, '1993-03-09'),
 ('admin_jane', 'jane.admin@example.com', 'pbkdf2_sha256_hash', 1, 1, '1985-05-15'),
 ('teacher_bob', 'bob.instructor@example.com', 'pbkdf2_sha256_hash', 2, 1, '1978-10-20'),
 ('teacher_alice', 'alice.smith@example.com', 'pbkdf2_sha256_hash', 2, 1, '1982-03-12'),
