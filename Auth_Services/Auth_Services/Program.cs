@@ -67,7 +67,7 @@ builder.Services.AddSwaggerGen();
 
 
 
-// cors policy
+/*/ cors policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -75,11 +75,25 @@ builder.Services.AddCors(options =>
             .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod());
+});*/
+
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowVite",
+        policy => policy.WithOrigins("http://localhost:5173") // Vite URL
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
 });
 
 
 
+
 var app = builder.Build();
+
+app.UseHttpsRedirection();
+
+app.UseRouting();
+
+app.UseCors("AllowVite");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -90,9 +104,6 @@ if (app.Environment.IsDevelopment())
 
 // 4. USE Authentication and Authorization Middleware
 app.UseAuthentication();
-
-app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();

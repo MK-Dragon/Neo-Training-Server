@@ -4,5 +4,5 @@
   "IpDb": "192.168.0.30",
   "PortDb": 3344,
   "IpRedis": "192.168.0.30",
-  "PortRedis": 6380
+  "PortRedis": 6379
 }

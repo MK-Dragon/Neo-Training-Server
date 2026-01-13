@@ -1,42 +1,50 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// /src/App.jsx
 
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 
-// Main Components:
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
+import Home from './pages/Home.jsx';
+import Login from './pages/Login.jsx';
 
-// Pages:
-import Home from './Pages/Home.jsx'
-
-
-
-function App() {
-  const [count, setCount] = useState(0)
-
-  function App() {
+// This helper component handles the logic
+function NavigationWrapper() {
+  const location = useLocation();
+  
+  // Define paths where you DON'T want the navbar
+  const hideNavbarPaths = ['/login'];
 
   return (
     <>
-      <NavBar />
-      <br /><br />
-
-      <BrowserRouter>
-
-        {/* Routes */}
+      {/* Only show NavBar if current path is NOT in the hide list */}
+      {!hideNavbarPaths.includes(location.pathname) && <NavBar />}
+      
+      <div style={{ marginTop: location.pathname === '/login' ? '0' : '80px' }}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/login" element={<Login />} />
         </Routes>
+      </div>
 
-      </BrowserRouter>
-
-      <br /><br />
-      <Footer />
+      {!hideNavbarPaths.includes(location.pathname) && <Footer />}
     </>
-    )
-  }
+  );
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <NavigationWrapper />
+    </BrowserRouter>
+  );
+}
+
+export default App;

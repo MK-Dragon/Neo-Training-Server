@@ -222,7 +222,7 @@ namespace Auth_Services.Services
         public async Task<User> LoginUser(LoginRequest user_login)
         {
             // Try Redis first
-            string cacheKey = $"user_${user_login.Username}";
+            string cacheKey = $"user_{user_login.Username}";
 
             User user = await GetCachedItemAsync<User>(cacheKey);
             if (user != null)
@@ -325,130 +325,203 @@ namespace Auth_Services.Services
 
 
 
-
-        
-
-
-
-        
-
-/*
-        // Login Method
-
-        public async Task<bool> ValidateLogin(LoginRequest user)
+        // Token Validation Method
+        public async Task<User> ValidateToken(ValidateTokenRequest user_token)
         {
-            // Define the SQL query 
-            const string sqlQuery = "SELECT COUNT(*) FROM users WHERE Username = @username AND Password = @password;";
+            // Try Redis first
+            string cacheKey = $"user_{user_token.Username}";
 
-            Console.WriteLine("** Opening connection - ValidateLogin **");
-            bool loginOk = false;
+            User user = await GetCachedItemAsync<User>(cacheKey);
+            if (user != null)
+            {
+                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
+                if (user.Token == user_token.Token)
+                {
+                    return user; // Cache HIT: Return data from Redis
+                }
+                else
+                {
+                    return new User { Id = 0 }; // Password mismatch
+                }
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
 
+            // go to DB
             try
             {
-                await using (var conn = new MySqlConnection(Builder.ConnectionString))
-                {
-                    await conn.OpenAsync();
+                string query = @"
+        SELECT u.user_id, a.token, a.expires_at 
+        FROM users u 
+        JOIN audit a ON u.user_id = a.user_id 
+        WHERE u.username = @user AND a.token = @token 
+        ORDER BY a.created_at DESC LIMIT 1;";
 
-                    await using (var command = conn.CreateCommand())
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@user", user_token.Username),
+                new MySqlParameter("@token", user_token.Token)
+            };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
                     {
-                        command.CommandText = sqlQuery;
+                        Id = reader.GetInt32(0),
+                        Token = reader.GetString(1),
+                        ExpiresAt = reader.GetDateTime(2)
+                    },
+                    parameters // Pass parameters
+                );
 
-                        // Add parameters to prevent SQL Injection
-                        command.Parameters.AddWithValue("@username", user.Username);
-                        command.Parameters.AddWithValue("@password", DEncript.EncryptString(user.Password));
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Validation successful for user: {user_token.Username}");
 
-                        // ExecuteScalarAsync is best for retrieving a single value (like COUNT)
-                        // It returns the first column of the first row (or null if no rows)
-                        var result = await command.ExecuteScalarAsync();
+                    // TODO: Cache User:
 
-                        // Check the result. If a matching row was found, COUNT(*) will be 1.
-                        // We use pattern matching (C# 9+) for clean type and null check
-                        if (result is long count && count > 0)
+                    return users[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Validation failed for user: {user_token.Username}");
+                    return new User { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Validation failed - Connection failed");
+                return new User { Id = 0 };
+            }
+
+        }
+
+
+
+
+
+
+        /*
+                // Login Method
+
+                public async Task<bool> ValidateLogin(LoginRequest user)
+                {
+                    // Define the SQL query 
+                    const string sqlQuery = "SELECT COUNT(*) FROM users WHERE Username = @username AND Password = @password;";
+
+                    Console.WriteLine("** Opening connection - ValidateLogin **");
+                    bool loginOk = false;
+
+                    try
+                    {
+                        await using (var conn = new MySqlConnection(Builder.ConnectionString))
                         {
-                            loginOk = true;
-                            Console.WriteLine($"\tLogin successful for user: {user.Username}");
+                            await conn.OpenAsync();
+
+                            await using (var command = conn.CreateCommand())
+                            {
+                                command.CommandText = sqlQuery;
+
+                                // Add parameters to prevent SQL Injection
+                                command.Parameters.AddWithValue("@username", user.Username);
+                                command.Parameters.AddWithValue("@password", DEncript.EncryptString(user.Password));
+
+                                // ExecuteScalarAsync is best for retrieving a single value (like COUNT)
+                                // It returns the first column of the first row (or null if no rows)
+                                var result = await command.ExecuteScalarAsync();
+
+                                // Check the result. If a matching row was found, COUNT(*) will be 1.
+                                // We use pattern matching (C# 9+) for clean type and null check
+                                if (result is long count && count > 0)
+                                {
+                                    loginOk = true;
+                                    Console.WriteLine($"\tLogin successful for user: {user.Username}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"\tLogin failed for user: {user.Username}. No matching record found.");
+                                }
+                            }
+                            Console.WriteLine("** Closing connection **");
                         }
-                        else
-                        {
-                            Console.WriteLine($"\tLogin failed for user: {user.Username}. No matching record found.");
-                        }
+                        return loginOk;
                     }
-                    Console.WriteLine("** Closing connection **");
+                    catch (Exception ex)
+                    {
+                        // 6. Log the exception details for debugging, but don't expose them to the user.
+                        Console.WriteLine($"\tAn error occurred during login validation: {ex.Message}");
+
+                        // In case of any database error, treat it as a failed login attempt.
+                        return false;
+                    }
                 }
-                return loginOk;
-            }
-            catch (Exception ex)
-            {
-                // 6. Log the exception details for debugging, but don't expose them to the user.
-                Console.WriteLine($"\tAn error occurred during login validation: {ex.Message}");
 
-                // In case of any database error, treat it as a failed login attempt.
-                return false;
-            }
-        }
-
-        public async Task<bool> ValidateToken(string username, string token)
-        {
-            Console.WriteLine("** Opening connection - ValidateToken **");
-            try
-            { 
-                User user = await GetUserByUsername(username);
-
-                if (user == null)
+                public async Task<bool> ValidateToken(string username, string token)
                 {
-                    Console.WriteLine("\tUser not found.");
-                    return false;
+                    Console.WriteLine("** Opening connection - ValidateToken **");
+                    try
+                    { 
+                        User user = await GetUserByUsername(username);
+
+                        if (user == null)
+                        {
+                            Console.WriteLine("\tUser not found.");
+                            return false;
+                        }
+
+                        if (user.Token != token)
+                        {
+                            Console.WriteLine("\tToken mismatch.");
+                            return false;
+                        }
+                        if (user.ExpiresAt == null || user.ExpiresAt < DateTime.UtcNow)
+                        {
+                            Console.WriteLine("\tToken expired.");
+                            return false;
+                        }
+
+                        return true;
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("\tError?!.");
+                        return false;
+                    }
                 }
 
-                if (user.Token != token)
+                public async Task<bool> InvalidateToken(User user) // logout
                 {
-                    Console.WriteLine("\tToken mismatch.");
-                    return false;
-                }
-                if (user.ExpiresAt == null || user.ExpiresAt < DateTime.UtcNow)
-                {
-                    Console.WriteLine("\tToken expired.");
-                    return false;
-                }
+                    Console.WriteLine("** Opening connection - InvalidateToken **");
+                    try
+                    {
+                        user.Token = null;
+                        user.ExpiresAt = DateTime.UtcNow;
+                        await UpdateUserToken(user);
 
-                return true;
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("\tError?!.");
-                return false;
-            }
-        }
+                        try
+                        {
+                            string cacheKey = $"user_${user.Username}";
+                            await InvalidateCacheKeyAsync(cacheKey);
+                            Console.WriteLine($"\tInvalidated cache for key: {cacheKey}");
+                        }
+                        catch (Exception)
+                        {
+                            // Ignore cache invalidation errors
+                        }
 
-        public async Task<bool> InvalidateToken(User user) // logout
-        {
-            Console.WriteLine("** Opening connection - InvalidateToken **");
-            try
-            {
-                user.Token = null;
-                user.ExpiresAt = DateTime.UtcNow;
-                await UpdateUserToken(user);
-
-                try
-                {
-                    string cacheKey = $"user_${user.Username}";
-                    await InvalidateCacheKeyAsync(cacheKey);
-                    Console.WriteLine($"\tInvalidated cache for key: {cacheKey}");
-                }
-                catch (Exception)
-                {
-                    // Ignore cache invalidation errors
+                            return true;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
                 }
 
-                    return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-        
-        */
+                */
 
 
     }

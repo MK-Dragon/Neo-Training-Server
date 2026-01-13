@@ -1,10 +1,11 @@
 ﻿// Controller_API.cs
 
 using Auth_Services.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Auth_Services.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Auth_Services.Controllers
 {
@@ -45,6 +46,7 @@ namespace Auth_Services.Controllers
 
         // Lognin Endpoint
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> AuthenticateUser([FromBody] LoginRequest loginData)
         {
             // Basic Validation
@@ -87,6 +89,20 @@ namespace Auth_Services.Controllers
                 // Return HTTP 401 Unauthorized
                 return Unauthorized(new { Message = "Invalid credentials." });
             }
+        }
+
+        // Lognin Endpoint
+        [Authorize]
+        [HttpGet("verify")]
+        public IActionResult VerifyToken()
+        {
+            // If the code gets here, the token is 100% valid!
+            // The middleware already did the heavy lifting.
+
+            var username = User.Identity?.Name;
+
+            Console.WriteLine($"[VERIFY] User '{username}' is authorized.");
+            return Ok(new { status = "Success", message = "User is authorized" });
         }
 
     }

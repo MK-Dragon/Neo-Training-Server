@@ -7,29 +7,33 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // 1. Add loading state
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true); // 2. Start loading
 
     try {
-      const response = await fetch('http://localhost/api/login', {
+      const response = await fetch('https://localhost:7089/api/Api/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
 
       if (response.ok) {
-        // If the API returns status 200-299
+        const data = await response.json();
+        // Save the token!
+        localStorage.setItem('token', data.token);
         navigate('/');
       } else {
         setError('Invalid username or password');
       }
     } catch (err) {
       setError('Check if your API is running at localhost');
+    } finally {
+      setIsLoading(false); // 3. Stop loading regardless of success/fail
     }
   };
 
@@ -48,6 +52,7 @@ const Login = () => {
               className="form-control"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={isLoading} // Disable input while loading
               required
             />
           </div>
@@ -58,11 +63,20 @@ const Login = () => {
               className="form-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading} // Disable input while loading
               required
             />
           </div>
-          <button type="submit" className="btn btn-primary w-100">
-            Login
+
+          <button type="submit" className="btn btn-primary w-100" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Logging in...
+              </>
+            ) : (
+              'Login'
+            )}
           </button>
         </form>
       </div>
