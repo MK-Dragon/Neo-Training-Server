@@ -42,12 +42,18 @@ const Register = () => {
       });
 
       if (response.ok) {
-        alert("Account created successfully!");
+        // Standard success
+        alert("Account created successfully! Please check your email to activate it.");
         navigate('/login');
-      } else {
+    } else if (response.status === 409) {
+        // Specifically catch the "Conflict" status
+        const data = await response.json();
+        setError(data.message || "Username or Email already exists.");
+    } else {
+        // Catch-all for other errors (400, 500, etc.)
         const data = await response.json();
         setError(data.message || 'Registration failed');
-      }
+    }
     } catch (err) {
       setError('Connection error with the server');
     } finally {

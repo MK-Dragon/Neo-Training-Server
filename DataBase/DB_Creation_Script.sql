@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   `role_id` INT NOT NULL,
   `activeted` INT NOT NULL DEFAULT 0,
   `birth_date` DATE NULL,
+  `Provider` VARCHAR(45) NULL,
+  `ProviderKey` TEXT NULL,
   PRIMARY KEY (`user_id`),
   INDEX `user_type_idx` (`role_id` ASC) VISIBLE,
   CONSTRAINT `user_type`

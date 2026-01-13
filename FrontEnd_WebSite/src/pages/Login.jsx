@@ -11,31 +11,32 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true); // 2. Start loading
+  e.preventDefault();
+  setError('');
+  setIsLoading(true);
 
-    try {
-      const response = await fetch('https://localhost:7089/api/Api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+  try {
+    const response = await fetch('https://localhost:7089/api/Api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Save the token!
-        localStorage.setItem('token', data.token);
-        navigate('/');
-      } else {
-        setError('Invalid username or password');
-      }
-    } catch (err) {
-      setError('Check if your API is running at localhost');
-    } finally {
-      setIsLoading(false); // 3. Stop loading regardless of success/fail
+    const data = await response.json();
+
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      navigate('/');
+    } else {
+      // This will now catch the "Account not activated" message from the API
+      setError(data.message || 'Login failed');
     }
-  };
+  } catch (err) {
+    setError('Server connection failed.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="container d-flex justify-content-center align-items-center vh-100">

@@ -59,7 +59,7 @@ namespace Auth_Services.Controllers
 
             User user = await _dbServices.LoginUser(loginData);
 
-            if (user.Id != 0)
+            if (user.Id != 0 && user.Activated == 1)
             {
                 // Generate JWT Token
                 string token = _tokenService.GenerateToken(loginData.Username);
@@ -84,6 +84,10 @@ namespace Auth_Services.Controllers
                     Username = loginData.Username,
                     Token = token
                 });
+            }
+            else if (user.Id != 0 && user.Activated == 0)
+            {
+                return StatusCode(403, new { message = "Account not activated. Please check your email to complete registration." });
             }
             else
             {
@@ -163,8 +167,9 @@ namespace Auth_Services.Controllers
 
             var success = await _dbServices.AddUser(newUser);
 
-            if (success != 0) return Ok(new { message = "Registration successful" });
-            return BadRequest("Registration failed.");
+            if (success == 0) return BadRequest(new { message = "Registration failed." });
+            else if (success == -1) return Conflict(new { message = "Username or Email already exists." });
+            return Ok(new { message = "Registration successful" });
         }
 
 

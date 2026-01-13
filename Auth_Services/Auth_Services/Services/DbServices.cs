@@ -2,6 +2,7 @@
 
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
+using Auth_Services.Services;
 using MySqlConnector;
 using StackExchange.Redis;
 using System;
@@ -246,11 +247,11 @@ namespace Auth_Services.Services
             try
             {
                 string query = @"
-        SELECT user_id
+        SELECT user_id, activeted
         FROM users
         WHERE username = @user AND pass_hash = @pass;";
 
-                // TODO: hash password here!
+                user_login.Password = DEncript.EncryptString(user_login.Password);
 
                 // Create the parameters safely
                 var parameters = new[]
@@ -263,7 +264,8 @@ namespace Auth_Services.Services
                     query,
                     reader => new User
                     {
-                        Id = reader.GetInt32(0)
+                        Id = reader.GetInt32(0),
+                        Activated = reader.GetInt32(1)
                     },
                     parameters // Pass parameters
                 );
@@ -401,12 +403,21 @@ namespace Auth_Services.Services
         // Add/Register Account Method
         public async Task<int> AddUser(User user)
         {
+            int user_exists = await CheckUsernameOrEmailExist(user.Username, user.Email);
+
+            if (user_exists == 1)
+            {
+                Console.WriteLine($"\n\n** User already exists: {user.Username}");
+                return -1;
+            }
+
             try
             {
                 const string sql = @"
             INSERT INTO users (username, email, pass_hash, role_id, activeted, birth_date)
             VALUES (@Username, @Email, @PassHash, @RoleId, @Activated, @BirthDate);";
 
+                user.Password = DEncript.EncryptString(user.Password);
                 var parameters = new[]
                 {
                     new MySqlParameter("@Username", user.Username),
@@ -425,6 +436,73 @@ namespace Auth_Services.Services
                 Console.WriteLine("DATABASE ERROR: " + ex.ToString());
                 return 0;
             }
+        }
+
+
+        // Check Username or Email Exist Method
+        public async Task<int> CheckUsernameOrEmailExist(string username, string email)
+        {
+            /*
+             * Exists: return 1 else return 0
+             */
+
+            // Try Redis first
+            string cacheKey = $"user_{username}";
+
+            User user = await GetCachedItemAsync<User>(cacheKey);
+            if (user != null)
+            {
+                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
+                return 1;
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = @"
+        SELECT user_id
+        FROM users
+        WHERE username = @user OR email = @email;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                    new MySqlParameter("@user", username),
+                    new MySqlParameter("@email", email),
+                };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0)
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Fond user: {username}");
+
+                    return 1;
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Did not Find user: {username}");
+                    return 0;
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Find User by Username failed - Connection failed");
+                return -1;
+            }
+
         }
 
 
