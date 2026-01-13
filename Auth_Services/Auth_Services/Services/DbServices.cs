@@ -246,11 +246,9 @@ namespace Auth_Services.Services
             try
             {
                 string query = @"
-        SELECT u.user_id, a.token, a.expires_at 
-        FROM users u 
-        JOIN audit a ON u.user_id = a.user_id 
-        WHERE u.username = @user AND u.pass_hash = @pass 
-        ORDER BY a.created_at DESC LIMIT 1;";
+        SELECT user_id
+        FROM users
+        WHERE username = @user AND pass_hash = @pass;";
 
                 // TODO: hash password here!
 
@@ -265,9 +263,7 @@ namespace Auth_Services.Services
                     query,
                     reader => new User
                     {
-                        Id = reader.GetInt32(0),
-                        Token = reader.GetString(1),
-                        ExpiresAt = reader.GetDateTime(2)
+                        Id = reader.GetInt32(0)
                     },
                     parameters // Pass parameters
                 );
@@ -402,126 +398,37 @@ namespace Auth_Services.Services
 
 
 
+        // Add/Register Account Method
+        public async Task<int> AddUser(User user)
+        {
+            try
+            {
+                const string sql = @"
+            INSERT INTO users (username, email, pass_hash, role_id, activeted, birth_date)
+            VALUES (@Username, @Email, @PassHash, @RoleId, @Activated, @BirthDate);";
 
-
-
-        /*
-                // Login Method
-
-                public async Task<bool> ValidateLogin(LoginRequest user)
+                var parameters = new[]
                 {
-                    // Define the SQL query 
-                    const string sqlQuery = "SELECT COUNT(*) FROM users WHERE Username = @username AND Password = @password;";
+                    new MySqlParameter("@Username", user.Username),
+                    new MySqlParameter("@Email", user.Email),
+                    new MySqlParameter("@PassHash", user.Password),
+                    new MySqlParameter("@RoleId", user.RoleId),
+                    new MySqlParameter("@Activated", user.Activated),
+                    new MySqlParameter("@BirthDate", user.BirthDate.Date)
+                };
 
-                    Console.WriteLine("** Opening connection - ValidateLogin **");
-                    bool loginOk = false;
+                return await ExecuteNonQueryAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                // Print the FULL error to the console to see the MySQL message
+                Console.WriteLine("DATABASE ERROR: " + ex.ToString());
+                return 0;
+            }
+        }
 
-                    try
-                    {
-                        await using (var conn = new MySqlConnection(Builder.ConnectionString))
-                        {
-                            await conn.OpenAsync();
 
-                            await using (var command = conn.CreateCommand())
-                            {
-                                command.CommandText = sqlQuery;
 
-                                // Add parameters to prevent SQL Injection
-                                command.Parameters.AddWithValue("@username", user.Username);
-                                command.Parameters.AddWithValue("@password", DEncript.EncryptString(user.Password));
-
-                                // ExecuteScalarAsync is best for retrieving a single value (like COUNT)
-                                // It returns the first column of the first row (or null if no rows)
-                                var result = await command.ExecuteScalarAsync();
-
-                                // Check the result. If a matching row was found, COUNT(*) will be 1.
-                                // We use pattern matching (C# 9+) for clean type and null check
-                                if (result is long count && count > 0)
-                                {
-                                    loginOk = true;
-                                    Console.WriteLine($"\tLogin successful for user: {user.Username}");
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"\tLogin failed for user: {user.Username}. No matching record found.");
-                                }
-                            }
-                            Console.WriteLine("** Closing connection **");
-                        }
-                        return loginOk;
-                    }
-                    catch (Exception ex)
-                    {
-                        // 6. Log the exception details for debugging, but don't expose them to the user.
-                        Console.WriteLine($"\tAn error occurred during login validation: {ex.Message}");
-
-                        // In case of any database error, treat it as a failed login attempt.
-                        return false;
-                    }
-                }
-
-                public async Task<bool> ValidateToken(string username, string token)
-                {
-                    Console.WriteLine("** Opening connection - ValidateToken **");
-                    try
-                    { 
-                        User user = await GetUserByUsername(username);
-
-                        if (user == null)
-                        {
-                            Console.WriteLine("\tUser not found.");
-                            return false;
-                        }
-
-                        if (user.Token != token)
-                        {
-                            Console.WriteLine("\tToken mismatch.");
-                            return false;
-                        }
-                        if (user.ExpiresAt == null || user.ExpiresAt < DateTime.UtcNow)
-                        {
-                            Console.WriteLine("\tToken expired.");
-                            return false;
-                        }
-
-                        return true;
-                    }
-                    catch (Exception)
-                    {
-                        Console.WriteLine("\tError?!.");
-                        return false;
-                    }
-                }
-
-                public async Task<bool> InvalidateToken(User user) // logout
-                {
-                    Console.WriteLine("** Opening connection - InvalidateToken **");
-                    try
-                    {
-                        user.Token = null;
-                        user.ExpiresAt = DateTime.UtcNow;
-                        await UpdateUserToken(user);
-
-                        try
-                        {
-                            string cacheKey = $"user_${user.Username}";
-                            await InvalidateCacheKeyAsync(cacheKey);
-                            Console.WriteLine($"\tInvalidated cache for key: {cacheKey}");
-                        }
-                        catch (Exception)
-                        {
-                            // Ignore cache invalidation errors
-                        }
-
-                            return true;
-                    }
-                    catch (Exception)
-                    {
-                        return false;
-                    }
-                }
-
-                */
 
 
     }

@@ -1,7 +1,7 @@
 // /src/pages/Login.jsx
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -79,6 +79,19 @@ const Login = () => {
             )}
           </button>
         </form>
+
+
+        <div className="mt-3 text-center">
+          <p className="mb-1">
+            Don't have an account? <Link to="/register">Create Account</Link>
+          </p>
+          <p>
+            <Link to="/forgot-password" size="sm" className="text-muted" style={{ fontSize: '0.9rem' }}>
+              Forgot password?
+            </Link>
+          </p>
+        </div>
+
       </div>
     </div>
   );

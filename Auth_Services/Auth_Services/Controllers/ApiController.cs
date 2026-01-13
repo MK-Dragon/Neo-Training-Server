@@ -1,5 +1,6 @@
 ﻿// Controller_API.cs
 
+using Auth_Services.ModelRequests;
 using Auth_Services.Models;
 using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -104,6 +105,73 @@ namespace Auth_Services.Controllers
             Console.WriteLine($"[VERIFY] User '{username}' is authorized.");
             return Ok(new { status = "Success", message = "User is authorized" });
         }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            // In a stateless JWT setup, the server doesn't "deactivate" the token 
+            // unless you maintain a blacklist in the database. 
+
+            // For now, we simply return Ok to tell the frontend it's clear to redirect.
+            return Ok(new { message = "Logged out successfully" });
+        }
+
+        // public async Task<int> AddUser(User user)
+        [HttpPost("register")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            // 1. Validation for required fields
+            if (request == null ||
+                string.IsNullOrEmpty(request.Username) ||
+                string.IsNullOrEmpty(request.Password) ||
+                string.IsNullOrEmpty(request.Email) ||
+                request.BirthDate == default ||
+                string.IsNullOrEmpty(request.Role))
+            {
+                return BadRequest("All fields are required.");
+            }
+
+            // 2. Updated Role Validation (allowing 'admin')
+            var validRoles = new[] { "admin", "teacher", "student" };
+            if (!validRoles.Contains(request.Role.ToLower()))
+            {
+                return BadRequest("Role must be 'admin', 'teacher', or 'student'.");
+            }
+
+            // 3. Mapping string roles to your specific IDs
+            // Admin = 1, Teacher = 2, Student = 3
+            int mappedRoleId = request.Role.ToLower() switch
+            {
+                "admin" => 1,
+                "teacher" => 2,
+                "student" => 3,
+                _ => 3 // Fallback to student
+            };
+
+            var newUser = new User
+            {
+                Username = request.Username,
+                Email = request.Email,
+                BirthDate = request.BirthDate.Date, // Use .Date to match your MySQL DATE column
+                RoleId = mappedRoleId,
+                Password = request.Password, // Pass the raw password for hashing in the service
+                Provider = "Local",
+                Activated = 1 // Assuming you want them active by default
+            };
+
+            var success = await _dbServices.AddUser(newUser);
+
+            if (success != 0) return Ok(new { message = "Registration successful" });
+            return BadRequest("Registration failed.");
+        }
+
+
+
+
+
+
 
     }
 }

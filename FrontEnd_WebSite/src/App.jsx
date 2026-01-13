@@ -5,15 +5,17 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
+
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
 
 // This helper component handles the logic
 function NavigationWrapper() {
   const location = useLocation();
   
   // Define paths where you DON'T want the navbar
-  const hideNavbarPaths = ['/login'];
+  const hideNavbarPaths = ['/login', '/register'];
 
   return (
     <>
@@ -30,6 +32,7 @@ function NavigationWrapper() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
         </Routes>
       </div>
