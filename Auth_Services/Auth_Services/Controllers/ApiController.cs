@@ -92,7 +92,7 @@ namespace Auth_Services.Controllers
             }
         }
 
-        [HttpGet("verify-2fa")]  // ????
+        [HttpGet("verify-2fa")] 
         public async Task<IActionResult> Verify2FA(string request, string code)
         {
             Console.WriteLine($"2FA Verify - Request: {request} | Code: {code}");

@@ -1,3 +1,5 @@
+// /src/pages/Verify2FA.jsx
+
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
@@ -9,22 +11,33 @@ const Verify2FA = () => {
     useEffect(() => {
         const verify = async () => {
             const code = searchParams.get('code');
+            const request = searchParams.get('request');
+
+            if (!code || !request) {
+                console.error("Missing code or request ID");
+                return;
+            }
             
             try {
-                const response = await fetch(`https://localhost:7089/api/Api/verify-2fa?code=${encodeURIComponent(code)}`);
-                const data = await response.json();
+            // Updated fetch to include the request parameter
+            const response = await fetch(
+                `https://localhost:7089/api/Api/verify-2fa?code=${encodeURIComponent(code)}&request=${request}`
+            );
+            
+            const data = await response.json();
 
-                if (response.ok) {
-                    localStorage.setItem('token', data.token); // Save final JWT
-                    alert("Verification successful!");
-                    navigate('/');
-                } else {
-                    alert(data.message); // Shows "2FA Link expired"
-                    navigate('/login');
-                }
-            } catch (err) {
-                console.error("Verification failed", err);
+            if (response.ok) {
+                // Note: Don't navigate to '/' here! 
+                // The phone user just needs to see a success message.
+                setStatus('success'); 
+                alert("Verified! You can return to your other screen.");
+            } else {
+                alert(data.message);
+                navigate('/login');
             }
+        } catch (err) {
+            console.error("Verification failed", err);
+        }
         };
         verify();
     }, []);
