@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Security.Cryptography.Xml;
 
 namespace Auth_Services.Controllers
 {
@@ -45,8 +47,10 @@ namespace Auth_Services.Controllers
         }
 
 
-        // Lognin Endpoint
-        [HttpPost("login")]
+        // Login / Logout Related Endpoints
+
+
+        [HttpPost("login")] // checks User&Password then "waits" for 2FA
         [AllowAnonymous]
         public async Task<IActionResult> AuthenticateUser([FromBody] LoginRequest loginData)
         {
@@ -61,29 +65,21 @@ namespace Auth_Services.Controllers
 
             if (user.Id != 0 && user.Activated == 1)
             {
-                // Generate JWT Token
-                string token = _tokenService.GenerateToken(loginData.Username);
-                user.Token = token;
-                user.CreatedAt = new DateTime(DateTime.UtcNow.Ticks - (DateTime.UtcNow.Ticks % TimeSpan.TicksPerSecond), DateTimeKind.Utc);
-                user.ExpiresAt = user.ExpiresAt = user.CreatedAt.Value.AddHours(2);
+                // Generate a unique ID for this login attempt
+                string requestId = Guid.NewGuid().ToString();
+                // Store in Redis or DB: Key = requestId, Value = "pending" (expires in 5 mins)
+                await _dbServices.SetCachedItemAsync($"2fa_{requestId}", $"pending|{loginData.Username}", TimeSpan.FromMinutes(1)); // TODO: 1min for testing, change to 5min for production
 
-                // save token to database
-                try
-                {
-                    await _dbServices.AddLoginEntry(user, "PC-Testing", "User IP");
-                }
-                catch (Exception)
-                {
+                // Create and send 2FA token
+                string tfaToken = TFA_Services.Generate2FAToken(loginData.Username);
+                string tfaLink = $"http://localhost:5173/verify-2fa?request={requestId}&code={tfaToken}";
+                // send 2FA code via email
+                MailServices mailServices = new MailServices();
+                await mailServices.SendMail(user.Email, "Your 2FA Code", $"Hello {user.Username},\n\nYour 2FA verification code is: {tfaLink}\n\nThis code is valid for 5 minutes.");
 
-                    return StatusCode(500, new { Message = "Error saving token to database." });
-                }
 
-                return Ok(new
-                {
-                    Message = "Login successful!",
-                    Username = loginData.Username,
-                    Token = token
-                });
+
+                return Ok(new { requires2FA = true, requestId = requestId });
             }
             else if (user.Id != 0 && user.Activated == 0)
             {
@@ -96,9 +92,79 @@ namespace Auth_Services.Controllers
             }
         }
 
-        // Lognin Endpoint
+        [HttpGet("verify-2fa")]  // ????
+        public async Task<IActionResult> Verify2FA(string request, string code)
+        {
+            Console.WriteLine($"2FA Verify - Request: {request} | Code: {code}");
+
+            // ... Decrypt code and check timestamp ...
+            string username = "";
+            try
+            {
+                username = TFA_Services.Validate2FAToken(code);
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = $"Invalid or expired 2FA code. {ex.Message}" });
+            }
+
+            // If valid, update the status in Redis
+            await _dbServices.SetCachedItemAsync($"2fa_{request}", $"approved|{username}", TimeSpan.FromMinutes(1));
+            Console.WriteLine($"2FA aproved for User {username}!");
+
+            return Ok(new { message = "Verified! You can now close this tab and return to your PC." });
+        }
+
+        [HttpGet("check-2fa-status/{requestId}")]
+        public async Task<IActionResult> CheckStatus(string requestId)
+        {
+            string cachedValue = await _dbServices.GetCachedItemAsync<string>($"2fa_{requestId}");
+
+            // Check if the string starts with "approved|"
+            if (!string.IsNullOrEmpty(cachedValue) && cachedValue.StartsWith("approved|"))
+            {
+                // Extract username: "approved|john_doe" -> "john_doe"
+                string username = cachedValue.Split('|')[1];
+
+                // 1. Generate JWT Token
+                string token = _tokenService.GenerateToken(username);
+
+                // 2. Get Platform (User-Agent) and IP Address
+                string platform = Request.Headers["User-Agent"].ToString();
+                string userIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+                // 3. Prepare User object for Login Entry
+                User userEntry = new User
+                {
+                    Username = username,
+                    Token = token,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddHours(2)
+                };
+
+                try
+                {
+                    // 4. Save to database audit/login table
+                    await _dbServices.AddLoginEntry(userEntry, platform, userIp);
+
+                    // 5. IMPORTANT: Delete the cache item so it can't be used again
+                    await _dbServices.InvalidateCacheKeyAsync($"2fa_{requestId}");
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { Message = "Error saving login audit." });
+                }
+
+                return Ok(new { verified = true, token = token });
+            }
+
+            return Ok(new { verified = false });
+        }
+
+
         [Authorize]
-        [HttpGet("verify")]
+        [HttpGet("verify")] // Token Verification Endpoint
         public IActionResult VerifyToken()
         {
             // If the code gets here, the token is 100% valid!
@@ -121,8 +187,7 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "Logged out successfully" });
         }
 
-        // public async Task<int> AddUser(User user)
-        [HttpPost("register")]
+        [HttpPost("register")] // add new user
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
@@ -183,7 +248,7 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "Registration successful" });
         }
 
-        [HttpGet("activate")]
+        [HttpGet("activate")] // activate account for new user 
         [AllowAnonymous]
         public async Task<IActionResult> ActivateAccount([FromQuery] string code)
         {
@@ -208,6 +273,11 @@ namespace Auth_Services.Controllers
                 return BadRequest(new { message = "Activation failed. The link may be corrupted." });
             }
         }
+
+
+
+
+
 
 
 

@@ -39,6 +39,7 @@ namespace Auth_Services.Services
                 servidor.EnableSsl = true;
 
                 servidor.Send(mail);
+                Console.WriteLine("E-Mail Sent!");
                 return true;
             }
             catch (Exception ex)

@@ -10,6 +10,7 @@ import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import ActivateAccount from './pages/ActivateAccount.jsx';
+import Verify2FA from './pages/Verify2FA.jsx';
 
 // This helper component handles the logic
 function NavigationWrapper() {
@@ -36,6 +37,7 @@ function NavigationWrapper() {
           <Route path="/register" element={<Register />} />
           <Route path="/activate" element={<ActivateAccount />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/verify-2fa" element={<Verify2FA />} />
         </Routes>
       </div>
 

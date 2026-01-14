@@ -86,7 +86,7 @@ namespace Auth_Services.Services
         // --- Helper Methods for Redis ---
 
         // Retrieves a cached item from Redis.
-        private async Task<T> GetCachedItemAsync<T>(string key) where T : class
+        public async Task<T> GetCachedItemAsync<T>(string key) where T : class
         {
             try
             {
@@ -109,7 +109,7 @@ namespace Auth_Services.Services
         }
 
         // Sets an item in Redis with an expiration time.
-        private async Task SetCachedItemAsync<T>(string key, T item, TimeSpan? expiry = null)
+        public async Task SetCachedItemAsync<T>(string key, T item, TimeSpan? expiry = null)
         {
             try
             {
@@ -130,7 +130,7 @@ namespace Auth_Services.Services
         }
 
         // Removes a key from Redis.
-        private async Task InvalidateCacheKeyAsync(string key)
+        public async Task InvalidateCacheKeyAsync(string key)
         {
             try
             {
@@ -247,7 +247,7 @@ namespace Auth_Services.Services
             try
             {
                 string query = @"
-        SELECT user_id, activeted
+        SELECT user_id, activeted, email
         FROM users
         WHERE username = @user AND pass_hash = @pass;";
 
@@ -265,7 +265,8 @@ namespace Auth_Services.Services
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
-                        Activated = reader.GetInt32(1)
+                        Activated = reader.GetInt32(1),
+                        Email = reader.GetString(2)
                     },
                     parameters // Pass parameters
                 );
