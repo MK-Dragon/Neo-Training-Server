@@ -169,10 +169,45 @@ namespace Auth_Services.Controllers
 
             if (success == 0) return BadRequest(new { message = "Registration failed." });
             else if (success == -1) return Conflict(new { message = "Username or Email already exists." });
+
+            // Successful registration
+
+            // get user ID
+
+            // send mail
+            string encryptedId = DEncript.EncryptString(newUser.Username);
+            string activationLink = $"http://localhost:5173/activate?code={Uri.EscapeDataString(encryptedId)}";
+
+            MailServices mailServices = new MailServices();
+            await mailServices.SendMail(newUser.Email, "Welcome to Neo Training Server", $"Hello {newUser.Username}, your account has been created successfully.\nNo folow this Link to activate your account: {activationLink}");
             return Ok(new { message = "Registration successful" });
         }
 
+        [HttpGet("activate")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ActivateAccount([FromQuery] string code)
+        {
+            try
+            {
+                // 1. Decrypt the code to get the User ID
+                string username = DEncript.DecryptString(code);
 
+                Console.WriteLine($"Username: {username} - Code: {code}");
+
+                // 2. Update the database
+                bool success = await _dbServices.ActivateUser(username);
+
+                if (success)
+                {
+                    return Ok(new { message = "Account activated successfully!" });
+                }
+                return BadRequest(new { message = "Invalid or expired activation link." });
+            }
+            catch
+            {
+                return BadRequest(new { message = "Activation failed. The link may be corrupted." });
+            }
+        }
 
 
 

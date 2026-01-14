@@ -11,5 +11,9 @@
         // Redis Connection
         public string IpRedis { get; set; } = "localhost";
         public int PortRedis { get; set; } = 6379;
+
+        // Mail Server Connection
+        public string MailServer { get; set; } = "smtp.example.com";
+        public string MailKey { get; set; } = string.Empty;
     }
 }

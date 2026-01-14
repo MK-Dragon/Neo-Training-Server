@@ -424,7 +424,7 @@ namespace Auth_Services.Services
                     new MySqlParameter("@Email", user.Email),
                     new MySqlParameter("@PassHash", user.Password),
                     new MySqlParameter("@RoleId", user.RoleId),
-                    new MySqlParameter("@Activated", user.Activated),
+                    new MySqlParameter("@Activated", '0'),
                     new MySqlParameter("@BirthDate", user.BirthDate.Date)
                 };
 
@@ -506,7 +506,52 @@ namespace Auth_Services.Services
         }
 
 
+        // Activate User Account Method
+        public async Task<bool> ActivateUser(string username)
+        {
+            try
+            {
+                string query = @"
+        UPDATE users SET activeted = '1' WHERE (username = @userName);";
 
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@userName", username)
+            };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Activated = reader.GetInt32(1)
+                    },
+                    parameters // Pass parameters
+                );
+
+                return true;
+                //Console.WriteLine($"Data from Update: {users[0]}");
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Account Activated successful for user: {username}");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Account Activating failed for user: {username}");
+                    return false;
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Account Activating failed - Connection failed");
+                return false;
+            }
+
+        }
 
 
     }

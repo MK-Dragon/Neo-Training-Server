@@ -4,7 +4,7 @@ using System.Text.Json;
 
 public sealed class SettingsManager
 {
-    private const string FilePath = "MyConnectionSettings.json";
+    private const string FilePath = "MySettings.json";
 
     // --- 1. The Singleton Instance and Lazy Initialization ---
 
