@@ -3,6 +3,7 @@
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
 using Auth_Services.Services;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -275,7 +276,87 @@ namespace Auth_Services.Controllers
         }
 
 
+        [HttpPost("google-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GoogleLogin([FromBody] string googleToken)
+        {
+            try
+            {
+                Console.WriteLine($"DEBUG: Loing -> Google:");
 
+                // 1. Get Client ID from Env
+                string googleId = Environment.GetEnvironmentVariable("VITE_GOOGLE_CLIENT_ID");
+
+                var settings = new GoogleJsonWebSignature.ValidationSettings()
+                {
+                    Audience = new List<string>() { googleId }
+                };
+                Console.WriteLine($"> DEBUG: Google ID from Env is: {googleId}");
+
+                // This verifies that the token is real, not expired, and meant for your app
+                var payload = await GoogleJsonWebSignature.ValidateAsync(googleToken, settings);
+
+                // 2. Check if user exists (Check Email first as it's the unique anchor)
+                var user = await _dbServices.GetUserByUsernameOrEmail(payload.Email);
+
+                if (user == null)
+                {
+                    // NEW: Ensure username is unique (using email as fallback)
+                    string uniqueUsername = payload.Email.Split('@')[0]; // "john.doe@gmail.com" -> "john.doe"
+
+                    Console.WriteLine($"> DEBUG: Check Username: [{uniqueUsername}]");
+
+                    user = new User
+                    {
+                        Username = uniqueUsername,
+                        Email = payload.Email,
+                        RoleId = 3,
+                        Provider = "Google",
+                        Activated = 1 // Google users are pre-verified
+                    };
+
+                    // Note: If your AddUser returns the new User object, use that
+                    await _dbServices.AddUser(user);
+
+                    // Re-fetch to get the ID if necessary
+                    user = await _dbServices.GetUserByUsernameOrEmail(payload.Email);
+                }
+
+                // 3. Generate LOCAL JWT
+                string localToken = _tokenService.GenerateToken(user.Username);
+
+                // 4. Audit Log
+                string platform = Request.Headers["User-Agent"].ToString();
+                string userIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+                Console.WriteLine($"> DEBUG: Plataform: [{platform}]");
+                Console.WriteLine($"> DEBUG: User IP: [{userIp}]");
+
+                // Create the entry object
+                user.Token = localToken;
+                user.CreatedAt = DateTime.UtcNow;
+                user.ExpiresAt = DateTime.UtcNow.AddHours(2);
+
+                /*User loginEntry = new User
+                {
+                    Username = user.Username,
+                    Token = localToken,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddHours(2)
+                };*/
+
+                await _dbServices.AddLoginEntry(user, platform, userIp);
+
+                Console.WriteLine($"> DEBUG: Token e Returned!");
+                return Ok(new { token = localToken });
+            }
+            catch (Exception ex)
+            {
+                // Log the actual exception for debugging, but return generic error to user
+                Console.WriteLine($"Google Auth Error: {ex.Message}");
+                return BadRequest(new { message = "Google authentication failed. Please try again." });
+            }
+        }
 
 
 

@@ -266,7 +266,8 @@ namespace Auth_Services.Services
                     {
                         Id = reader.GetInt32(0),
                         Activated = reader.GetInt32(1),
-                        Email = reader.GetString(2)
+                        Email = reader.GetString(2),
+                        Username = user_login.Password
                     },
                     parameters // Pass parameters
                 );
@@ -352,7 +353,7 @@ namespace Auth_Services.Services
             try
             {
                 string query = @"
-        SELECT u.user_id, a.token, a.expires_at 
+        SELECT u.user_id, u.username, u.email, a.token, a.expires_at 
         FROM users u 
         JOIN audit a ON u.user_id = a.user_id 
         WHERE u.username = @user AND a.token = @token 
@@ -370,8 +371,10 @@ namespace Auth_Services.Services
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
-                        Token = reader.GetString(1),
-                        ExpiresAt = reader.GetDateTime(2)
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        Token = reader.GetString(3),
+                        ExpiresAt = reader.GetDateTime(4)
                     },
                     parameters // Pass parameters
                 );
@@ -553,6 +556,72 @@ namespace Auth_Services.Services
             }
 
         }
+
+
+
+        // GET User By Username Email Method
+        public async Task<User> GetUserByUsernameOrEmail(string user_name_mail)
+        {
+            // Try Redis first
+            string cacheKey = $"user_{user_name_mail}";
+
+            User user = await GetCachedItemAsync<User>(cacheKey);
+            if (user != null)
+            {
+                return user; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = @"
+        SELECT user_id, username, email
+        FROM users
+        WHERE username = @user OR email = @user;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@user", user_name_mail)
+            };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(2),
+                        Email = reader.GetString(2),
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Login successful for user: {user_name_mail}");
+
+                    // TODO: Cache User:
+
+                    return users[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Login failed for user: {user_name_mail}");
+                    return new User { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Login failed - Connection failed");
+                return new User { Id = 0 };
+            }
+        }
+
 
 
     }

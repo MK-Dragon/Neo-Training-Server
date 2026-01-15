@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`audit` (
   `token` TEXT NULL,
   `created_at` DATETIME NOT NULL,
   `expires_at` DATETIME NOT NULL,
-  `platform` VARCHAR(45) NULL,
+  `platform` VARCHAR(256) NULL,
   `ip_address` VARCHAR(45) NULL,
   PRIMARY KEY (`audit_id`),
   INDEX `user_id_idx` (`user_id` ASC) VISIBLE,

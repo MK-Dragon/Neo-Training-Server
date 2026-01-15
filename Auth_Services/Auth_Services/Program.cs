@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+using DotNetEnv;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,37 @@ var builder = WebApplication.CreateBuilder(args);
 // Adding Connection Settigs as a singleton
 var connectionSettings = SettingsManager.CurrentSettings.GetAwaiter().GetResult();
 builder.Services.AddSingleton(connectionSettings);
+
+
+// Load the shared .env file
+// 1. Get the directory where the code is running
+string currentPath = Directory.GetCurrentDirectory();
+
+// 2. Search upwards for the .env file
+string envPath = "";
+DirectoryInfo? directory = new DirectoryInfo(currentPath);
+
+while (directory != null)
+{
+    string potentialPath = Path.Combine(directory.FullName, ".env");
+    if (File.Exists(potentialPath))
+    {
+        envPath = potentialPath;
+        break;
+    }
+    directory = directory.Parent;
+}
+
+if (!string.IsNullOrEmpty(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+    Console.WriteLine($"[SUCCESS] Loaded .env from: {envPath}");
+}
+else
+{
+    Console.WriteLine("[ERROR] Could not find .env file in any parent directory.");
+}
+
 
 
 // 1. Define a Secret Key (Crucial for security!)

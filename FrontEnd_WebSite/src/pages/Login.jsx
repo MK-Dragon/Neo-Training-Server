@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
+
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -8,6 +11,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isWaitingFor2FA, setIsWaitingFor2FA] = useState(false); // New State
   const navigate = useNavigate();
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -52,6 +56,35 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('https://localhost:7089/api/Api/google-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentialResponse.credential), // This is the JWT from Google
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        navigate('/');
+      } else {
+        setError(data.message || 'Google Login failed');
+      }
+    } catch (err) {
+      setError('Connection error during Google Login');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
 
   return (
     <div className="container d-flex justify-content-center align-items-center vh-100">
@@ -98,6 +131,19 @@ const Login = () => {
                 )}
               </button>
             </form>
+
+            <div className="mt-4 text-center">
+              <div className="d-flex align-items-center my-3">
+                <hr className="flex-grow-1" />
+                <span className="mx-2 text-muted small">OR</span>
+                <hr className="flex-grow-1" />
+              </div>
+
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError('Google Login Failed')}
+              />
+            </div>
 
             <div className="mt-3 text-center">
               <p className="mb-1">
