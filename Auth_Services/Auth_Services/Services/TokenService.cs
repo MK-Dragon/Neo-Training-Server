@@ -14,7 +14,7 @@ namespace Auth_Services.Services
             _configuration = configuration;
         }
 
-        public string GenerateToken(string username)
+        public string GenerateToken(string username, string role)
         {
             var jwtKey = _configuration["Jwt:Key"];
             var issuer = _configuration["Jwt:Issuer"];
@@ -25,8 +25,8 @@ namespace Auth_Services.Services
             {
             new Claim(JwtRegisteredClaimNames.Sub, username), // Unique identifier
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique token ID
-            new Claim(ClaimTypes.Name, username) // Standard claim for username
-            // Add other roles or user IDs here
+            new Claim(ClaimTypes.Name, username), // Standard claim for username
+            new Claim(ClaimTypes.Role, role)
         };
 
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

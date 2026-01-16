@@ -11,6 +11,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import ActivateAccount from './pages/ActivateAccount.jsx';
 import Verify2FA from './pages/Verify2FA.jsx';
+import UserManagement from './pages/UserManagement.jsx';
 
 // This helper component handles the logic
 function NavigationWrapper() {
@@ -38,6 +39,8 @@ function NavigationWrapper() {
           <Route path="/activate" element={<ActivateAccount />} />
           <Route path="/login" element={<Login />} />
           <Route path="/verify-2fa" element={<Verify2FA />} />
+
+          <Route path="/UserManagement" element={<UserManagement />} />
         </Routes>
       </div>
 

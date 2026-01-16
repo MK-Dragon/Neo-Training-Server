@@ -43,6 +43,7 @@ function NavBar() {
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
             <Nav.Link as={Link} to="/">Dashboard</Nav.Link>
+            <Nav.Link as={Link} to="/UserManagement">Edit Users</Nav.Link>
             {/* We use an anchor-like link but trigger the function */}
             <Nav.Link onClick={handleLogout} style={{ cursor: 'pointer' }}>
               Logout

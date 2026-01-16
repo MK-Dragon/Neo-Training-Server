@@ -3,6 +3,8 @@
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
 using Auth_Services.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
 using StackExchange.Redis;
 using System;
@@ -38,9 +40,16 @@ namespace Auth_Services.Services
 
         /*
         Redis Cache Keys:
-
-        (none for now)
+            User by ID: "user_{userId}"
+            User by Username: "user_{username}"
+            All Users: "all_users"
          */
+
+
+        // Shared Queries
+        private const string GET_USER_QUERY = @"
+        SELECT user_id, username, email
+        FROM users"; // add WHERE clauses as needed
 
 
         public DbServices(string server, int port, string db, string user, string pass, string redisIp, int redisPort)
@@ -144,6 +153,15 @@ namespace Auth_Services.Services
         }
 
 
+        public async Task InvalidateUserCacheAsync(User user)
+        {
+            // Invalidate Cache for this user and All Users list
+            await InvalidateCacheKeyAsync($"user_{user.Username}");
+            await InvalidateCacheKeyAsync($"user_{user.Email}");
+            await InvalidateCacheKeyAsync($"user_{user.Id}"); 
+            await InvalidateCacheKeyAsync($"all_users");
+        }
+
 
         // Generic methods:
         public async Task<List<T>> GetDataAsync<T>(
@@ -200,22 +218,54 @@ namespace Auth_Services.Services
         }
 
 
-        // Testing method to get all users
-        public async Task getAllUsers() // testing method
+
+
+
+        // Get all Users
+        public async Task<List<User>> GetAllUsers() // testing method
         {
-            var users = await GetDataAsync<User>(
-                "SELECT user_id, username FROM users;",
-                reader => new User
-                {
-                    Id = reader.GetInt32(0),
-                    Username = reader.GetString(1)
-                }
-            );
-            Console.WriteLine("\n\n** Reading results:");
-            foreach (var user in users)
+            // Try Redis first
+            string cacheKey = $"all_users";
+
+            List<User> user = await GetCachedItemAsync<List<User>>(cacheKey);
+            if (user != null)
             {
-                Console.WriteLine($"\t{user.Id}: {user.Username}");
+                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
+                return user;
             }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                var users = await GetDataAsync<User>(
+                    "SELECT user_id, username, email, role_id FROM users",
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        RoleId = reader.GetInt32(3)
+                    }
+                );
+
+                // Update Cache
+                if (users.Count != 0)
+                {
+                    await SetCachedItemAsync(cacheKey, users, DefaultCacheExpiration);
+                    Console.WriteLine($"\tCaching for key: {cacheKey}");
+                }
+                return users;
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Get All Users failed - Connection failed");
+                return new List<User>();
+            }
+
         }
 
 
@@ -594,7 +644,7 @@ namespace Auth_Services.Services
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
-                        Username = reader.GetString(2),
+                        Username = reader.GetString(1),
                         Email = reader.GetString(2),
                     },
                     parameters // Pass parameters
@@ -621,6 +671,116 @@ namespace Auth_Services.Services
                 return new User { Id = 0 };
             }
         }
+
+
+        // GET User By Id Method
+        public async Task<User> GetUserById(int user_id)
+        {
+            // Try Redis first
+            string cacheKey = $"user_{user_id}";
+
+            User user = await GetCachedItemAsync<User>(cacheKey);
+            if (user != null)
+            {
+                return user; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = @$"
+        {GET_USER_QUERY}
+        WHERE user_id = @user;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@user", user_id)
+            };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Login successful for user: {user_id}");
+
+                    // TODO: Cache User:
+
+                    return users[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Login failed for user: {user_id}");
+                    return new User { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Login failed - Connection failed");
+                return new User { Id = 0 };
+            }
+        }
+
+
+
+
+        // ** Crud Methods **
+
+
+        // Update User Method
+        public async Task<bool> UpdateUser(User user) // invalidate ALL cache for this user
+        {
+            try
+            {
+                string query = @"
+        UPDATE users SET role_id = @roleId, pass_hash = @pass WHERE (username = @userName);";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@userName", user.Username),
+                new MySqlParameter("@roleId", user.RoleId),
+                new MySqlParameter("@pass", user.Password)
+            };
+
+                var users = await GetDataAsync<User>(
+                    query,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Activated = reader.GetInt32(1)
+                    },
+                    parameters // Pass parameters
+                );
+
+                // invalidate ALL cache for this user
+                await InvalidateUserCacheAsync(user);
+                return true;
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Update User failed - Connection failed");
+                return false;
+            }
+
+        }
+
+
+
 
 
 

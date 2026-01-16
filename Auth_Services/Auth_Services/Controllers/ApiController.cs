@@ -41,14 +41,8 @@ namespace Auth_Services.Controllers
         }
 
 
-        [HttpGet("test_generic")]
-        public async Task GetAllUsers()
-        {
-            await _dbServices.getAllUsers();
-        }
 
-
-        // Login / Logout Related Endpoints
+        // ** Login / Logout Related Endpoints **
 
 
         [HttpPost("login")] // checks User&Password then "waits" for 2FA
@@ -128,8 +122,16 @@ namespace Auth_Services.Controllers
                 // Extract username: "approved|john_doe" -> "john_doe"
                 string username = cachedValue.Split('|')[1];
 
+                User user = await _dbServices.GetUserByUsernameOrEmail(username);
+                string roleName = user.RoleId switch
+                {
+                    1 => "Admin",
+                    2 => "Editor",
+                    _ => "Student"
+                };
+
                 // 1. Generate JWT Token
-                string token = _tokenService.GenerateToken(username);
+                string token = _tokenService.GenerateToken(username, roleName);
 
                 // 2. Get Platform (User-Agent) and IP Address
                 string platform = Request.Headers["User-Agent"].ToString();
@@ -369,7 +371,33 @@ namespace Auth_Services.Controllers
 
 
 
+        // ** CRUD Users **
 
+
+        // 1. Fetch all users
+        [HttpGet("users")]
+        [Authorize(Roles = "Admin")] // Recommended: Only let admins see this
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _dbServices.GetAllUsers(); // Assume this returns List<User>
+            return Ok(users);
+        }
+
+        // 2. Update a user
+        [HttpPut("users/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedData)
+        {
+            var existingUser = await _dbServices.GetUserById(id);
+            if (existingUser.Id == 0) return NotFound();
+
+            existingUser.Username = updatedData.Username;
+            existingUser.Email = updatedData.Email;
+            existingUser.RoleId = updatedData.RoleId;
+
+            await _dbServices.UpdateUser(existingUser);
+            return Ok(new { message = "User updated successfully" });
+        }
 
 
 
