@@ -280,9 +280,10 @@ namespace Auth_Services.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GoogleLogin([FromBody] string googleToken)
         {
+            Console.WriteLine($"DEBUG: Loing -> Google:");
             try
             {
-                Console.WriteLine($"DEBUG: Loing -> Google:");
+                Console.WriteLine($"> DEBUG: Enter TRY:");
 
                 // 1. Get Client ID from Env
                 string googleId = Environment.GetEnvironmentVariable("VITE_GOOGLE_CLIENT_ID");
@@ -292,6 +293,7 @@ namespace Auth_Services.Controllers
                     Audience = new List<string>() { googleId }
                 };
                 Console.WriteLine($"> DEBUG: Google ID from Env is: {googleId}");
+                Console.WriteLine($"> DEBUG: Settings?? is: {settings}");
 
                 // This verifies that the token is real, not expired, and meant for your app
                 var payload = await GoogleJsonWebSignature.ValidateAsync(googleToken, settings);
@@ -299,12 +301,13 @@ namespace Auth_Services.Controllers
                 // 2. Check if user exists (Check Email first as it's the unique anchor)
                 var user = await _dbServices.GetUserByUsernameOrEmail(payload.Email);
 
-                if (user == null)
+                if (user.Id == 0)
                 {
                     // NEW: Ensure username is unique (using email as fallback)
                     string uniqueUsername = payload.Email.Split('@')[0]; // "john.doe@gmail.com" -> "john.doe"
 
                     Console.WriteLine($"> DEBUG: Check Username: [{uniqueUsername}]");
+                    Console.WriteLine($"> DEBUG: Check E-Mail: [{payload.Email}]");
 
                     user = new User
                     {
@@ -320,6 +323,12 @@ namespace Auth_Services.Controllers
 
                     // Re-fetch to get the ID if necessary
                     user = await _dbServices.GetUserByUsernameOrEmail(payload.Email);
+                    Console.WriteLine($"> DEBUG: Check New User ID: [{user.Id}]");
+                    if (user.Id == 0)
+                    {
+                        Console.WriteLine("Error creating user from Google login. (User WAS NOT SAVED!!");
+                        return BadRequest(new { message = "Google login failed during user creation." });
+                    }
                 }
 
                 // 3. Generate LOCAL JWT

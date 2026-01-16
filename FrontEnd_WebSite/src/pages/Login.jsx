@@ -1,3 +1,5 @@
+// /src/pages/Login.jsx
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -59,30 +61,32 @@ const Login = () => {
 
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    setIsLoading(true);
-    setError('');
+  setIsLoading(true);
+  setError('');
+  setIsWaitingFor2FA(false); // Explicitly ensure we aren't in 2FA mode
 
-    try {
-      const response = await fetch('https://localhost:7089/api/Api/google-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentialResponse.credential), // This is the JWT from Google
-      });
+  try {
+    const response = await fetch('https://localhost:7089/api/Api/google-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentialResponse.credential),  // JWT from Google
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (response.ok) {
-        localStorage.setItem('token', data.token);
-        navigate('/');
-      } else {
-        setError(data.message || 'Google Login failed');
-      }
-    } catch (err) {
-      setError('Connection error during Google Login');
-    } finally {
-      setIsLoading(false);
+    if (response.ok) {
+      // Google is pre-verified! Go straight to the app.
+      localStorage.setItem('token', data.token);
+      navigate('/'); 
+    } else {
+      setError(data.message || 'Google Login failed');
     }
-  };
+  } catch (err) {
+    setError('Connection error during Google Login');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
 
 
