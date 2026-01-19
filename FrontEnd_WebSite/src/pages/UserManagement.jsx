@@ -39,6 +39,7 @@ const UserManagement = () => {
     };
 
     const handleSaveChanges = async () => {
+        console.log("** User Edited: " + selectedUser)
         const res = await fetch(`https://localhost:7089/api/Api/users/${selectedUser.id}`, {
             method: 'PUT',
             headers: { 

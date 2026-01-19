@@ -755,31 +755,38 @@ namespace Auth_Services.Services
         // Update User Method
         public async Task<bool> UpdateUser(User user) // invalidate ALL cache for this user
         {
+            Console.WriteLine($"Edit User");
+            Console.WriteLine($"> User: {user.Username}");
+            Console.WriteLine($"> RoleID: {user.RoleId}");
+            Console.WriteLine($"> Role: {user.Role}");
+            Console.WriteLine($"> Email: {user.Email}");
             try
             {
                 string query = @"
-        UPDATE users SET role_id = @roleId, pass_hash = @pass WHERE (username = @userName);";
+        UPDATE users SET username = @userName, role_id = @roleId, pass_hash = @pass, email = @eMail WHERE (user_id = @userId);";
 
                 // Create the parameters safely
                 var parameters = new[]
                 {
-                new MySqlParameter("@userName", user.Username),
+                new MySqlParameter("@userName", user.Username), // for debug
                 new MySqlParameter("@roleId", user.RoleId),
-                new MySqlParameter("@pass", user.Password)
+                new MySqlParameter("@pass", user.Password),
+                new MySqlParameter("@eMail", user.Email), // for debug
+                new MySqlParameter("@userId", user.Id) // for debug
             };
 
-                var users = await GetDataAsync<User>(
-                    query,
-                    reader => new User
-                    {
-                        Id = reader.GetInt32(0),
-                        Activated = reader.GetInt32(1)
-                    },
-                    parameters // Pass parameters
-                );
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine("Update failed: No user found with that ID/Username.");
+                    return false;
+                }
 
                 // invalidate ALL cache for this user
                 await InvalidateUserCacheAsync(user);
+
+                Console.WriteLine($"User {user.Username} updated! (result: {result})");
                 return true;
             }
             catch
