@@ -42,14 +42,21 @@ namespace Auth_Services.Services
         Redis Cache Keys:
             User by ID: "user_{userId}"
             User by Username: "user_{username}"
+            User by E-Mail: "user_{email}"
             All Users: "all_users"
          */
 
 
         // Shared Queries
         private const string GET_USER_QUERY = @"
-        SELECT user_id, username, email
-        FROM users"; // add WHERE clauses as needed
+        SELECT 
+            u.user_id, 
+            u.username, 
+            u.email, 
+            u.role_id, 
+            r.title
+        FROM users u
+        JOIN user_roles r ON u.role_id = r.role_id"; // add WHERE clauses as needed
 
 
         public DbServices(string server, int port, string db, string user, string pass, string redisIp, int redisPort)
@@ -242,13 +249,15 @@ namespace Auth_Services.Services
             try
             {
                 var users = await GetDataAsync<User>(
-                    "SELECT user_id, username, email, role_id FROM users",
+                    //"SELECT user_id, username, email, role_id FROM users",
+                    GET_USER_QUERY,
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
-                        RoleId = reader.GetInt32(3)
+                        RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
                     }
                 );
 
@@ -628,9 +637,8 @@ namespace Auth_Services.Services
             // go to DB
             try
             {
-                string query = @"
-        SELECT user_id, username, email
-        FROM users
+                string query = $@"
+        {GET_USER_QUERY}
         WHERE username = @user OR email = @user;";
 
                 // Create the parameters safely
@@ -646,6 +654,8 @@ namespace Auth_Services.Services
                         Id = reader.GetInt32(0),
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
+                        RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
                     },
                     parameters // Pass parameters
                 );
@@ -709,6 +719,7 @@ namespace Auth_Services.Services
                         Id = reader.GetInt32(0),
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
+                        Role = reader.GetString(4),
                     },
                     parameters // Pass parameters
                 );

@@ -1,13 +1,17 @@
-﻿namespace Auth_Services.Services
+﻿using StackExchange.Redis;
+
+namespace Auth_Services.Services
 {
     public class TFA_Services
     {
+        //public static string Generate2FAToken(string username, string role)
         public static string Generate2FAToken(string username)
         {
             // Get current time as a string (Ticks are long numbers representing time)
             string timestamp = DateTime.UtcNow.Ticks.ToString();
 
             // Combine with a separator that won't appear in usernames
+            //string rawData = $"{username}|{role}|{timestamp}";
             string rawData = $"{username}|{timestamp}";
 
             // Encrypt the whole string
@@ -15,6 +19,7 @@
         }
 
 
+        //public static string[] Validate2FAToken(string token)
         public static string Validate2FAToken(string token)
         {
             // Decrypt the token to get the original data
@@ -27,6 +32,10 @@
             }
             string username = parts[0];
             string timestampStr = parts[1];
+            /*
+            string role = parts[1];
+            string timestampStr = parts[2];
+            */
             // Parse the timestamp
             if (!long.TryParse(timestampStr, out long ticks))
             {
@@ -40,6 +49,7 @@
                 throw new ArgumentException("Token has expired");
             }
             return username;
+            //return [username, role];
         }
     }
 }

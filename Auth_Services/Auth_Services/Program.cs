@@ -1,12 +1,11 @@
 // Program.cs
 
 using Auth_Services.Services;
-
+using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
-
-using DotNetEnv;
 
 
 
@@ -78,7 +77,10 @@ builder.Services.AddAuthentication(options =>
 
         // Lifetime validation
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // Remove default 5-minute clock skew
+        ClockSkew = TimeSpan.Zero, // Remove default 5-minute clock skew
+
+        // Map standard claims
+        RoleClaimType = ClaimTypes.Role
     };
 });
 

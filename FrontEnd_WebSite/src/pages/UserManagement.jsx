@@ -13,12 +13,25 @@ const UserManagement = () => {
     }, []);
 
     const fetchUsers = async () => {
+    try {
         const res = await fetch('https://localhost:7089/api/Api/users', {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
+
+        // 1. Check if the response is actually okay (200-299)
+        if (!res.ok) {
+            const errorText = await res.text(); // Get raw text to see the error
+            console.error(`Error ${res.status}: ${errorText}`);
+            return;
+        }
+
+        // 2. Only parse if there is content
         const data = await res.json();
         setUsers(data);
-    };
+    } catch (err) {
+        console.error("Fetch failed:", err);
+    }
+};
 
     const handleEditClick = (user) => {
         setSelectedUser({ ...user }); // Clone user to avoid direct state mutation

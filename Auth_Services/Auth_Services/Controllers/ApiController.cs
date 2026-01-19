@@ -66,6 +66,7 @@ namespace Auth_Services.Controllers
                 await _dbServices.SetCachedItemAsync($"2fa_{requestId}", $"pending|{loginData.Username}", TimeSpan.FromMinutes(1)); // TODO: 1min for testing, change to 5min for production
 
                 // Create and send 2FA token
+                //string tfaToken = TFA_Services.Generate2FAToken(loginData.Username, user.Role);
                 string tfaToken = TFA_Services.Generate2FAToken(loginData.Username);
                 string tfaLink = $"http://localhost:5173/verify-2fa?request={requestId}&code={tfaToken}";
                 // send 2FA code via email
@@ -87,16 +88,27 @@ namespace Auth_Services.Controllers
             }
         }
 
-        [HttpGet("verify-2fa")] 
+        [HttpGet("verify-2fa")] // verifies 2FA code from email link
         public async Task<IActionResult> Verify2FA(string request, string code)
         {
             Console.WriteLine($"2FA Verify - Request: {request} | Code: {code}");
 
             // ... Decrypt code and check timestamp ...
             string username = "";
+            //string role = "";
             try
             {
                 username = TFA_Services.Validate2FAToken(code);
+                /*string[] parts = TFA_Services.Validate2FAToken(code);
+
+                if (parts.Length >= 2) {
+                    username = parts[0];
+                    role = parts[1];
+                }
+                else
+                {
+                    return BadRequest(new { message = "Invalid 2FA code format." });
+                }*/
 
             }
             catch (Exception ex)
@@ -105,13 +117,15 @@ namespace Auth_Services.Controllers
             }
 
             // If valid, update the status in Redis
+            //await _dbServices.SetCachedItemAsync($"2fa_{request}", $"approved|{username}|{role}", TimeSpan.FromMinutes(1));
             await _dbServices.SetCachedItemAsync($"2fa_{request}", $"approved|{username}", TimeSpan.FromMinutes(1));
             Console.WriteLine($"2FA aproved for User {username}!");
+            //Console.WriteLine($"2FA aproved for User {username}! Role {role}");
 
             return Ok(new { message = "Verified! You can now close this tab and return to your PC." });
         }
 
-        [HttpGet("check-2fa-status/{requestId}")]
+        [HttpGet("check-2fa-status/{requestId}")] // checks if 2FA was approved
         public async Task<IActionResult> CheckStatus(string requestId)
         {
             string cachedValue = await _dbServices.GetCachedItemAsync<string>($"2fa_{requestId}");
@@ -119,16 +133,22 @@ namespace Auth_Services.Controllers
             // Check if the string starts with "approved|"
             if (!string.IsNullOrEmpty(cachedValue) && cachedValue.StartsWith("approved|"))
             {
-                // Extract username: "approved|john_doe" -> "john_doe"
+                // Extract username: "approved|john_doe|Admin" -> "john_doe"
                 string username = cachedValue.Split('|')[1];
+                //string roleName = cachedValue.Split('|')[2];
+
+                //Console.WriteLine($"2FA Status Check - Approved for User: {username} with Role: {roleName} (Token)");
+                Console.WriteLine($"2FA Status Check - Approved for User: {username} - (Token)");
 
                 User user = await _dbServices.GetUserByUsernameOrEmail(username);
                 string roleName = user.RoleId switch
                 {
                     1 => "Admin",
-                    2 => "Editor",
+                    2 => "Teacher",
                     _ => "Student"
                 };
+                Console.WriteLine($"2FA Status Check - Approved for User: {user.Username} with Role: {roleName} (DB)");
+
 
                 // 1. Generate JWT Token
                 string token = _tokenService.GenerateToken(username, roleName);
@@ -282,10 +302,10 @@ namespace Auth_Services.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GoogleLogin([FromBody] string googleToken)
         {
-            Console.WriteLine($"DEBUG: Loing -> Google:");
+            Console.WriteLine($"DEBUG: Login -> Google:");
             try
             {
-                Console.WriteLine($"> DEBUG: Enter TRY:");
+                //Console.WriteLine($"> DEBUG: Enter TRY:");
 
                 // 1. Get Client ID from Env
                 string googleId = Environment.GetEnvironmentVariable("VITE_GOOGLE_CLIENT_ID");
@@ -294,8 +314,8 @@ namespace Auth_Services.Controllers
                 {
                     Audience = new List<string>() { googleId }
                 };
-                Console.WriteLine($"> DEBUG: Google ID from Env is: {googleId}");
-                Console.WriteLine($"> DEBUG: Settings?? is: {settings}");
+                //Console.WriteLine($"> DEBUG: Google ID from Env is: {googleId}");
+                //Console.WriteLine($"> DEBUG: Settings?? is: {settings}");
 
                 // This verifies that the token is real, not expired, and meant for your app
                 var payload = await GoogleJsonWebSignature.ValidateAsync(googleToken, settings);
@@ -308,8 +328,8 @@ namespace Auth_Services.Controllers
                     // NEW: Ensure username is unique (using email as fallback)
                     string uniqueUsername = payload.Email.Split('@')[0]; // "john.doe@gmail.com" -> "john.doe"
 
-                    Console.WriteLine($"> DEBUG: Check Username: [{uniqueUsername}]");
-                    Console.WriteLine($"> DEBUG: Check E-Mail: [{payload.Email}]");
+                    //Console.WriteLine($"> DEBUG: Check Username: [{uniqueUsername}]");
+                    //Console.WriteLine($"> DEBUG: Check E-Mail: [{payload.Email}]");
 
                     user = new User
                     {
@@ -325,7 +345,7 @@ namespace Auth_Services.Controllers
 
                     // Re-fetch to get the ID if necessary
                     user = await _dbServices.GetUserByUsernameOrEmail(payload.Email);
-                    Console.WriteLine($"> DEBUG: Check New User ID: [{user.Id}]");
+                    //Console.WriteLine($"> DEBUG: Check New User ID: [{user.Id}]");
                     if (user.Id == 0)
                     {
                         Console.WriteLine("Error creating user from Google login. (User WAS NOT SAVED!!");
@@ -334,12 +354,14 @@ namespace Auth_Services.Controllers
                 }
 
                 // 3. Generate LOCAL JWT
-                string localToken = _tokenService.GenerateToken(user.Username);
+                string localToken = _tokenService.GenerateToken(user.Username, user.Role);
+                //string localToken = _tokenService.GenerateToken(user.Username, user.Role);
 
                 // 4. Audit Log
                 string platform = Request.Headers["User-Agent"].ToString();
                 string userIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
 
+                Console.WriteLine($"> DEBUG: Check Username: [{user.Username}]");
                 Console.WriteLine($"> DEBUG: Plataform: [{platform}]");
                 Console.WriteLine($"> DEBUG: User IP: [{userIp}]");
 
@@ -358,7 +380,7 @@ namespace Auth_Services.Controllers
 
                 await _dbServices.AddLoginEntry(user, platform, userIp);
 
-                Console.WriteLine($"> DEBUG: Token e Returned!");
+                //Console.WriteLine($"> DEBUG: Token e Returned!");
                 return Ok(new { token = localToken });
             }
             catch (Exception ex)
