@@ -32,6 +32,8 @@ const Login = () => {
       if (response.ok) {
         // Instead of navigating, start the 2FA wait
         setIsWaitingFor2FA(true);
+        localStorage.setItem("username", data.user);
+        localStorage.setItem("userRole", data.role);
         
         // Polling Logic
         const interval = setInterval(async () => {
@@ -79,7 +81,8 @@ const Login = () => {
       // Google is pre-verified! Go straight to the app.
       console.log("Data: debug: " + data);
       localStorage.setItem('token', data.token);
-      localStorage.setItem("username", data.user)
+      localStorage.setItem("username", data.user);
+      //localStorage.setItem("userRole", data.role);
       navigate('/'); 
     } else {
       setError(data.message || 'Google Login failed');

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Cryptography.Xml;
+//using static Pipelines.Sockets.Unofficial.Threading.MutexSlim;
 
 namespace Auth_Services.Controllers
 {
@@ -73,9 +74,7 @@ namespace Auth_Services.Controllers
                 MailServices mailServices = new MailServices();
                 await mailServices.SendMail(user.Email, "Your 2FA Code", $"Hello {user.Username},\n\nYour 2FA verification code is: {tfaLink}\n\nThis code is valid for 5 minutes.");
 
-
-
-                return Ok(new { requires2FA = true, requestId = requestId });
+                return Ok(new { requires2FA = true, requestId = requestId, username = user.Username, role = user.Role });
             }
             else if (user.Id != 0 && user.Activated == 0)
             {
@@ -366,23 +365,16 @@ namespace Auth_Services.Controllers
                 Console.WriteLine($"> DEBUG: Plataform: [{platform}]");
                 Console.WriteLine($"> DEBUG: User IP: [{userIp}]");
 
-                // Create the entry object
+                // Create the entry object (?? realy needed ?? C# takes care of this autoMagicly)
                 user.Token = localToken;
                 user.CreatedAt = DateTime.UtcNow;
                 user.ExpiresAt = DateTime.UtcNow.AddHours(2);
 
-                /*User loginEntry = new User
-                {
-                    Username = user.Username,
-                    Token = localToken,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddHours(2)
-                };*/
-
+                user.Provider = "Google";
                 await _dbServices.AddLoginEntry(user, platform, userIp);
 
                 //Console.WriteLine($"> DEBUG: Token e Returned!");
-                return Ok(new { token = localToken });
+                return Ok(new { token = localToken, username = user.Username, role = user.Role });
             }
             catch (Exception ex)
             {
@@ -397,7 +389,7 @@ namespace Auth_Services.Controllers
         // ** CRUD Users **
 
 
-        // 1. Fetch all users
+        // Fetch all users
         [HttpGet("users")]
         [Authorize(Roles = "Admin")] // Recommended: Only let admins see this
         public async Task<IActionResult> GetAllUsers()
@@ -406,7 +398,7 @@ namespace Auth_Services.Controllers
             return Ok(users);
         }
 
-        // 2. Update a user
+        // Update a user
         [HttpPut("users/{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] AppUser updatedData)
@@ -432,6 +424,27 @@ namespace Auth_Services.Controllers
             }
             return Ok(new { message = "User updated successfully" });
         }
+
+        [HttpPut("deleteusers/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var existingUser = await _dbServices.GetUserById(id);
+            if (existingUser.Id == 0) return NotFound();
+
+            
+
+            bool status = await _dbServices.DeleteUser(existingUser);
+            if (!status)
+            {
+                return StatusCode(500, new { message = "Failed to DELETE user." });
+            }
+            return Ok(new { message = "User DELETED Successfully" });
+        }
+
+
+
+
 
 
 

@@ -543,8 +543,9 @@ namespace Auth_Services.Services
                     new MySqlParameter("@Email", user.Email),
                     new MySqlParameter("@PassHash", user.Password),
                     new MySqlParameter("@RoleId", user.RoleId),
-                    new MySqlParameter("@Activated", '0'),
+                    new MySqlParameter("@Activated", '1'),
                     new MySqlParameter("@BirthDate", user.BirthDate.Date)
+                    //new MySqlParameter("@provider", user.Provider)
                 };
 
                 return await ExecuteNonQueryAsync(sql, parameters);
@@ -916,7 +917,49 @@ namespace Auth_Services.Services
 
         }
 
+        // DELETE User Method
+        public async Task<bool> DeleteUser(User user) // invalidate ALL cache for this user
+        {
+            Console.WriteLine($"DEELETE User");
+            Console.WriteLine($"> User: {user.Username}");
+            Console.WriteLine($"> RoleID: {user.RoleId}");
+            Console.WriteLine($"> Role: {user.Role}");
+            Console.WriteLine($"> Email: {user.Email}");
 
+            try
+            {
+
+                string query = @"
+        DELETE FROM users 
+        WHERE user_id = @userId;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                    new MySqlParameter("@userId", user.Id) // for debug
+                };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine("DELETE failed: No user found with that ID.");
+                    return false;
+                }
+
+                // invalidate ALL cache for this user
+                await InvalidateUserCacheAsync(user);
+
+                Console.WriteLine($"User {user.Username} DELETED! (result: {result})");
+                return true;
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** DELETE User failed - Connection failed");
+                return false;
+            }
+
+        }
 
 
 
