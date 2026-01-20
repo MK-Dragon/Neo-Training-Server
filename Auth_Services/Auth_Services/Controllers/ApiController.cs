@@ -194,9 +194,10 @@ namespace Auth_Services.Controllers
             // The middleware already did the heavy lifting.
 
             var username = User.Identity?.Name;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
 
             Console.WriteLine($"[VERIFY] User '{username}' is authorized.");
-            return Ok(new { status = "Success", message = "User is authorized" });
+            return Ok(new { status = "Success", message = "User is authorized", username=username, role=role });
         }
 
         [Authorize]
@@ -401,23 +402,34 @@ namespace Auth_Services.Controllers
         [Authorize(Roles = "Admin")] // Recommended: Only let admins see this
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _dbServices.GetAllUsers(); // Assume this returns List<User>
+            var users = await _dbServices.GetAllAppUsers(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
             return Ok(users);
         }
 
         // 2. Update a user
         [HttpPut("users/{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] User updatedData)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] AppUser updatedData)
         {
             var existingUser = await _dbServices.GetUserById(id);
             if (existingUser.Id == 0) return NotFound();
 
             existingUser.Username = updatedData.Username;
             existingUser.Email = updatedData.Email;
-            existingUser.RoleId = updatedData.RoleId;
+            existingUser.Role = updatedData.Role;
+            existingUser.Activated = updatedData.Activated;
+            existingUser.BirthDate = updatedData.BirthDate;
 
-            await _dbServices.UpdateUser(existingUser);
+            if (!string.IsNullOrWhiteSpace(updatedData.NewPasswordHash))
+            {
+                existingUser.Password = DEncript.EncryptString(updatedData.NewPasswordHash);
+            }
+
+            bool status = await _dbServices.UpdateUser(existingUser);
+            if (!status)
+            {
+                return StatusCode(500, new { message = "Failed to update user." });
+            }
             return Ok(new { message = "User updated successfully" });
         }
 

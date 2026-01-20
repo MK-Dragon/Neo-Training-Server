@@ -24,7 +24,12 @@ const Home = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Verified user:", data.user);
+        //console.log("Verified user:", data.user);
+        console.log("Verified username:", data.username);
+        localStorage.setItem("username", data.username);
+        console.log("User Role:", data.role);
+        localStorage.setItem("userRole", data.role);
+
       } else {
         // Token is expired, tampered with, or invalid
         localStorage.removeItem('token');

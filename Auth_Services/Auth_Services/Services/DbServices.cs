@@ -40,10 +40,15 @@ namespace Auth_Services.Services
 
         /*
         Redis Cache Keys:
+
+        Users:
             User by ID: "user_{userId}"
             User by Username: "user_{username}"
             User by E-Mail: "user_{email}"
             All Users: "all_users"
+
+        Roles:
+            all_roles
          */
 
 
@@ -54,7 +59,8 @@ namespace Auth_Services.Services
             u.username, 
             u.email, 
             u.role_id, 
-            r.title
+            r.title,
+            u.pass_hash
         FROM users u
         JOIN user_roles r ON u.role_id = r.role_id"; // add WHERE clauses as needed
 
@@ -167,6 +173,7 @@ namespace Auth_Services.Services
             await InvalidateCacheKeyAsync($"user_{user.Email}");
             await InvalidateCacheKeyAsync($"user_{user.Id}"); 
             await InvalidateCacheKeyAsync($"all_users");
+            await InvalidateCacheKeyAsync($"all_app_users"); 
         }
 
 
@@ -228,7 +235,7 @@ namespace Auth_Services.Services
 
 
 
-        // Get all Users
+        // Get all Users (full info)
         public async Task<List<User>> GetAllUsers() // testing method
         {
             // Try Redis first
@@ -273,6 +280,55 @@ namespace Auth_Services.Services
             {
                 Console.WriteLine($"\n\n** Get All Users failed - Connection failed");
                 return new List<User>();
+            }
+
+        }
+
+        // Get all APP Users (limited info)
+        public async Task<List<AppUser>> GetAllAppUsers() // testing method
+        {
+            // Try Redis first
+            string cacheKey = $"all_app_users";
+
+            List<AppUser> user = await GetCachedItemAsync<List<AppUser>>(cacheKey);
+            if (user != null)
+            {
+                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
+                return user;
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                var users = await GetDataAsync<AppUser>(
+                    //"SELECT user_id, username, email, role_id FROM users",
+                    GET_USER_QUERY,
+                    reader => new AppUser
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        //RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
+                    }
+                );
+
+                // Update Cache
+                if (users.Count != 0)
+                {
+                    await SetCachedItemAsync(cacheKey, users, DefaultCacheExpiration);
+                    Console.WriteLine($"\tCaching for key: {cacheKey}");
+                }
+                return users;
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Get All Users failed - Connection failed");
+                return new List<AppUser>();
             }
 
         }
@@ -720,6 +776,7 @@ namespace Auth_Services.Services
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
                         Role = reader.GetString(4),
+                        Password = reader.GetString(5),
                     },
                     parameters // Pass parameters
                 );
@@ -747,6 +804,53 @@ namespace Auth_Services.Services
         }
 
 
+        // GET Role IDs Method
+        public async Task<Dictionary<int, string>> GetRoleIdTitle()
+        {
+            string cacheKey = "all_roles";
+
+            // 1. Try Redis Cache
+            var cachedRoles = await GetCachedItemAsync<Dictionary<int, string>>(cacheKey);
+            if (cachedRoles != null)
+            {
+                return cachedRoles;
+            }
+
+            Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+
+            // 2. Prepare the dictionary to hold results from DB
+            var roleDictionary = new Dictionary<int, string>();
+
+            try
+            {
+                string query = "SELECT role_id, title FROM user_roles;";
+
+                // We use a generic list/helper to execute the query
+                // and fill our dictionary inside the reader loop
+                await GetDataAsync<object>(
+                    query,
+                    reader => {
+                        int id = reader.GetInt32(0);
+                        string title = reader.GetString(1);
+                        roleDictionary[id] = title;
+                        return null; // We don't actually need the list return
+                    }
+                );
+
+                if (roleDictionary.Count > 0)
+                {
+                    // 3. Save to Redis before returning (e.g., for 24 hours)
+                    await SetCachedItemAsync(cacheKey, roleDictionary, TimeSpan.FromHours(24));
+                    return roleDictionary;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching roles: {ex.Message}");
+            }
+
+            return new Dictionary<int, string>(); // Return empty instead of null to prevent crashes
+        }
 
 
         // ** Crud Methods **
@@ -760,8 +864,23 @@ namespace Auth_Services.Services
             Console.WriteLine($"> RoleID: {user.RoleId}");
             Console.WriteLine($"> Role: {user.Role}");
             Console.WriteLine($"> Email: {user.Email}");
+
+            Dictionary<int, string> roles = await GetRoleIdTitle();
+
+            // Validate and Get Role if Exists
             try
             {
+                user.RoleId = roles.FirstOrDefault(x => x.Value == user.Role).Key;
+            }
+            catch (Exception ex)
+            { 
+                Console.WriteLine("Update failed: invalid Role " + ex.Message);
+                return false;
+            }
+
+            try
+            {
+                
                 string query = @"
         UPDATE users SET username = @userName, role_id = @roleId, pass_hash = @pass, email = @eMail WHERE (user_id = @userId);";
 

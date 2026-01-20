@@ -42,6 +42,7 @@ const Login = () => {
             if (statusData.verified) {
               clearInterval(interval);
               localStorage.setItem('token', statusData.token);
+              console.log("Data: debug: " + statusData);
               navigate('/');
             }
           } catch (pollErr) {
@@ -76,7 +77,9 @@ const Login = () => {
 
     if (response.ok) {
       // Google is pre-verified! Go straight to the app.
+      console.log("Data: debug: " + data);
       localStorage.setItem('token', data.token);
+      localStorage.setItem("username", data.user)
       navigate('/'); 
     } else {
       setError(data.message || 'Google Login failed');
