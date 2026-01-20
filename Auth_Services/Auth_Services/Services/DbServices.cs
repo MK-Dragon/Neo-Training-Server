@@ -45,6 +45,7 @@ namespace Auth_Services.Services
             User by ID: "user_{userId}"
             User by Username: "user_{username}"
             User by E-Mail: "user_{email}"
+            User Profile by Username: "user_profile_{username}"
             All Users: "all_users"
 
         Roles:
@@ -63,6 +64,15 @@ namespace Auth_Services.Services
             u.pass_hash
         FROM users u
         JOIN user_roles r ON u.role_id = r.role_id"; // add WHERE clauses as needed
+
+        private const string GET_USER_PROFILE_QUERY = @"
+        SELECT 
+            u.user_id, 
+            u.username, 
+            u.email, 
+            r.title
+        FROM users u
+        JOIN user_roles r ON u.role_id = r.role_id"; // TODO: Add curse and additional profile fields as needed
 
 
         public DbServices(string server, int port, string db, string user, string pass, string redisIp, int redisPort)
@@ -171,9 +181,12 @@ namespace Auth_Services.Services
             // Invalidate Cache for this user and All Users list
             await InvalidateCacheKeyAsync($"user_{user.Username}");
             await InvalidateCacheKeyAsync($"user_{user.Email}");
-            await InvalidateCacheKeyAsync($"user_{user.Id}"); 
+            await InvalidateCacheKeyAsync($"user_{user.Id}");
+
+            await InvalidateCacheKeyAsync($"user_profile_{user.Username}");
+
             await InvalidateCacheKeyAsync($"all_users");
-            await InvalidateCacheKeyAsync($"all_app_users"); 
+            await InvalidateCacheKeyAsync($"all_app_users");
         }
 
 
@@ -392,7 +405,8 @@ namespace Auth_Services.Services
                 {
                     Console.WriteLine($"\n\n** Login successful for user: {user_login.Username}");
 
-                    // TODO: Cache User:
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
 
                     return users[0];
                 }
@@ -499,7 +513,8 @@ namespace Auth_Services.Services
                 {
                     Console.WriteLine($"\n\n** Validation successful for user: {user_token.Username}");
 
-                    // TODO: Cache User:
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
 
                     return users[0];
                 }
@@ -722,7 +737,8 @@ namespace Auth_Services.Services
                 {
                     Console.WriteLine($"\n\n** Login successful for user: {user_name_mail}");
 
-                    // TODO: Cache User:
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
 
                     return users[0];
                 }
@@ -787,7 +803,8 @@ namespace Auth_Services.Services
                 {
                     Console.WriteLine($"\n\n** Login successful for user: {user_id}");
 
-                    // TODO: Cache User:
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
 
                     return users[0];
                 }
@@ -962,6 +979,70 @@ namespace Auth_Services.Services
         }
 
 
+        // GET User Profile By Username Method (rip ??)
+        public async Task<UserProfile> GetUserProfileByUsername(string username)
+        {
+            // Try Redis first
+            string cacheKey = $"user_profile_{username}";
+
+            UserProfile user = await GetCachedItemAsync<UserProfile>(cacheKey);
+            if (user != null)
+            {
+                return user; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = $@"
+        {GET_USER_PROFILE_QUERY}
+        WHERE username = @user;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@user", username)
+            };
+
+                var users = await GetDataAsync<UserProfile>(
+                    query,
+                    reader => new UserProfile
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        Role = reader.GetString(3),
+                        // TODO: add date of birth
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Login successful for user: {username}");
+
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
+
+                    return users[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Login failed for user: {username}");
+                    return new UserProfile { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Login failed - Connection failed");
+                return new UserProfile { Id = 0 };
+            }
+        }
 
 
     }

@@ -33,6 +33,7 @@ function NavBar() {
       console.error("API logout failed", err);
     }
 
+    // Clear Local Storage!!
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     localStorage.removeItem('userRole');
@@ -63,7 +64,7 @@ function NavBar() {
           </Nav>
 
           <Nav>
-            <Nav.Link as={Link} to="/profile" className="fw-bold text-info" onClick={closeNav}>
+            <Nav.Link as={Link} to="/userProfile" className="fw-bold text-info" onClick={closeNav}>
               👤 {username}
             </Nav.Link>
             <Nav.Link onClick={handleLogout} style={{ cursor: 'pointer' }}>

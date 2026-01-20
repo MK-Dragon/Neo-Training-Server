@@ -426,7 +426,7 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "User updated successfully" });
         }
 
-        [HttpPut("deleteusers/{id}")]
+        [HttpPut("deleteusers/{id}")] // UnTested!! TODO: TEST!!!
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
@@ -443,8 +443,59 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "User DELETED Successfully" });
         }
 
+        // Fetch User Profile
+        [HttpGet("users/{username}")]
+        [Authorize] // Admin only or Username = requested Username
+        public async Task<IActionResult> GetUsersProfile(string username)
+        {
+            // Security Check: Is the requester an Admin OR the owner of the profile?
+            var currentUserName = User.Identity?.Name;
+            bool isAdmin = User.IsInRole("Admin");
+
+            if (currentUserName != username && !isAdmin)
+            {
+                return Forbid(); // Return 403 if they try to peek at someone else's profile
+            }
+
+            // Fetch the Raw User from DB
+            var userInDb = await _dbServices.GetUserByUsernameOrEmail(username);
+            if (userInDb == null) return NotFound("User not found.");
+
+            // Map AppUser class for the Frontend
+            var profile = new AppUser
+            {
+                Id = userInDb.Id,
+                Username = userInDb.Username,
+                Email = userInDb.Email,
+                Role = userInDb.Role,
+
+                BirthDate = userInDb.BirthDate,
+
+                Activated = userInDb.Activated
+            };
+
+            return Ok(profile);
+        }
 
 
+        [HttpPost("change-password")] // UnTested TODO: TEST!!!
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] AppUser data)
+        {
+            /*/ 1. Get current user from Token
+            var username = User.Identity?.Name;
+            var userInDb = await _dbServices.GetUserByUsername(username);
+
+            // 2. Verify Old Password
+            bool isValid = BCrypt.Net.BCrypt.Verify(data.OldPasswordHash, userInDb.PasswordHash);
+            if (!isValid) return BadRequest("The current password you entered is incorrect.");
+
+            // 3. Hash and Save New Password
+            userInDb.PasswordHash = BCrypt.Net.BCrypt.HashPassword(data.NewPasswordHash);
+            await _dbServices.UpdateUser(userInDb);*/
+
+            return Ok("Password changed successfully.");
+        }
 
 
 
