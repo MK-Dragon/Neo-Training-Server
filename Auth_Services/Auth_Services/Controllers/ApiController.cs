@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Cryptography.Xml;
-//using static Pipelines.Sockets.Unofficial.Threading.MutexSlim;
+using static Pipelines.Sockets.Unofficial.Threading.MutexSlim;
 
 namespace Auth_Services.Controllers
 {
@@ -375,6 +375,7 @@ namespace Auth_Services.Controllers
 
                 //Console.WriteLine($"> DEBUG: Token e Returned!");
                 return Ok(new { token = localToken, username = user.Username, role = user.Role });
+                //return Ok(new { token = localToken });
             }
             catch (Exception ex)
             {

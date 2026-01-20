@@ -32,7 +32,7 @@ const Login = () => {
       if (response.ok) {
         // Instead of navigating, start the 2FA wait
         setIsWaitingFor2FA(true);
-        localStorage.setItem("username", data.user);
+        localStorage.setItem("username", data.username);
         localStorage.setItem("userRole", data.role);
         
         // Polling Logic
@@ -82,7 +82,7 @@ const Login = () => {
       console.log("Data: debug: " + data);
       localStorage.setItem('token', data.token);
       localStorage.setItem("username", data.user);
-      //localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userRole", data.role);
       navigate('/'); 
     } else {
       setError(data.message || 'Google Login failed');
