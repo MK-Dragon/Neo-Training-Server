@@ -382,7 +382,7 @@ namespace Auth_Services.Services
                         Id = reader.GetInt32(0),
                         Activated = reader.GetInt32(1),
                         Email = reader.GetString(2),
-                        Username = user_login.Password
+                        Username = user_login.Username
                     },
                     parameters // Pass parameters
                 );
