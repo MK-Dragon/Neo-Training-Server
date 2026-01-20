@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   CONSTRAINT `user_type`
     FOREIGN KEY (`role_id`)
     REFERENCES `mydb`.`user_roles` (`role_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`audit` (
   CONSTRAINT `user_id`
     FOREIGN KEY (`user_id`)
     REFERENCES `mydb`.`users` (`user_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turmas` (
   CONSTRAINT `course_turma`
     FOREIGN KEY (`course_id`)
     REFERENCES `mydb`.`courses` (`id_cursos`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -114,12 +114,12 @@ CREATE TABLE IF NOT EXISTS `mydb`.`enrollments` (
   CONSTRAINT `studant`
     FOREIGN KEY (`student_id`)
     REFERENCES `mydb`.`users` (`user_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `turma`
     FOREIGN KEY (`turma_id`)
     REFERENCES `mydb`.`turmas` (`turma_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -147,12 +147,12 @@ CREATE TABLE IF NOT EXISTS `mydb`.`course_modules` (
   CONSTRAINT `course_module`
     FOREIGN KEY (`course_id`)
     REFERENCES `mydb`.`courses` (`id_cursos`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `modual`
     FOREIGN KEY (`module_id`)
     REFERENCES `mydb`.`modules` (`modual_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -172,17 +172,17 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulo_formador` (
   CONSTRAINT `turma_tmf`
     FOREIGN KEY (`turma_id`)
     REFERENCES `mydb`.`turmas` (`turma_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `module_tmf`
     FOREIGN KEY (`module_id`)
     REFERENCES `mydb`.`modules` (`modual_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `formador_tmf`
     FOREIGN KEY (`formador_id`)
     REFERENCES `mydb`.`users` (`user_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`disponibilidades` (
   CONSTRAINT `teacher`
     FOREIGN KEY (`user_id`)
     REFERENCES `mydb`.`users` (`user_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
@@ -230,12 +230,12 @@ CREATE TABLE IF NOT EXISTS `mydb`.`horaios_sala_turma` (
   CONSTRAINT `sala`
     FOREIGN KEY (`sala`)
     REFERENCES `mydb`.`salas` (`sala_id`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `turma_modulo_formador`
     FOREIGN KEY (`id_turma_modulo_formador`)
     REFERENCES `mydb`.`turma_modulo_formador` (`id_turma_modulo_formador`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
