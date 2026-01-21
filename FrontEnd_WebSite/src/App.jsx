@@ -3,16 +3,30 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
+
+// components:
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 
-import Home from './pages/Home.jsx';
+
+// Login / Pass Recovery Pages
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx'; <Route path="/ForgotPassword" element={<ForgotPassword />} />
+import ResetPassword from './pages/ResetPassword.jsx'; <Route path="/ResetPassword" element={<ResetPassword />} />
+
+
+
+// Login Related Pages
 import ActivateAccount from './pages/ActivateAccount.jsx';
 import Verify2FA from './pages/Verify2FA.jsx';
+
+// General Porpose Pages
+import Home from './pages/Home.jsx';
 import UserManagement from './pages/UserManagement.jsx';
 import UserProfile from './pages/UserProfile.jsx'; <Route path="/profile" element={<UserProfile />} />
+
+
 
 // This helper component handles the logic
 function NavigationWrapper() {
@@ -36,13 +50,18 @@ function NavigationWrapper() {
               </ProtectedRoute>
             } 
           />
-          <Route path="/register" element={<Register />} />
-          <Route path="/activate" element={<ActivateAccount />} />
+          {/* Login */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/ForgotPassword" element={<ForgotPassword />} />
+          <Route path="/ResetPassword" element={<ResetPassword />} />
+
+          {/* Login Related */}
+          <Route path="/activate" element={<ActivateAccount />} />
           <Route path="/verify-2fa" element={<Verify2FA />} />
-
+          
+          {/* User Destinations */}
           <Route path="/userProfile" element={<UserProfile />} />
-
           <Route path="/UserManagement" element={<UserManagement />} />
         </Routes>
       </div>

@@ -390,21 +390,28 @@ namespace Auth_Services.Controllers
         // Password recovery:
 
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword([FromBody] string email)
+        // Change [FromBody] string email to [FromBody] AppUser data
+        public async Task<IActionResult> ForgotPassword([FromBody] AppUser data)
         {
-            // 1. Check if user exists
+            // Access the email via the object property
+            string email = data.Email;
+
+            if (string.IsNullOrEmpty(email)) return BadRequest("Email is required.");
+
+            Console.WriteLine($"Password reset requested for email: {email}");
+
             var userInDb = await _dbServices.GetUserByUsernameOrEmail(email);
-            if (userInDb == null) return Ok("If an account exists with that email, a reset link has been sent."); // Security: don't reveal if email exists
 
-            // 2. Generate a secure Token (In a real app, store this in DB with an expiry)
-            // For now, we'll use a Guid or a short-lived JWT
+            // Check if ID is 0 or null depending on your DB service return
+            if (userInDb == null || userInDb.Id == 0)
+                return Ok("If an account exists with that email, a reset link has been sent.");
+
             string resetToken = Guid.NewGuid().ToString();
-            string resetLink = $"http://localhost:3000/reset-password?token={resetToken}&email={userInDb.Email}";
+            string resetLink = $"http://localhost:5173/ResetPassword?token={resetToken}&email={userInDb.Email}";
 
-            // 3. Send the Email
             MailServices mailServices = new MailServices();
             await mailServices.SendMail(userInDb.Email, "Neo Training Server - Password Reset",
-                $"Hello {userInDb.Username},\n\nPlease click the link below to reset your password:\n{resetLink}\n\nIf you did not request this, please ignore this email.");
+                $"Hello {userInDb.Username},\n\nPlease click the link below to reset your password:\n{resetLink}");
 
             return Ok("Reset link sent.");
         }

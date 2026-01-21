@@ -162,7 +162,7 @@ const Login = () => {
                 Don't have an account? <Link to="/register">Create Account</Link>
               </p>
               <p>
-                <Link to="/forgot-password" size="sm" className="text-muted" style={{ fontSize: '0.9rem' }}>
+                <Link to="/ForgotPassword" size="sm" className="text-muted" style={{ fontSize: '0.9rem' }}>
                   Forgot password?
                 </Link>
               </p>

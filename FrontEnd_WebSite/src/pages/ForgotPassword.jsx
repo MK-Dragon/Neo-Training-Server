@@ -1,3 +1,5 @@
+// \src\pages\ForgotPassword.jsx
+
 import React, { useState } from 'react';
 import { Container, Form, Button, Alert } from 'react-bootstrap';
 
@@ -9,12 +11,24 @@ const ForgotPassword = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const res = await fetch(`${ServerIP}/api/Api/forgot-password`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        setMessage("Check your email for a reset link.");
+        try {
+            const res = await fetch(`${ServerIP}/api/Api/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // Ensure "Email" matches the C# property name casing
+                body: JSON.stringify({ Email: email }) 
+            });
+
+            if (res.ok) {
+                setMessage("Check your email for a reset link.");
+            } else {
+                console.error("Server responded with error:", res.status);
+                setMessage("An error occurred. Please try again.");
+            }
+        } catch (err) {
+            console.error("Fetch failed:", err);
+            setMessage("Could not connect to the server.");
+        }
     };
 
     return (
@@ -32,3 +46,5 @@ const ForgotPassword = () => {
     );
 };
 
+
+export default ForgotPassword;
