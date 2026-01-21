@@ -7,6 +7,7 @@ using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+//using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Cryptography.Xml;
@@ -386,6 +387,45 @@ namespace Auth_Services.Controllers
         }
 
 
+        // Password recovery:
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] string email)
+        {
+            // 1. Check if user exists
+            var userInDb = await _dbServices.GetUserByUsernameOrEmail(email);
+            if (userInDb == null) return Ok("If an account exists with that email, a reset link has been sent."); // Security: don't reveal if email exists
+
+            // 2. Generate a secure Token (In a real app, store this in DB with an expiry)
+            // For now, we'll use a Guid or a short-lived JWT
+            string resetToken = Guid.NewGuid().ToString();
+            string resetLink = $"http://localhost:3000/reset-password?token={resetToken}&email={userInDb.Email}";
+
+            // 3. Send the Email
+            MailServices mailServices = new MailServices();
+            await mailServices.SendMail(userInDb.Email, "Neo Training Server - Password Reset",
+                $"Hello {userInDb.Username},\n\nPlease click the link below to reset your password:\n{resetLink}\n\nIf you did not request this, please ignore this email.");
+
+            return Ok("Reset link sent.");
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var existingUser = await _dbServices.GetUserByUsernameOrEmail(request.Email);
+            if (existingUser == null) return BadRequest("Invalid request.");
+
+            // TODO: Verify the token matches what you stored in the DB/Cache for this user
+
+            // 1. Update and Encrypt the new password
+            existingUser.Password = DEncript.EncryptString(request.NewPassword);
+            bool status = await _dbServices.UpdateUser(existingUser);
+
+            return status ? Ok("Password updated successfully.") : StatusCode(500, "Error updating password.");
+        }
+
+
+
 
         // ** CRUD Users **
 
@@ -478,23 +518,27 @@ namespace Auth_Services.Controllers
         }
 
 
-        [HttpPost("change-password")] // UnTested TODO: TEST!!!
+        [HttpPost("change-password")]
         [Authorize]
-        public async Task<IActionResult> ChangePassword([FromBody] AppUser data)
+        public async Task<IActionResult> ChangePassword([FromBody] AppUser user)
         {
-            /*/ 1. Get current user from Token
-            var username = User.Identity?.Name;
-            var userInDb = await _dbServices.GetUserByUsername(username);
 
-            // 2. Verify Old Password
-            bool isValid = BCrypt.Net.BCrypt.Verify(data.OldPasswordHash, userInDb.PasswordHash);
-            if (!isValid) return BadRequest("The current password you entered is incorrect.");
+            var currentUsername = User.Identity?.Name;
 
-            // 3. Hash and Save New Password
-            userInDb.PasswordHash = BCrypt.Net.BCrypt.HashPassword(data.NewPasswordHash);
-            await _dbServices.UpdateUser(userInDb);*/
+            var existingUser = await _dbServices.GetUserByUsernameOrEmail(currentUsername);
+            if (existingUser.Id == 0) return NotFound();
 
-            return Ok("Password changed successfully.");
+            if (!string.IsNullOrWhiteSpace(user.NewPasswordHash))
+            {
+                existingUser.Password = DEncript.EncryptString(user.NewPasswordHash);
+            }
+
+            bool status = await _dbServices.UpdateUser(existingUser);
+            if (!status)
+            {
+                return StatusCode(500, new { message = "Failed to recover user Password." });
+            }
+            return Ok(new { message = "User Recoverd Password successfully" });
         }
 
 
