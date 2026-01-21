@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Container, Form, Button, Alert } from 'react-bootstrap';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const res = await fetch('https://localhost:7089/api/Api/forgot-password', {
+        const res = await fetch(`${ServerIP}/api/Api/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })

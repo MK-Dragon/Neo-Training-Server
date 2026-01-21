@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Modal, Form, Card } from 'react-bootstrap';
 import profilePic from '../images/profile/user.jpg'; // Path to your local image
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 const UserProfile = () => {
     const [user, setUser] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -21,7 +23,7 @@ const UserProfile = () => {
         // Get the username from the token or localStorage
         const storedUsername = localStorage.getItem('username'); 
         
-        const res = await fetch(`https://localhost:7089/api/Api/users/${storedUsername}`, {
+        const res = await fetch(`${ServerIP}/api/User/users/${storedUsername}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         
@@ -48,7 +50,7 @@ const UserProfile = () => {
             return;
         }
 
-        const res = await fetch('https://localhost:7089/api/Api/change-password', {
+        const res = await fetch(`${ServerIP}/api/User/change-password`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

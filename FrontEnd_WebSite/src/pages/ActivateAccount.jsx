@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 const ActivateAccount = () => {
     const [searchParams] = useSearchParams();
     const [status, setStatus] = useState('activating'); // 'activating', 'success', 'error'
@@ -16,7 +18,7 @@ const ActivateAccount = () => {
             }
 
             try {
-                const response = await fetch(`https://localhost:7089/api/Api/activate?code=${encodeURIComponent(code)}`);
+                const response = await fetch(`${ServerIP}/api/Api/activate?code=${encodeURIComponent(code)}`);
                 const data = await response.json();
 
                 if (response.ok) {

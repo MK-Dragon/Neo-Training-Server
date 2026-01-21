@@ -5,6 +5,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GoogleLogin } from '@react-oauth/google';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -21,7 +23,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://localhost:7089/api/Api/login', {
+      const response = await fetch(`${ServerIP}/api/Api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -38,7 +40,7 @@ const Login = () => {
         // Polling Logic
         const interval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`https://localhost:7089/api/Api/check-2fa-status/${data.requestId}`);
+            const statusRes = await fetch(`${ServerIP}/api/Api/check-2fa-status/${data.requestId}`);
             const statusData = await statusRes.json();
 
             if (statusData.verified) {
@@ -69,7 +71,7 @@ const Login = () => {
   setIsWaitingFor2FA(false); // Explicitly ensure we aren't in 2FA mode
 
   try {
-    const response = await fetch('https://localhost:7089/api/Api/google-login', {
+    const response = await fetch(`${ServerIP}/api/Api/google-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentialResponse.credential),  // JWT from Google

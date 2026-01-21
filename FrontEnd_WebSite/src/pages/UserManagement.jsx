@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, InputGroup, Row, Col } from 'react-bootstrap';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 
 const UserManagement = () => {
     // --- Data States ---
@@ -36,7 +38,7 @@ const UserManagement = () => {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch('https://localhost:7089/api/Api/users', {
+            const res = await fetch(`${ServerIP}/api/User/users`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
             if (res.ok) {
@@ -93,7 +95,7 @@ const UserManagement = () => {
         };
 
         try {
-            const res = await fetch(`https://localhost:7089/api/Api/users/${selectedUser.id}`, {
+            const res = await fetch(`${ServerIP}/api/User/users/${selectedUser.id}`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',

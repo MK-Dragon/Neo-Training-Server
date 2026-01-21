@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 const Verify2FA = () => {
     const [searchParams] = useSearchParams();
     const [status, setStatus] = useState('processing');
@@ -21,7 +23,7 @@ const Verify2FA = () => {
             try {
             // Updated fetch to include the request parameter
             const response = await fetch(
-                `https://localhost:7089/api/Api/verify-2fa?code=${encodeURIComponent(code)}&request=${request}`
+                `${ServerIP}/api/Api/verify-2fa?code=${encodeURIComponent(code)}&request=${request}`
             );
             
             const data = await response.json();

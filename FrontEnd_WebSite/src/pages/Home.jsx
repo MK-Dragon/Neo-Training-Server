@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react'; // 1. Added useEffect here
 import { Link, useNavigate } from 'react-router-dom'; // 2. Added useNavigate here
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
+
 const Home = () => {
   const navigate = useNavigate(); // 3. Initialize navigate inside the component
 
@@ -14,7 +17,7 @@ const Home = () => {
     }
 
     try {
-      const response = await fetch('https://localhost:7089/api/Api/verify', {
+      const response = await fetch(`${ServerIP}/api/Api/verify`, {
         method: 'GET', // Cleaner than POST for a simple check
         headers: {
           'Authorization': `Bearer ${token}`, // The middleware looks specifically for this
