@@ -14,6 +14,7 @@ namespace Auth_Services.Models
         public int RoleId { get; set; }
         public string Role { get; set; } = "";
         public int Activated { get; set; } = 0;
+        public int IsDeleted { get; set; } = 0;
 
         // OAuth related properties
         public string? Provider { get; set; }

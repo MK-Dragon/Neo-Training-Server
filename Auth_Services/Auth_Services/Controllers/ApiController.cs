@@ -60,7 +60,7 @@ namespace Auth_Services.Controllers
 
             User user = await _dbServices.LoginUser(loginData);
 
-            if (user.Id != 0 && user.Activated == 1)
+            if (user.Id != 0 && user.Activated == 1 && user.IsDeleted == 0) // user exists, is activated and not deleted! ^_^
             {
                 // Generate a unique ID for this login attempt
                 string requestId = Guid.NewGuid().ToString();
@@ -76,6 +76,10 @@ namespace Auth_Services.Controllers
                 await mailServices.SendMail(user.Email, "Your 2FA Code", $"Hello {user.Username},\n\nYour 2FA verification code is: {tfaLink}\n\nThis code is valid for 5 minutes.");
 
                 return Ok(new { requires2FA = true, requestId = requestId, username = user.Username, role = user.Role });
+            }
+            else if (user.Id != 0 && user.IsDeleted == 1)
+            {
+                return StatusCode(403, new { message = "Account not active. Please contect the administration." });
             }
             else if (user.Id != 0 && user.Activated == 0)
             {

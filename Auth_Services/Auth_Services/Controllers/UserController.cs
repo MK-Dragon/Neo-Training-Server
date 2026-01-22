@@ -60,9 +60,20 @@ namespace Auth_Services.Controllers
             existingUser.Activated = updatedData.Activated;
             existingUser.BirthDate = updatedData.BirthDate;
 
+            // update password if provided
             if (!string.IsNullOrWhiteSpace(updatedData.NewPasswordHash))
             {
                 existingUser.Password = DEncript.EncryptString(updatedData.NewPasswordHash);
+            }
+
+            // validate isDeleted
+            if (updatedData.IsDeleted == 0 || updatedData.IsDeleted == 1)
+            {
+                existingUser.IsDeleted = updatedData.IsDeleted;
+            }
+            else // TODO: TEST!!! and Remove this else after testing
+            {
+                return BadRequest(new { message = "IsDeleted must be either 0 or 1." });
             }
 
             bool status = await _dbServices.UpdateUser(existingUser);
@@ -73,16 +84,17 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "User updated successfully" });
         }
 
-        [HttpPut("deleteusers/{id}")] // UnTested!! TODO: TEST!!!
+        [HttpDelete("deleteusers/{id}")] // UnTested!! TODO: TEST!!!
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var existingUser = await _dbServices.GetUserById(id);
             if (existingUser.Id == 0) return NotFound();
 
+            // Soft delete by setting IsDeleted to 1
+            existingUser.IsDeleted = 1;
 
-
-            bool status = await _dbServices.DeleteUser(existingUser);
+            bool status = await _dbServices.UpdateUser(existingUser);
             if (!status)
             {
                 return StatusCode(500, new { message = "Failed to DELETE user." });

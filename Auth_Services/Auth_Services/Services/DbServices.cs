@@ -50,10 +50,17 @@ namespace Auth_Services.Services
 
         Roles:
             all_roles
+
+        Courses:
+            all_couses
          */
 
 
+
         // Shared Queries
+
+        // User Query Template
+
         private const string GET_USER_QUERY = @"
         SELECT 
             u.user_id, 
@@ -61,7 +68,7 @@ namespace Auth_Services.Services
             u.email, 
             u.role_id, 
             r.title,
-            u.pass_hash
+            u.isDeleted
         FROM users u
         JOIN user_roles r ON u.role_id = r.role_id"; // add WHERE clauses as needed
 
@@ -72,7 +79,17 @@ namespace Auth_Services.Services
             u.email, 
             r.title
         FROM users u
-        JOIN user_roles r ON u.role_id = r.role_id"; // TODO: Add curse and additional profile fields as needed
+        JOIN user_roles r ON u.role_id = r.role_id"; // TODO: Add course and additional profile fields as needed
+
+        // Course Query Template
+
+        private const string GET_COURSES_QUERY = @"
+        SELECT 
+            id_cursos, 
+            nome_curso, 
+            duration, 
+            level
+        FROM courses"; // TODO: Add course and additional profile fields as needed
 
 
         public DbServices(string server, int port, string db, string user, string pass, string redisIp, int redisPort)
@@ -176,6 +193,8 @@ namespace Auth_Services.Services
         }
 
 
+        // Auto Invalidate Multiple Cache Keys:
+
         public async Task InvalidateUserCacheAsync(User user)
         {
             // Invalidate Cache for this user and All Users list
@@ -188,6 +207,8 @@ namespace Auth_Services.Services
             await InvalidateCacheKeyAsync($"all_users");
             await InvalidateCacheKeyAsync($"all_app_users");
         }
+
+
 
 
         // Generic methods:
@@ -278,6 +299,7 @@ namespace Auth_Services.Services
                         Email = reader.GetString(2),
                         RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5),
                     }
                 );
 
@@ -327,6 +349,7 @@ namespace Auth_Services.Services
                         Email = reader.GetString(2),
                         //RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5), // for admin
                     }
                 );
 
@@ -728,6 +751,7 @@ namespace Auth_Services.Services
                         Email = reader.GetString(2),
                         RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5),
                     },
                     parameters // Pass parameters
                 );
@@ -793,7 +817,7 @@ namespace Auth_Services.Services
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
                         Role = reader.GetString(4),
-                        Password = reader.GetString(5),
+                        IsDeleted = reader.GetInt32(5),
                     },
                     parameters // Pass parameters
                 );
@@ -896,20 +920,34 @@ namespace Auth_Services.Services
                 return false;
             }
 
+            // Validate Delete/Undelete User:
+            if (user.IsDeleted != 0 && user.IsDeleted != 1)
+            {
+                Console.WriteLine("Update failed: invalid IsDeleted value");
+                return false;
+            }
+
             try
             {
                 
                 string query = @"
-        UPDATE users SET username = @userName, role_id = @roleId, pass_hash = @pass, email = @eMail WHERE (user_id = @userId);";
+        UPDATE users SET
+            username = @userName,
+            email = @eMail,
+            role_id = @roleId,
+            pass_hash = @pass,
+            isDeleted = @isDeleted
+        WHERE (user_id = @userId);";
 
                 // Create the parameters safely
                 var parameters = new[]
                 {
-                new MySqlParameter("@userName", user.Username), // for debug
+                new MySqlParameter("@userName", user.Username),
                 new MySqlParameter("@roleId", user.RoleId),
                 new MySqlParameter("@pass", user.Password),
-                new MySqlParameter("@eMail", user.Email), // for debug
-                new MySqlParameter("@userId", user.Id) // for debug
+                new MySqlParameter("@eMail", user.Email), 
+                new MySqlParameter("@userId", user.Id), 
+                new MySqlParameter("@isDeleted", user.IsDeleted) 
             };
 
                 int result = await ExecuteNonQueryAsync(query, parameters);
@@ -1043,6 +1081,66 @@ namespace Auth_Services.Services
                 return new UserProfile { Id = 0 };
             }
         }
+
+
+
+
+
+        // ** Courses
+
+
+        // Get all Courses (full info)
+        public async Task<List<User>> GetAllCourses() // testing method
+        {
+            // Try Redis first
+            string cacheKey = $"all_couses";
+
+            List<User> user = await GetCachedItemAsync<List<User>>(cacheKey);
+            if (user != null)
+            {
+                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
+                return user;
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                var users = await GetDataAsync<User>(
+                    //"SELECT user_id, username, email, role_id FROM users",
+                    GET_USER_QUERY,
+                    reader => new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5),
+                    }
+                );
+
+                // Update Cache
+                if (users.Count != 0)
+                {
+                    await SetCachedItemAsync(cacheKey, users, DefaultCacheExpiration);
+                    Console.WriteLine($"\tCaching for key: {cacheKey}");
+                }
+                return users;
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Get All Users failed - Connection failed");
+                return new List<User>();
+            }
+
+        }
+
+
+
 
 
     }

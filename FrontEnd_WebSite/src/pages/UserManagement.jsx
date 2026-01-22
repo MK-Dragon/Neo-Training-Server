@@ -1,10 +1,9 @@
 // /src/pages/UserManagement.jsx
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, InputGroup, Row, Col } from 'react-bootstrap';
+import { Table, Button, Modal, Form, InputGroup, Row, Col, Badge, Alert } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
-
 
 const UserManagement = () => {
     // --- Data States ---
@@ -16,23 +15,22 @@ const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
     const [filterRole, setFilterRole] = useState('all');
+    const [showDeleted, setShowDeleted] = useState(true);
 
-    // --- Password States (Put inside the component here) ---
+    // --- Password & UI States ---
     const [newPass, setNewPass] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
-    const [passError, setPassError] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
 
-    // --- Effects ---
     useEffect(() => {
         fetchUsers();
     }, []);
 
-    // Reset passwords when modal opens/closes
     useEffect(() => {
         if (!showModal) {
             setNewPass('');
             setConfirmPass('');
-            setPassError('');
+            setErrorMsg('');
         }
     }, [showModal]);
 
@@ -50,7 +48,6 @@ const UserManagement = () => {
         }
     };
 
-    // --- Logic: Sorting ---
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -59,14 +56,14 @@ const UserManagement = () => {
         setSortConfig({ key, direction });
     };
 
-    // --- Logic: Data Processing ---
     const processedUsers = users
         .filter(u => {
             const matchesRole = filterRole === 'all' || u.role === filterRole;
             const matchesSearch = 
                 u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 u.email.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesRole && matchesSearch;
+            const matchesDeleted = showDeleted ? true : u.isDeleted === 0;
+            return matchesRole && matchesSearch && matchesDeleted;
         })
         .sort((a, b) => {
             const valA = a[sortConfig.key] || '';
@@ -76,22 +73,20 @@ const UserManagement = () => {
             return 0;
         });
 
-    // --- Logic: Actions ---
     const handleEditClick = (user) => {
         setSelectedUser({ ...user }); 
         setShowModal(true);
     };
 
     const handleSaveChanges = async () => {
-        // Validation: If they typed anything in new password, they must match
         if (newPass !== "" && newPass !== confirmPass) {
-            setPassError("Passwords do not match!");
+            setErrorMsg("Passwords do not match!");
             return;
         }
 
         const dataToSend = {
             ...selectedUser,
-            newPasswordHash: newPass // Send plain text, C# will hash it
+            newPasswordHash: newPass 
         };
 
         try {
@@ -108,21 +103,21 @@ const UserManagement = () => {
                 setShowModal(false);
                 fetchUsers();
             } else {
-                const errorMsg = await res.text();
-                setPassError(errorMsg || "Failed to save changes.");
+                const text = await res.text();
+                setErrorMsg(text || "Failed to save changes.");
             }
         } catch (err) {
-            setPassError("Server error.");
+            setErrorMsg("Server error.");
         }
     };
 
     return (
-        <div className="container mt-5">
+        <div className="container mt-5 pt-4">
             <h3 className="mb-4">User Management</h3>
 
-            {/* Controls: Search and Filter */}
-            <Row className="mb-4 g-3">
-                <Col md={6}>
+            {/* Filter Bar */}
+            <Row className="mb-4 g-3 align-items-center">
+                <Col md={5}>
                     <InputGroup>
                         <InputGroup.Text>🔍</InputGroup.Text>
                         <Form.Control
@@ -140,119 +135,109 @@ const UserManagement = () => {
                         <option value="Student">Student</option>
                     </Form.Select>
                 </Col>
+                <Col md={4}>
+                    <Form.Check 
+                        type="checkbox"
+                        id="show-deleted-check"
+                        label="Include Deleted Users"
+                        checked={showDeleted}
+                        onChange={(e) => setShowDeleted(e.target.checked)}
+                    />
+                </Col>
             </Row>
 
-            {/* User Table */}
             <Table striped bordered hover responsive>
                 <thead className="table-dark text-nowrap">
                     <tr>
-                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
-                            ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
-                        </th>
-                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>
-                            Username {sortConfig.key === 'username' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
-                        </th>
-                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>
-                            Email {sortConfig.key === 'email' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
-                        </th>
-                        <th onClick={() => requestSort('role')} style={{ cursor: 'pointer' }}>
-                            Role {sortConfig.key === 'role' && (sortConfig.direction === 'asc' ? '🔼' : '🔽')}
-                        </th>
-                        <th>Actions</th>
+                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>ID ▲▼</th>
+                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>Username ▲▼</th>
+                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>Email ▲▼</th>
+                        <th>Role</th>
+                        <th className="text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {processedUsers.map(u => (
-                        <tr key={u.id}>
+                        <tr key={u.id} className={u.isDeleted === 1 ? "table-secondary opacity-75" : ""}>
                             <td>{u.id}</td>
-                            <td>{u.username}</td>
+                            <td style={u.isDeleted === 1 ? { textDecoration: 'line-through' } : {}}>
+                                {u.username} {u.isDeleted === 1 && <Badge bg="danger" className="ms-2">DELETED</Badge>}
+                            </td>
                             <td>{u.email}</td>
                             <td>
-                                <span className={`badge ${u.role === 'Admin' ? 'bg-danger' : u.role === 'Teacher' ? 'bg-primary' : 'bg-secondary'}`}>
+                                <Badge bg={u.role === 'Admin' ? 'danger' : u.role === 'Teacher' ? 'primary' : 'secondary'}>
                                     {u.role}
-                                </span>
+                                </Badge>
                             </td>
-                            <td>
-                                <Button variant="warning" size="sm" onClick={() => handleEditClick(u)}>Edit</Button>
+                            <td className="text-center">
+                                <Button 
+                                    variant={u.isDeleted === 1 ? "outline-dark" : "warning"} 
+                                    size="sm" 
+                                    onClick={() => handleEditClick(u)}
+                                    className="px-3"
+                                >
+                                    {u.isDeleted === 1 ? "Restore" : "Edit"}
+                                </Button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
             </Table>
 
-            {/* Edit Modal */}
-            <Modal show={showModal} onHide={() => setShowModal(false)}>
+            {/* Modal */}
+            <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>Edit User: {selectedUser?.username}</Modal.Title>
+                    <Modal.Title>Manage User: {selectedUser?.username}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     {selectedUser && (
                         <Form>
-                            <Form.Group className="mb-3">
-                                <Form.Label>Username</Form.Label>
-                                <Form.Control 
-                                    value={selectedUser.username} 
-                                    onChange={(e) => setSelectedUser({...selectedUser, username: e.target.value})} 
-                                />
-                            </Form.Group>
+                            <Row>
+                                <Col md={6}><Form.Group className="mb-3"><Form.Label>Username</Form.Label><Form.Control value={selectedUser.username} onChange={(e) => setSelectedUser({...selectedUser, username: e.target.value})} /></Form.Group></Col>
+                                <Col md={6}><Form.Group className="mb-3"><Form.Label>Email</Form.Label><Form.Control type="email" value={selectedUser.email} onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})} /></Form.Group></Col>
+                            </Row>
 
-                            <Form.Group className="mb-3">
-                                <Form.Label>Email</Form.Label>
-                                <Form.Control 
-                                    type="email"
-                                    value={selectedUser.email} 
-                                    onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})} 
-                                />
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>Role</Form.Label>
-                                <Form.Select 
-                                    value={selectedUser.role} 
-                                    onChange={(e) => setSelectedUser({...selectedUser, role: e.target.value})}
-                                >
-                                    <option value="Admin">Admin</option>
-                                    <option value="Teacher">Teacher</option>
-                                    <option value="Student">Student</option>
-                                </Form.Select>
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                                <Form.Check 
-                                    type="switch"
-                                    label="Account Activated"
-                                    checked={selectedUser.activated === 1}
-                                    onChange={(e) => setSelectedUser({...selectedUser, activated: e.target.checked ? 1 : 0})}
-                                />
-                            </Form.Group>
+                            <Row>
+                                <Col md={6}>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Role</Form.Label>
+                                        <Form.Select value={selectedUser.role} onChange={(e) => setSelectedUser({...selectedUser, role: e.target.value})}>
+                                            <option value="Admin">Admin</option>
+                                            <option value="Teacher">Teacher</option>
+                                            <option value="Student">Student</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                    <Form.Label>Status</Form.Label>
+                                    <Form.Check type="switch" label="Activated" checked={selectedUser.activated === 1} onChange={(e) => setSelectedUser({...selectedUser, activated: e.target.checked ? 1 : 0})} />
+                                </Col>
+                                <Col md={3}>
+                                    <Form.Label>Visibility</Form.Label>
+                                    <Form.Check 
+                                        type="switch" 
+                                        id="modal-delete-switch" 
+                                        label={selectedUser.isDeleted === 1 ? "Deleted" : "Active"} 
+                                        className={selectedUser.isDeleted === 1 ? "text-danger fw-bold" : "text-success"}
+                                        checked={selectedUser.isDeleted === 1} 
+                                        onChange={(e) => setSelectedUser({...selectedUser, isDeleted: e.target.checked ? 1 : 0})} 
+                                    />
+                                </Col>
+                            </Row>
 
                             <hr />
-                            <h5>Force Password Reset (Admin)</h5>
-                            {passError && <div className="text-danger small mb-2">{passError}</div>}
-                            
-                            <Form.Group className="mb-2">
-                                <Form.Label>New Password</Form.Label>
-                                <Form.Control 
-                                    type="password" 
-                                    value={newPass}
-                                    onChange={(e) => setNewPass(e.target.value)}
-                                />
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>Confirm Password</Form.Label>
-                                <Form.Control 
-                                    type="password" 
-                                    value={confirmPass}
-                                    onChange={(e) => setConfirmPass(e.target.value)}
-                                />
-                            </Form.Group>
+                            <h5 className="text-primary">Administrative Password Override</h5>
+                            {errorMsg && <Alert variant="danger" className="py-2">{errorMsg}</Alert>}
+                            <Row>
+                                <Col md={6}><Form.Group className="mb-2"><Form.Label>New Password</Form.Label><Form.Control type="password" placeholder="Leave empty to keep current" value={newPass} onChange={(e) => setNewPass(e.target.value)} /></Form.Group></Col>
+                                <Col md={6}><Form.Group className="mb-3"><Form.Label>Confirm Password</Form.Label><Form.Control type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} /></Form.Group></Col>
+                            </Row>
                         </Form>
                     )}
                 </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-                    <Button variant="primary" onClick={handleSaveChanges}>Save Changes</Button>
+                <Modal.Footer className="bg-light">
+                    <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+                    <Button variant="primary" onClick={handleSaveChanges}>Apply Changes</Button>
                 </Modal.Footer>
             </Modal>
         </div>
