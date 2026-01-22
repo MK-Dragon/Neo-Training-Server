@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   `birth_date` DATE NULL,
   `Provider` VARCHAR(45) NULL,
   `ProviderKey` TEXT NULL,
+  `isDeleted` INT NULL DEFAULT 0,
   PRIMARY KEY (`user_id`),
   INDEX `user_type_idx` (`role_id` ASC) VISIBLE,
   CONSTRAINT `user_type`
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`courses` (
   `nome_curso` VARCHAR(45) NOT NULL,
   `duration` INT NULL,
   `level` VARCHAR(45) NULL,
+  `isDeleted` INT NULL DEFAULT 0,
   PRIMARY KEY (`id_cursos`),
   UNIQUE INDEX `nome_curso_UNIQUE` (`nome_curso` ASC) VISIBLE)
 ENGINE = InnoDB;
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`enrollments` (
   `student_id` INT NOT NULL,
   `turma_id` INT NOT NULL,
   `enrollment_date` DATE NOT NULL,
+  `isDeleted` INT NULL DEFAULT 0,
   PRIMARY KEY (`id_enrollment`),
   INDEX `studant_idx` (`student_id` ASC) VISIBLE,
   INDEX `turma_idx` (`turma_id` ASC) VISIBLE,
@@ -131,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`modules` (
   `modual_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `duration_h` INT NOT NULL,
+  `isDeleted` INT NULL DEFAULT 0,
   PRIMARY KEY (`modual_id`))
 ENGINE = InnoDB;
 
@@ -195,6 +199,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`salas` (
   `sala_nome` VARCHAR(45) NOT NULL,
   `tem_pcs` INT NULL,
   `tem_oficina` INT NULL DEFAULT 0,
+  `isDeleted` INT NULL DEFAULT 0,
   PRIMARY KEY (`sala_id`))
 ENGINE = InnoDB;
 
