@@ -3,6 +3,7 @@
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
 using Auth_Services.Services;
+using Google.Apis.Util;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
@@ -53,6 +54,10 @@ namespace Auth_Services.Services
 
         Courses:
             all_couses
+
+        Modules:
+            all_modules
+            $"module_{module_name}"
          */
 
 
@@ -1169,8 +1174,154 @@ namespace Auth_Services.Services
 
 
 
-        // ** Courses
+        // ** Modules **
 
+
+        // GET Module By Name Method
+        public async Task<Module> GetModuleByName(string module_name)
+        {
+            // Try Redis first
+            string cacheKey = $"module_{module_name}";
+
+            Module module = await GetCachedItemAsync<Module>(cacheKey);
+            if (module != null)
+            {
+                return module; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = $@"
+        SELECT * FROM modules
+        WHERE name = @module;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@module", module_name)
+            };
+
+                var modules = await GetDataAsync<Module>(
+                    query,
+                    reader => new Module
+                    {
+                        Id = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        DurationInHours = reader.GetInt32(2),
+                        isDeleted = reader.GetInt32(3),
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (modules.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Module Found: {module_name}");
+
+                    // Cache Module:
+                    await SetCachedItemAsync(cacheKey, modules[0], DefaultCacheExpiration);
+
+                    return modules[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Failed to find Module: {module_name}");
+                    return new Module { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Failed to find Module - Connection failed");
+                return new Module { Id = 0 };
+            }
+        }
+
+        // GET Module By Name Method
+        public async Task<List<Module>> GetAllModules()
+        {
+            // Try Redis first
+            string cacheKey = $"all_module";
+
+            List<Module> modules = await GetCachedItemAsync<List<Module>>(cacheKey);
+            if (modules != null)
+            {
+                return modules; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = $@"
+        SELECT * FROM modules;";
+
+                // Create the parameters safely
+
+                var module = await GetDataAsync<Module>(
+                    query,
+                    reader => new Module
+                    {
+                        Id = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        DurationInHours = reader.GetInt32(2),
+                        isDeleted = reader.GetInt32(3),
+                    }
+                );
+
+                // Process results...
+                if (module.Count != 0)
+                {
+                    // Cache Module:
+                    await SetCachedItemAsync(cacheKey, modules, DefaultCacheExpiration);
+                    Console.WriteLine($"\tCaching for key: {cacheKey}");
+                }
+                return module;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** Failed to Gell All Modules - Connection failed {ex}");
+                return new List<Module>();
+            }
+        }
+
+
+        // Add Module Method
+        public async Task<int> AddModule(NewModule newModule)
+        {
+            try
+            {
+                const string sql = @"
+            INSERT INTO modules (name, duration_h, isDeleted)
+            VALUES (@name, @duration, @isDeleted);";
+
+                var parameters = new[]
+                {
+                    new MySqlParameter("@name", newModule.Name),
+                    new MySqlParameter("@duration", newModule.DurationInHours),
+                    new MySqlParameter("@isDeleted", "0"),
+                };
+
+                return await ExecuteNonQueryAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                // Print the FULL error to the console to see the MySQL message
+                Console.WriteLine("DATABASE ERROR: " + ex.ToString());
+                return 0;
+            }
+        }
+
+
+
+        // ** Courses **
 
         // Get all Courses (full info)
         public async Task<List<User>> GetAllCourses() // testing method
@@ -1193,8 +1344,10 @@ namespace Auth_Services.Services
             try
             {
                 var users = await GetDataAsync<User>(
-                    //"SELECT user_id, username, email, role_id FROM users",
-                    GET_USER_QUERY,
+                    @"
+                    SELETE * FROM
+                    
+                    ",
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
@@ -1224,9 +1377,92 @@ namespace Auth_Services.Services
 
         }
 
+        public async Task<Course> GetCourseWithModules(int courseId)
+        {
+            string query = @"
+        SELECT 
+            m.module_id, m.name, m.duration_h, m.isDeleted,
+            c.id_cursos, c.nome_curso, c.duration, c.level, c.isDeleted
+        FROM courses c
+        INNER JOIN course_modules cm ON c.id_cursos = cm.course_id
+        INNER JOIN modules m ON cm.module_id = m.module_id
+        WHERE c.id_cursos = @courseId;";
 
+            var parameters = new[] { new MySqlParameter("@courseId", courseId) };
 
+            try
+            {
+                // Fetching rows and mapping to a temporary Tuple
+                var results = await GetDataAsync<(Module Mod, Course Crse)>(
+                    query,
+                    reader => (
+                        new Module
+                        {
+                            // Column indexes: 0=module_id, 1=name, 2=duration_h, 3=isDeleted
+                            Id = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                            Name = reader.IsDBNull(1) ? "Unnamed" : reader.GetString(1),
+                            DurationInHours = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                            isDeleted = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                        },
+                        new Course
+                        {
+                            // Column indexes: 4=id_cursos, 5=nome_curso, 6=duration, 7=level, 8=isDeleted
+                            Id = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                            Name = reader.IsDBNull(5) ? "Unnamed" : reader.GetString(5),
+                            durationInHours = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                            Level = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                            IsDeleted = reader.IsDBNull(8) ? 0 : reader.GetInt32(8)
+                        }
+                    ),
+                    parameters
+                );
 
+                if (results == null || results.Count == 0) return null;
+
+                // Take course details from the first row found
+                var finalCourse = results[0].Crse;
+
+                // Populate the Modules list from all rows
+                finalCourse.Modules = results.Select(r => r.Mod).ToList();
+
+                return finalCourse;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetCourseWithModules: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<List<Course>> GetAllCoursesSummary()
+        {
+            // Selecting specific columns from the 'courses' table
+            string query = "SELECT id_cursos, nome_curso, duration, level, isDeleted FROM courses WHERE isDeleted = 0;";
+
+            try
+            {
+                var courses = await GetDataAsync<Course>(
+                    query,
+                    reader => new Course
+                    {
+                        // Mapping using the specific column names from your SQL script
+                        Id = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                        Name = reader.IsDBNull(1) ? "Unnamed Course" : reader.GetString(1),
+                        durationInHours = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                        Level = reader.IsDBNull(3) ? "N/A" : reader.GetString(3),
+                        IsDeleted = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                        // Modules list remains initialized as empty by the class constructor
+                    }
+                );
+
+                return courses ?? new List<Course>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** Error fetching course list: {ex.Message}");
+                return new List<Course>();
+            }
+        }
 
     }
 }

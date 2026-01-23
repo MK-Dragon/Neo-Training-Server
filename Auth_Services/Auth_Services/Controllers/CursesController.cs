@@ -41,11 +41,86 @@ namespace Auth_Services.Controllers
             return Ok(users);
         }
 
+        [HttpGet("allmodules")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetModuleByName()
+        {
+            var users = await _dbServices.GetAllModules(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+            return Ok(users);
+        }
+
+        [HttpGet("module")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetModuleByName(string module_name)
+        {
+            try
+            {
+                var module = await _dbServices.GetModuleByName(module_name); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+                if (module.Id == 0)
+                {
+                    return NotFound("Module not found.");
+                }
+                return Ok(module);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("addmodule")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddModule([FromQuery] NewModule new_module)
+        {
+            // Validate input
+            if (string.IsNullOrWhiteSpace(new_module.Name) || new_module.DurationInHours < 0)
+            {
+                return BadRequest("Invalid module data.");
+            }
+
+            // check if module already exists
+            var existingModule = await _dbServices.GetModuleByName(new_module.Name);
+            if (existingModule.Id != 0) {
+                return Conflict("Module with the same name already exists.");
+            }
+
+            try
+            {
+                // Additional validation or processing can be done here
+                var result = await _dbServices.AddModule(new_module);
+                if (result <= 0)
+                {
+                    return StatusCode(500, "Failed to add module.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+
+            //var users = await _dbServices.GetAllModules(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+            return Ok(new { message = "Module added successfully" });
+        }
 
 
-
-
-
+        [HttpGet("course-id")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCourseById(int course_id)
+        {
+            try
+            {
+                var course = await _dbServices.GetCourseWithModules(course_id); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+                if (course.Id == 0)
+                {
+                    return NotFound("Course not found.");
+                }
+                return Ok(course);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
 

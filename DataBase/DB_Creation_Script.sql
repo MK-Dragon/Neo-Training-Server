@@ -131,11 +131,12 @@ ENGINE = InnoDB;
 -- Table `mydb`.`modules`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`modules` (
-  `modual_id` INT NOT NULL AUTO_INCREMENT,
+  `module_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `duration_h` INT NOT NULL,
   `isDeleted` INT NULL DEFAULT 0,
-  PRIMARY KEY (`modual_id`))
+  PRIMARY KEY (`module_id`),
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE)
 ENGINE = InnoDB;
 
 
@@ -155,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`course_modules` (
     ON UPDATE NO ACTION,
   CONSTRAINT `modual`
     FOREIGN KEY (`module_id`)
-    REFERENCES `mydb`.`modules` (`modual_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -180,7 +181,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulo_formador` (
     ON UPDATE NO ACTION,
   CONSTRAINT `module_tmf`
     FOREIGN KEY (`module_id`)
-    REFERENCES `mydb`.`modules` (`modual_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `formador_tmf`
