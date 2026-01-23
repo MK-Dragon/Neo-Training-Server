@@ -1,8 +1,9 @@
-﻿using Auth_Services.Services;
-using Auth_Services.Models;
+﻿using Auth_Services.Models;
+using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MySqlConnector;
 
 namespace Auth_Services.Controllers
 {
@@ -122,9 +123,56 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("all-courses-summary")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllCoursesSummary()
+        {
+            try
+            {
+                // Call the service method that returns List<Course> without Modules
+                var courses = await _dbServices.GetAllCoursesSummary();
+
+                if (courses == null || courses.Count == 0)
+                {
+                    // Return 200 with empty list or 204 No Content
+                    return Ok(new List<Course>());
+                }
+
+                return Ok(courses);
+            }
+            catch (Exception ex)
+            {
+                // Log the error for debugging
+                Console.WriteLine($"Error in GetAllCoursesSummary endpoint: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("delete-module/{moduleId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteModule(int moduleId)
+        {
+            try
+            {
+                bool isDeleted = await _dbServices.DeleteModule(moduleId);
+
+                if (!isDeleted)
+                {
+                    // Returns 404 if the ID doesn't exist or is already deleted
+                    return NotFound(new { message = $"Module with ID {moduleId} not found." });
+                }
+
+                // Returns 200 OK
+                return Ok(new { message = "Module status updated to deleted." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
-
+        
 
 
     } // End of CursesController class

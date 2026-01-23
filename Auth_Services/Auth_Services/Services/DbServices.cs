@@ -216,6 +216,22 @@ namespace Auth_Services.Services
         }
 
 
+        // Helper method to keep the mapping DRY (Don't Repeat Yourself) TODO: refector the rest of the db reads later
+        private Sala MapSala(MySqlDataReader reader)
+        {
+            return new Sala
+            {
+                Id = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                Nome = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                TemPcs = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                TemOficina = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                IsDeleted = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+            };
+        }
+
+
+
+
 
 
         // Generic methods:
@@ -1464,5 +1480,198 @@ namespace Auth_Services.Services
             }
         }
 
-    }
+        public async Task<bool> DeleteModule(int moduleId)
+        {
+            Console.WriteLine($"Marking Module ID {moduleId} as Deleted");
+
+            try
+            {
+                // SQL remains an UPDATE because it is a soft-delete
+                const string query = @"UPDATE modules SET isDeleted = 1 WHERE module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine($"Delete failed: No module found with ID {moduleId}.");
+                    return false;
+                }
+
+                // Important: If you cache modules by ID, clear it here
+                // await InvalidateModuleCacheAsync(moduleId);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** DeleteModule failed - Connection or SQL error: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
+        // ** Salas **
+
+        // Add Sala Method
+        public async Task<int> AddSala(NewSala sala)
+        {
+            try
+            {
+                // Optional: Check if name exists first (similar to your AddUser logic)
+                const string sql = @"
+            INSERT INTO salas (sala_nome, tem_pcs, tem_oficina, isDeleted) 
+            VALUES (@Nome, @TemPcs, @TemOficina, 0);";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@Nome", sala.Nome),
+            new MySqlParameter("@TemPcs", sala.TemPcs),
+            new MySqlParameter("@TemOficina", sala.TemOficina)
+        };
+
+                // Returns the number of rows affected (should be 1)
+                return await ExecuteNonQueryAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DATABASE ERROR (AddSala): " + ex.ToString());
+                return 0;
+            }
+        }
+
+        // Get all Salas Method
+        public async Task<List<Sala>> GetAllSalas()
+        {
+            // We only want rooms that haven't been soft-deleted
+            const string query = "SELECT sala_id, sala_nome, tem_pcs, tem_oficina, isDeleted FROM salas WHERE isDeleted = 0;";
+
+            try
+            {
+                var salas = await GetDataAsync<Sala>(
+                    query,
+                    reader => new Sala
+                    {
+                        Id = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                        Nome = reader.IsDBNull(1) ? "Unnamed Room" : reader.GetString(1),
+                        TemPcs = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                        TemOficina = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                        IsDeleted = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                    }
+                );
+
+                return salas ?? new List<Sala>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** Error fetching salas: {ex.Message}");
+                return new List<Sala>();
+            }
+        }
+
+        // get sala:
+        // Get Sala by ID
+        public async Task<Sala> GetSalaById(int salaId)
+        {
+            const string query = "SELECT sala_id, sala_nome, tem_pcs, tem_oficina, isDeleted FROM salas WHERE sala_id = @id AND isDeleted = 0;";
+            var parameters = new[] { new MySqlParameter("@id", salaId) };
+
+            var result = await GetDataAsync<Sala>(query, MapSala, parameters);
+            return result.FirstOrDefault();
+        }
+
+        // Get Sala by Name
+        public async Task<Sala> GetSalaByName(string name)
+        {
+            const string query = "SELECT sala_id, sala_nome, tem_pcs, tem_oficina, isDeleted FROM salas WHERE sala_nome = @name AND isDeleted = 0 LIMIT 1;";
+            var parameters = new[] { new MySqlParameter("@name", name) };
+
+            var result = await GetDataAsync<Sala>(query, MapSala, parameters);
+            return result.FirstOrDefault();
+        }
+
+        // update sala:
+        public async Task<bool> UpdateSala(Sala sala)
+        {
+            Console.WriteLine($"Editing Sala ID: {sala.Id}");
+
+            try
+            {
+                // Using the column names from your schema: sala_nome, tem_pcs, tem_oficina
+                const string query = @"
+            UPDATE salas 
+            SET sala_nome = @nome, 
+                tem_pcs = @pcs, 
+                tem_oficina = @oficina,
+                isDeleted = @deleted
+            WHERE sala_id = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@nome", sala.Nome),
+            new MySqlParameter("@pcs", sala.TemPcs),
+            new MySqlParameter("@oficina", sala.TemOficina),
+            new MySqlParameter("@deleted", sala.IsDeleted),
+            new MySqlParameter("@id", sala.Id)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine("Update failed: No sala found with that ID.");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** Update Sala failed - Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Soft Delete Sala
+        public async Task<bool> DeleteSala(int salaId)
+        {
+            Console.WriteLine($"Marking Sala ID {salaId} as Deleted");
+
+            try
+            {
+                // SQL update for soft-delete
+                const string query = @"UPDATE salas SET isDeleted = 1 WHERE sala_id = @salaId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@salaId", salaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine($"Delete failed: No sala found with ID {salaId}.");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** DeleteSala failed - Error: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
+
+
+    } // the end
 }

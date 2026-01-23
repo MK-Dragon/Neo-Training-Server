@@ -201,7 +201,8 @@ CREATE TABLE IF NOT EXISTS `mydb`.`salas` (
   `tem_pcs` INT NULL,
   `tem_oficina` INT NULL DEFAULT 0,
   `isDeleted` INT NULL DEFAULT 0,
-  PRIMARY KEY (`sala_id`))
+  PRIMARY KEY (`sala_id`),
+  UNIQUE INDEX `sala_nome_UNIQUE` (`sala_nome` ASC) VISIBLE)
 ENGINE = InnoDB;
 
 
