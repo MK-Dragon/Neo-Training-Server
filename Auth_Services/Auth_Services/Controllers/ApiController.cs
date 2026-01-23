@@ -60,7 +60,13 @@ namespace Auth_Services.Controllers
 
             User user = await _dbServices.LoginUser(loginData);
 
-            if (user.Id != 0 && user.Activated == 1 && user.IsDeleted == 0) // user exists, is activated and not deleted! ^_^
+            //Console.WriteLine($"Username: {loginData.Username} == {user.Username}");
+            //Console.WriteLine($"{loginData.Password} == {user.Password}");
+            //Console.WriteLine($"isDeleted? {user.IsDeleted}");
+            //Console.WriteLine($"User ID? {user.Id}");
+            //onsole.WriteLine($"Active? {user.Activated}");
+
+            if (user.Id != 0 && user.Activated == 1 && user.IsDeleted != 1) // user exists, is activated and not deleted! ^_^ ?? 
             {
                 // Generate a unique ID for this login attempt
                 string requestId = Guid.NewGuid().ToString();
@@ -437,8 +443,21 @@ namespace Auth_Services.Controllers
 
 
 
+        /*[AllowAnonymous]
+        [HttpPost("invalidate-user-cache")]
+        public async Task<IActionResult> InvalidateAllUserCache()
+        {
+            // Used for Debug! REMOVE BEFORE DEPLOY!!
 
-        
+            List<User> all_users = await _dbServices.GetAllUsers();
+            foreach (User user in all_users)
+            {
+                await _dbServices.InvalidateUserCacheAsync(user);
+            }
+            
+            return Ok(new { message = "Cache Cleared!" });
+        }*/
+
 
 
     }

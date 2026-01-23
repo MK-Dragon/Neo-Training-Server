@@ -68,7 +68,9 @@ namespace Auth_Services.Services
             u.email, 
             u.role_id, 
             r.title,
-            u.isDeleted
+            u.isDeleted,
+            u.pass_hash,
+            u.activeted
         FROM users u
         JOIN user_roles r ON u.role_id = r.role_id"; // add WHERE clauses as needed
 
@@ -205,7 +207,7 @@ namespace Auth_Services.Services
             await InvalidateCacheKeyAsync($"user_profile_{user.Username}");
 
             await InvalidateCacheKeyAsync($"all_users");
-            await InvalidateCacheKeyAsync($"all_app_users");
+            await InvalidateCacheKeyAsync($"all_app_users"); // profile (no pass or tokens)
         }
 
 
@@ -300,6 +302,8 @@ namespace Auth_Services.Services
                         RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
                         IsDeleted = reader.GetInt32(5),
+                        Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     }
                 );
 
@@ -349,7 +353,9 @@ namespace Auth_Services.Services
                         Email = reader.GetString(2),
                         //RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
-                        IsDeleted = reader.GetInt32(5), // for admin
+                        IsDeleted = reader.GetInt32(5),
+                        //Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     }
                 );
 
@@ -369,10 +375,80 @@ namespace Auth_Services.Services
 
         }
 
+        public async Task<AppUser> GetAppUserByUsernameOrEmail(string user_name_mail)
+        {
+            // Try Redis first
+            string cacheKey = $"user_profile_{user_name_mail}";
+
+            AppUser user = await GetCachedItemAsync<AppUser>(cacheKey);
+            if (user != null)
+            {
+                return user; // Cache HIT: Return data from Redis
+            }
+            else
+            {
+                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
+            }
+
+            // go to DB
+            try
+            {
+                string query = $@"
+        {GET_USER_QUERY}
+        WHERE u.username = @user OR u.email = @user;";
+
+                // Create the parameters safely
+                var parameters = new[]
+                {
+                new MySqlParameter("@user", user_name_mail)
+            };
+
+                var users = await GetDataAsync<AppUser>(
+                    query,
+                    reader => new AppUser
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        Email = reader.GetString(2),
+                        //RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5),
+                        //Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
+                    },
+                    parameters // Pass parameters
+                );
+
+                // Process results...
+                if (users.Count > 0)
+                {
+                    Console.WriteLine($"\n\n** Login successful for user: {user_name_mail}");
+
+                    // Cache User:
+                    await SetCachedItemAsync(cacheKey, users[0], DefaultCacheExpiration);
+
+                    return users[0];
+                }
+                else
+                {
+                    Console.WriteLine($"\n\n** Login failed for user: {user_name_mail}");
+                    return new AppUser { Id = 0 };
+                }
+            }
+            catch
+            {
+                Console.WriteLine($"\n\n** Login failed - Connection failed");
+                return new AppUser { Id = 0 };
+            }
+        }
+
+
 
         // Login Method
         public async Task<User> LoginUser(LoginRequest user_login)
         {
+            user_login.Password = DEncript.EncryptString(user_login.Password);
+
             // Try Redis first
             string cacheKey = $"user_{user_login.Username}";
 
@@ -397,12 +473,10 @@ namespace Auth_Services.Services
             // go to DB
             try
             {
-                string query = @"
-        SELECT user_id, activeted, email
-        FROM users
-        WHERE username = @user AND pass_hash = @pass;";
+                Console.WriteLine($"Login find User: {user_login.Username}");
 
-                user_login.Password = DEncript.EncryptString(user_login.Password);
+                string query = $@"
+        {GET_USER_QUERY} WHERE u.username = @user AND u.pass_hash = @pass;";
 
                 // Create the parameters safely
                 var parameters = new[]
@@ -416,12 +490,17 @@ namespace Auth_Services.Services
                     reader => new User
                     {
                         Id = reader.GetInt32(0),
-                        Activated = reader.GetInt32(1),
+                        Username = reader.GetString(1),
                         Email = reader.GetString(2),
-                        Username = user_login.Username
+                        RoleId = reader.GetInt32(3),
+                        Role = reader.GetString(4),
+                        IsDeleted = reader.GetInt32(5),
+                        Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     },
                     parameters // Pass parameters
                 );
+                //Console.WriteLine($"User fond: {users[0].Id}");
 
                 // Process results...
                 if (users.Count > 0)
@@ -439,9 +518,9 @@ namespace Auth_Services.Services
                     return new User { Id = 0 };
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                Console.WriteLine($"\n\n** Login failed - Connection failed");
+                Console.WriteLine($"\n\n** Login failed - Connection failed - ex: {ex}");
                 return new User { Id = 0 };
             }
             
@@ -752,6 +831,8 @@ namespace Auth_Services.Services
                         RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
                         IsDeleted = reader.GetInt32(5),
+                        Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     },
                     parameters // Pass parameters
                 );
@@ -778,7 +859,6 @@ namespace Auth_Services.Services
                 return new User { Id = 0 };
             }
         }
-
 
         // GET User By Id Method
         public async Task<User> GetUserById(int user_id)
@@ -816,8 +896,11 @@ namespace Auth_Services.Services
                         Id = reader.GetInt32(0),
                         Username = reader.GetString(1),
                         Email = reader.GetString(2),
+                        RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
                         IsDeleted = reader.GetInt32(5),
+                        Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     },
                     parameters // Pass parameters
                 );
@@ -1120,6 +1203,8 @@ namespace Auth_Services.Services
                         RoleId = reader.GetInt32(3),
                         Role = reader.GetString(4),
                         IsDeleted = reader.GetInt32(5),
+                        Password = reader.GetString(6),
+                        Activated = reader.GetInt32(7),
                     }
                 );
 
