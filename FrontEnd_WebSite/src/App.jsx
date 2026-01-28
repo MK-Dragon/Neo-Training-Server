@@ -25,6 +25,7 @@ import UserProfile from './pages/UserProfile.jsx';
 // Management
 import SalaManagement from './pages/SalaManagement.jsx';
 import ModuleManagement from './pages/ModuleManagement.jsx';
+import CourseManagement from './pages/CourseManagement.jsx';
 
 function NavigationWrapper() {
   const location = useLocation();
@@ -57,6 +58,7 @@ function NavigationWrapper() {
           <Route path="/UserManagement" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
           <Route path="/SalaManagement" element={<ProtectedRoute><SalaManagement /></ProtectedRoute>} />
           <Route path="/ModuleManagement" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
+          <Route path="/CourseManagement" element={<ProtectedRoute><CourseManagement /></ProtectedRoute>} />
           
           {/* Catch-all: Redirect to Home or 404 */}
           <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />

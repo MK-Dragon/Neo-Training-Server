@@ -39,8 +39,8 @@ namespace Auth_Services.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetModuleByName()
         {
-            var users = await _dbServices.GetAllModules(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
-            return Ok(users);
+            var modules = await _dbServices.GetAllModules();
+            return Ok(modules);
         }
 
         [HttpGet("module")]

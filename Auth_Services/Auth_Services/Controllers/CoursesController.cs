@@ -39,7 +39,7 @@ namespace Auth_Services.Controllers
         [AllowAnonymous] // TODO: Change to Authorized later
         public async Task<IActionResult> GetAllCurses()
         {
-            var users = await _dbServices.GetAllCourses();
+            var users = await _dbServices.GetAllCourses(); // List<Course>
             return Ok(users);
         }
 
@@ -49,8 +49,8 @@ namespace Auth_Services.Controllers
         {
             try
             {
-                var course = await _dbServices.GetCourseWithModules(course_id); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
-                if (course.Id == 0)
+                var course = await _dbServices.GetCourseWithModules(course_id); // retunrs Course
+                if (course == null || course.Id == 0)
                 {
                     return NotFound("Course not found.");
                 }

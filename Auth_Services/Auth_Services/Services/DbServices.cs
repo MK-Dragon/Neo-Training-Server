@@ -1474,7 +1474,7 @@ namespace Auth_Services.Services
         FROM courses c
         INNER JOIN course_modules cm ON c.id_cursos = cm.course_id
         INNER JOIN modules m ON cm.module_id = m.module_id
-        WHERE c.id_cursos = @courseId;";
+        WHERE c.id_cursos = @courseId AND cm.isDeleted = 0;";
 
             var parameters = new[] { new MySqlParameter("@courseId", courseId) };
 
@@ -1518,7 +1518,7 @@ namespace Auth_Services.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in GetCourseWithModules: {ex.Message}");
-                return null;
+                return new Course { Id = 0 };
             }
         }
 
