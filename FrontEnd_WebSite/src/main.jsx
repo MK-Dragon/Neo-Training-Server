@@ -1,6 +1,11 @@
+// /src/main.jsx
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './index.css'; // Add this line
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
