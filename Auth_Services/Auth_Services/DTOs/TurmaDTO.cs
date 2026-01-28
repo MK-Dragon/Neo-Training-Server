@@ -6,5 +6,6 @@
         public string TurmaName { get; set; }
         public int CourseId { get; set; }
         public string CourseName { get; set; }
+        public int isDeleted { get; set; }
     }
 }

@@ -1752,7 +1752,7 @@ namespace Auth_Services.Services
 
 
 
-        // ** Turmas & Enrollments **
+        // ** Turmas **
 
         public async Task<List<TurmaDTO>> GetAllTurmas()
         {
@@ -1760,7 +1760,7 @@ namespace Auth_Services.Services
             {
                 // Joining tables to get the course name
                 const string query = @"
-            SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso 
+            SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso, t.isDeleted
             FROM turmas t
             INNER JOIN courses c ON t.course_id = c.id_cursos
             WHERE c.isDeleted = 0;";
@@ -1772,7 +1772,9 @@ namespace Auth_Services.Services
                         TurmaId = reader.GetInt32(0),
                         TurmaName = reader.GetString(1),
                         CourseId = reader.GetInt32(2),
-                        CourseName = reader.GetString(3)
+                        CourseName = reader.GetString(3),
+                        isDeleted = reader.GetInt32(4)
+
                     }
                 );
 
@@ -1870,7 +1872,36 @@ namespace Auth_Services.Services
             }
         }
 
-        // Student In Turma
+        public async Task<bool> RecoverTurma(int turmaId)
+        {
+            Console.WriteLine($"Restoring Turma ID: {turmaId}");
+
+            try
+            {
+                // Targets the isDeleted column we added to the turmas table
+                const string query = "UPDATE turmas SET isDeleted = 0 WHERE turma_id = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@id", turmaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if the Turma was found and the status was updated
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error recovering turma: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
+        // ** Turmas & Enrollments **
+
         public async Task<List<StudentInTurmaDTO>> GetStudentsByTurma(int turmaId)
         {
             try
@@ -1906,6 +1937,33 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<AvailableStudentDTO>> GetUnenrolledStudents()
+        {
+            try
+            {
+                // We look for users who don't have an enrollment record with isDeleted = 0
+                const string query = @"
+            SELECT u.user_id, u.username, u.email, u.birth_date
+            FROM users u
+            LEFT JOIN enrollments e ON u.user_id = e.student_id AND e.isDeleted = 0
+            WHERE u.role_id = 3 
+              AND u.isDeleted = 0 
+              AND e.id_enrollment IS NULL;";
+
+                return await GetDataAsync<AvailableStudentDTO>(query, reader => new AvailableStudentDTO
+                {
+                    UserId = reader.GetInt32(0),
+                    Username = reader.GetString(1),
+                    Email = reader.GetString(2),
+                    BirthDate = reader.IsDBNull(3) ? null : reader.GetDateTime(3)
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching unenrolled students: {ex.Message}");
+                return new List<AvailableStudentDTO>();
+            }
+        }
 
 
 

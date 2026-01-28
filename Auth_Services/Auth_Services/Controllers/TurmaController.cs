@@ -126,11 +126,28 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpPatch("recover-turma/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RecoverTurma(int id)
+        {
+            try
+            {
+                // Your DB service should set isDeleted = 0 for this ID
+                bool success = await _dbServices.RecoverTurma(id);
+                if (!success) return NotFound("Turma not found.");
+                return Ok(new { message = "Turma restored successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
-        // Student in Turma
+
+        // Students in Turma
         [HttpGet("list-students/{turmaId}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetStudentsByTurma(int turmaId)
+        public async Task<IActionResult> GetStudentsByTurma(int turmaId) // retuns List<StudentInTurmaDTO>
         {
             if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
 
@@ -150,6 +167,8 @@ namespace Auth_Services.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+
 
 
 

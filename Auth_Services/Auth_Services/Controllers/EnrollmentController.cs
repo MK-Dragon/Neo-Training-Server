@@ -97,6 +97,21 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("unenrolled-students")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUnenrolledStudents()
+        {
+            try
+            {
+                var students = await _dbServices.GetUnenrolledStudents();
+                return Ok(students);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
 
 
     } // The End

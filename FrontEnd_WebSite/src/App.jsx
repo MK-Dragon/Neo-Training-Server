@@ -26,6 +26,12 @@ import UserProfile from './pages/UserProfile.jsx';
 import SalaManagement from './pages/SalaManagement.jsx';
 import ModuleManagement from './pages/ModuleManagement.jsx';
 import CourseManagement from './pages/CourseManagement.jsx';
+import TurmaManagement from './pages/TurmaManagement.jsx';
+
+// Enroll Students
+import EnrollmentManagement from './pages/EnrollmentManagement.jsx';
+
+
 
 function NavigationWrapper() {
   const location = useLocation();
@@ -59,7 +65,11 @@ function NavigationWrapper() {
           <Route path="/SalaManagement" element={<ProtectedRoute><SalaManagement /></ProtectedRoute>} />
           <Route path="/ModuleManagement" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
           <Route path="/CourseManagement" element={<ProtectedRoute><CourseManagement /></ProtectedRoute>} />
-          
+          <Route path="/TurmaManagement" element={<ProtectedRoute><TurmaManagement /></ProtectedRoute>} />
+
+          {/* Enroll Students */}
+          <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />
+
           {/* Catch-all: Redirect to Home or 404 */}
           <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         </Routes>
