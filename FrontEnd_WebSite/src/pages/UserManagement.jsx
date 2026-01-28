@@ -1,7 +1,7 @@
 // /src/pages/UserManagement.jsx
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, InputGroup, Row, Col, Badge, Alert } from 'react-bootstrap';
+import { Table, Button, Modal, Form, InputGroup, Row, Col, Badge, Alert, Pagination, Card } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -11,11 +11,15 @@ const UserManagement = () => {
     const [showModal, setShowModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
 
-    // --- Search, Sort, and Filter States ---
+    // --- Search, Sort, Filter & Pagination States ---
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
     const [filterRole, setFilterRole] = useState('all');
     const [showDeleted, setShowDeleted] = useState(true);
+    
+    // Pagination specific states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // --- Password & UI States ---
     const [newPass, setNewPass] = useState('');
@@ -25,6 +29,11 @@ const UserManagement = () => {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    // Reset to page 1 when filters or search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterRole, showDeleted, itemsPerPage]);
 
     useEffect(() => {
         if (!showModal) {
@@ -56,6 +65,7 @@ const UserManagement = () => {
         setSortConfig({ key, direction });
     };
 
+    // 1. Process Data (Filter & Sort)
     const processedUsers = users
         .filter(u => {
             const matchesRole = filterRole === 'all' || u.role === filterRole;
@@ -72,6 +82,12 @@ const UserManagement = () => {
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
+
+    // 2. Pagination Logic
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentUsers = processedUsers.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(processedUsers.length / itemsPerPage);
 
     const handleEditClick = (user) => {
         setSelectedUser({ ...user }); 
@@ -116,48 +132,69 @@ const UserManagement = () => {
             <h3 className="mb-4">User Management</h3>
 
             {/* Filter Bar */}
-            <Row className="mb-4 g-3 align-items-center">
-                <Col md={5}>
-                    <InputGroup>
-                        <InputGroup.Text>🔍</InputGroup.Text>
-                        <Form.Control
-                            placeholder="Search by username or email..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </InputGroup>
-                </Col>
-                <Col md={3}>
-                    <Form.Select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
-                        <option value="all">All Roles</option>
-                        <option value="Admin">Admin</option>
-                        <option value="Teacher">Teacher</option>
-                        <option value="Student">Student</option>
-                    </Form.Select>
-                </Col>
-                <Col md={4}>
-                    <Form.Check 
-                        type="checkbox"
-                        id="show-deleted-check"
-                        label="Include Deleted Users"
-                        checked={showDeleted}
-                        onChange={(e) => setShowDeleted(e.target.checked)}
-                    />
-                </Col>
-            </Row>
+            <Card className="mb-4 shadow-sm border-0 bg-light">
+                <Card.Body>
+                    <Row className="g-3 align-items-end">
+                        <Col md={4}>
+                            <Form.Label className="fw-bold">Search</Form.Label>
+                            <InputGroup>
+                                <InputGroup.Text>🔍</InputGroup.Text>
+                                <Form.Control
+                                    placeholder="Username or email..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </InputGroup>
+                        </Col>
+                        <Col md={2}>
+                            <Form.Label className="fw-bold">Role</Form.Label>
+                            <Form.Select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+                                <option value="all">All Roles</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Teacher">Teacher</option>
+                                <option value="Student">Student</option>
+                            </Form.Select>
+                        </Col>
+                        <Col md={2}>
+                            <Form.Label className="fw-bold">Per Page</Form.Label>
+                            <Form.Select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))}>
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </Form.Select>
+                        </Col>
+                        <Col md={4} className="d-flex align-items-center justify-content-end">
+                            <Form.Check 
+                                type="switch"
+                                id="show-deleted-check"
+                                label="Include Deleted"
+                                checked={showDeleted}
+                                onChange={(e) => setShowDeleted(e.target.checked)}
+                            />
+                        </Col>
+                    </Row>
+                </Card.Body>
+            </Card>
 
             <Table striped bordered hover responsive>
                 <thead className="table-dark text-nowrap">
                     <tr>
-                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>ID ▲▼</th>
-                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>Username ▲▼</th>
-                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>Email ▲▼</th>
+                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
+                            ID {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
+                        </th>
+                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>
+                            Username {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
+                        </th>
+                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>
+                            Email {sortConfig.key === 'email' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
+                        </th>
                         <th>Role</th>
                         <th className="text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {processedUsers.map(u => (
+                    {currentUsers.map(u => (
                         <tr key={u.id} className={u.isDeleted === 1 ? "table-secondary opacity-75" : ""}>
                             <td>{u.id}</td>
                             <td style={u.isDeleted === 1 ? { textDecoration: 'line-through' } : {}}>
@@ -181,11 +218,40 @@ const UserManagement = () => {
                             </td>
                         </tr>
                     ))}
+                    {currentUsers.length === 0 && (
+                        <tr>
+                            <td colSpan="5" className="text-center text-muted py-3">No users found.</td>
+                        </tr>
+                    )}
                 </tbody>
             </Table>
 
-            {/* Modal */}
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="d-flex justify-content-center mt-3">
+                    <Pagination>
+                        <Pagination.First onClick={() => setCurrentPage(1)} disabled={currentPage === 1} />
+                        <Pagination.Prev onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} />
+                        
+                        {[...Array(totalPages)].map((_, idx) => (
+                            <Pagination.Item 
+                                key={idx + 1} 
+                                active={idx + 1 === currentPage} 
+                                onClick={() => setCurrentPage(idx + 1)}
+                            >
+                                {idx + 1}
+                            </Pagination.Item>
+                        ))}
+
+                        <Pagination.Next onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} />
+                        <Pagination.Last onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} />
+                    </Pagination>
+                </div>
+            )}
+
+            {/* Modal remains the same */}
             <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
+                {/* ... existing modal content ... */}
                 <Modal.Header closeButton>
                     <Modal.Title>Manage User: {selectedUser?.username}</Modal.Title>
                 </Modal.Header>

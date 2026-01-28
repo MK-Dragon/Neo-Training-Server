@@ -59,7 +59,15 @@ function NavBar() {
             <Nav.Link as={Link} to="/" onClick={closeNav}>Dashboard</Nav.Link>
             
             {userRole === 'Admin' && (
-               <Nav.Link as={Link} to="/UserManagement" onClick={closeNav}>Edit Users</Nav.Link>
+              <>
+                <Nav.Link as={Link} to="/UserManagement" onClick={closeNav}>
+                  Edit Users
+                </Nav.Link>
+                <Nav.Link as={Link} to="/SalaManagement" onClick={closeNav}>
+                  Manage Salas
+                </Nav.Link>
+                <Nav.Link as={Link} to="/ModuleManagement" onClick={closeNav}>Manage Modules</Nav.Link>
+              </>
             )}
           </Nav>
 

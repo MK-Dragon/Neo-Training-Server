@@ -3,70 +3,67 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 
-
 // components:
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 
-
 // Login / Pass Recovery Pages
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
-import ForgotPassword from './pages/ForgotPassword.jsx'; <Route path="/ForgotPassword" element={<ForgotPassword />} />
-import ResetPassword from './pages/ResetPassword.jsx'; <Route path="/ResetPassword" element={<ResetPassword />} />
-
-
+import ForgotPassword from './pages/ForgotPassword.jsx'; 
+import ResetPassword from './pages/ResetPassword.jsx'; 
 
 // Login Related Pages
 import ActivateAccount from './pages/ActivateAccount.jsx';
 import Verify2FA from './pages/Verify2FA.jsx';
 
-// General Porpose Pages
+// General Purpose Pages
 import Home from './pages/Home.jsx';
 import UserManagement from './pages/UserManagement.jsx';
-import UserProfile from './pages/UserProfile.jsx'; <Route path="/profile" element={<UserProfile />} />
+import UserProfile from './pages/UserProfile.jsx'; 
 
+// Management
+import SalaManagement from './pages/SalaManagement.jsx';
+import ModuleManagement from './pages/ModuleManagement.jsx';
 
-
-// This helper component handles the logic
 function NavigationWrapper() {
   const location = useLocation();
   
-  // Define paths where you DON'T want the navbar
-  const hideNavbarPaths = ['/login', '/register'];
+  // Normalize paths to lowercase to prevent matching issues
+  const currentPath = location.pathname.toLowerCase();
+  const hideNavbarPaths = ['/login', '/register', '/forgotpassword', '/resetpassword'];
+
+  const shouldHide = hideNavbarPaths.includes(currentPath);
 
   return (
     <>
-      {/* Only show NavBar if current path is NOT in the hide list */}
-      {!hideNavbarPaths.includes(location.pathname) && <NavBar />}
+      {!shouldHide && <NavBar />}
       
-      <div style={{ marginTop: location.pathname === '/login' ? '0' : '80px' }}>
+      <div style={{ marginTop: shouldHide ? '0' : '80px' }}>
         <Routes>
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            } 
-          />
-          {/* Login */}
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/ForgotPassword" element={<ForgotPassword />} />
           <Route path="/ResetPassword" element={<ResetPassword />} />
-
-          {/* Login Related */}
           <Route path="/activate" element={<ActivateAccount />} />
           <Route path="/verify-2fa" element={<Verify2FA />} />
+
+          {/* Protected Routes */}
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/userProfile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
           
-          {/* User Destinations */}
-          <Route path="/userProfile" element={<UserProfile />} />
-          <Route path="/UserManagement" element={<UserManagement />} />
+          {/* Admin Protected Routes */}
+          <Route path="/UserManagement" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+          <Route path="/SalaManagement" element={<ProtectedRoute><SalaManagement /></ProtectedRoute>} />
+          <Route path="/ModuleManagement" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
+          
+          {/* Catch-all: Redirect to Home or 404 */}
+          <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         </Routes>
       </div>
 
-      {!hideNavbarPaths.includes(location.pathname) && <Footer />}
+      {!shouldHide && <Footer />}
     </>
   );
 }

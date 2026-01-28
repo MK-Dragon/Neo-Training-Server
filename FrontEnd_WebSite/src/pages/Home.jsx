@@ -1,3 +1,5 @@
+// src/pages/Home.jsx
+
 import React, { useEffect } from 'react'; // 1. Added useEffect here
 import { Link, useNavigate } from 'react-router-dom'; // 2. Added useNavigate here
 

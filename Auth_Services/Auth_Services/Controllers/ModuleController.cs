@@ -118,26 +118,25 @@ namespace Auth_Services.Controllers
             return Ok(new { message = "Module added successfully" });
         }
 
-        [HttpPut("update-course")] // TODO: TEST THIS
+        [HttpPut("update-module")]
         [AllowAnonymous]
-        public async Task<IActionResult> UpdateCourse([FromBody] Course course)
+        public async Task<IActionResult> UpdateModule([FromBody] ModuleUpdate module)
         {
-            // Basic validation
-            if (course == null || course.Id <= 0)
+            if (module == null || module.ModuleId <= 0)
             {
-                return BadRequest("Invalid Course data or ID.");
+                return BadRequest("Invalid module data or ID.");
             }
 
             try
             {
-                bool success = await _dbServices.UpdateCourse(course);
+                bool success = await _dbServices.UpdateModule(module);
 
                 if (!success)
                 {
-                    return NotFound(new { message = "Update failed. Course not found." });
+                    return NotFound(new { message = "Module not found." });
                 }
 
-                return Ok(new { message = "Course updated successfully." });
+                return Ok(new { message = "Module updated successfully." });
             }
             catch (Exception ex)
             {

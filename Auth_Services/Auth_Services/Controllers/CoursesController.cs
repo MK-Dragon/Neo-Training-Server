@@ -10,12 +10,12 @@ namespace Auth_Services.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CursesController : ControllerBase
+    public class CoursesController : ControllerBase
     {
         private readonly DbServices _dbServices;
         private readonly TokenService _tokenService;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public CursesController(TokenService tokenService, IHttpContextAccessor httpContextAccessor, ConnectionSettings connectionSettings)  // Settings INJECTED HERE
+        public CoursesController(TokenService tokenService, IHttpContextAccessor httpContextAccessor, ConnectionSettings connectionSettings)  // Settings INJECTED HERE
         {
             _dbServices = new DbServices(
                 // MySQL

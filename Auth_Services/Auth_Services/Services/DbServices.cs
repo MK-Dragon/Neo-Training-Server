@@ -1385,6 +1385,39 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<bool> UpdateModule(ModuleUpdate module)
+        {
+            Console.WriteLine($"Updating Module ID: {module.ModuleId}");
+
+            try
+            {
+                const string query = @"
+            UPDATE modules 
+            SET name = @name, 
+                duration_h = @duration, 
+                isDeleted = @isDeleted 
+            WHERE module_id = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@name", module.Name),
+            new MySqlParameter("@duration", module.DurationH),
+            new MySqlParameter("@isDeleted", module.IsDeleted),
+            new MySqlParameter("@id", module.ModuleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if the module existed and was updated
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating module: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<bool> DeleteModule(int moduleId)
         {
             Console.WriteLine($"Marking Module ID {moduleId} as Deleted");
