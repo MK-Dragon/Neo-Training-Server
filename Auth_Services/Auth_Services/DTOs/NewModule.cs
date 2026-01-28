@@ -1,4 +1,4 @@
-﻿namespace Auth_Services.Models
+﻿namespace Auth_Services.DTOs
 {
     public class NewModule
     {

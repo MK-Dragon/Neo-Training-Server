@@ -1,7 +1,7 @@
 ﻿using StackExchange.Redis;
 using System.ComponentModel.DataAnnotations;
 
-namespace Auth_Services.Models
+namespace Auth_Services.DTOs
 {
     public class AppUser
     {

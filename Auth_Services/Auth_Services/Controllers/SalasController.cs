@@ -1,4 +1,5 @@
-﻿using Auth_Services.Models;
+﻿using Auth_Services.DTOs;
+using Auth_Services.Models;
 using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -128,7 +129,7 @@ namespace Auth_Services.Controllers
         }
 
         // Delete sala (soft delete)
-        [HttpPatch("delete-sala/{salaId}")]
+        [HttpDelete("delete-sala/{salaId}")]
         [AllowAnonymous]
         public async Task<IActionResult> DeleteSala(int salaId)
         {

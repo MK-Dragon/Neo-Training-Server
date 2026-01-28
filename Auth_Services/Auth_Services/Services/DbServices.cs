@@ -1,5 +1,6 @@
 ﻿// DbServices.cs
 
+using Auth_Services.DTOs;
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
 using Auth_Services.Services;
@@ -215,6 +216,24 @@ namespace Auth_Services.Services
             await InvalidateCacheKeyAsync($"all_app_users"); // profile (no pass or tokens)
         }
 
+        public async Task InvalidateModulesCacheAsync(Module module)
+        {
+            // Invalidate Cache for this user and All Users list
+            await InvalidateCacheKeyAsync($"module_{module.Name}");
+            await InvalidateCacheKeyAsync($"module_{module.Id}");
+
+            await InvalidateCacheKeyAsync($"all_modules");
+        }
+        
+
+        public async Task InvalidateCousesCacheAsync(Course course)
+        {
+            // Invalidate Cache for this user and All Users list
+            //await InvalidateCacheKeyAsync($"module_{module.Name}");
+            //await InvalidateCacheKeyAsync($"module_{module.Id}");
+
+            await InvalidateCacheKeyAsync($"all_couses");
+        }
 
         // Helper method to keep the mapping DRY (Don't Repeat Yourself) TODO: refector the rest of the db reads later
         private Sala MapSala(MySqlDataReader reader)
@@ -1308,6 +1327,37 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<Module> GetModuleById(int moduleId) // TODO: TEST THIS
+        {
+            const string query = @"
+        SELECT module_id, name, duration_h, isDeleted 
+        FROM modules 
+        WHERE module_id = @id AND isDeleted = 0;";
+
+            var parameters = new[] { new MySqlParameter("@id", moduleId) };
+
+            try
+            {
+                var result = await GetDataAsync<Module>(
+                    query,
+                    reader => new Module
+                    {
+                        Id = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                        Name = reader.IsDBNull(1) ? "Unnamed" : reader.GetString(1),
+                        DurationInHours = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                        isDeleted = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                    },
+                    parameters
+                );
+
+                return result.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching module by ID: {ex.Message}");
+                return null;
+            }
+        }
 
         // Add Module Method
         public async Task<int> AddModule(NewModule newModule)
@@ -1335,62 +1385,51 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<bool> DeleteModule(int moduleId)
+        {
+            Console.WriteLine($"Marking Module ID {moduleId} as Deleted");
+
+            try
+            {
+                // SQL remains an UPDATE because it is a soft-delete
+                const string query = @"UPDATE modules SET isDeleted = 1 WHERE module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                if (result == 0)
+                {
+                    Console.WriteLine($"Delete failed: No module found with ID {moduleId}.");
+                    return false;
+                }
+
+                // Important: If you cache modules by ID, clear it here
+                // await InvalidateModuleCacheAsync(moduleId);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n\n** DeleteModule failed - Connection or SQL error: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
 
 
         // ** Courses **
 
         // Get all Courses (full info)
-        public async Task<List<User>> GetAllCourses() // testing method
+        public async Task<List<Course>> GetAllCourses() // testing method (???)
         {
-            // Try Redis first
-            string cacheKey = $"all_couses";
-
-            List<User> user = await GetCachedItemAsync<List<User>>(cacheKey);
-            if (user != null)
-            {
-                Console.WriteLine($"\tCache HIT for key: {cacheKey}");
-                return user;
-            }
-            else
-            {
-                Console.WriteLine($"\tCache MISS for key: {cacheKey}");
-            }
-
-            // go to DB
-            try
-            {
-                var users = await GetDataAsync<User>(
-                    @"
-                    SELETE * FROM
-                    
-                    ",
-                    reader => new User
-                    {
-                        Id = reader.GetInt32(0),
-                        Username = reader.GetString(1),
-                        Email = reader.GetString(2),
-                        RoleId = reader.GetInt32(3),
-                        Role = reader.GetString(4),
-                        IsDeleted = reader.GetInt32(5),
-                        Password = reader.GetString(6),
-                        Activated = reader.GetInt32(7),
-                    }
-                );
-
-                // Update Cache
-                if (users.Count != 0)
-                {
-                    await SetCachedItemAsync(cacheKey, users, DefaultCacheExpiration);
-                    Console.WriteLine($"\tCaching for key: {cacheKey}");
-                }
-                return users;
-            }
-            catch
-            {
-                Console.WriteLine($"\n\n** Get All Users failed - Connection failed");
-                return new List<User>();
-            }
-
+            // ??
+            return new List<Course>();
         }
 
         public async Task<Course> GetCourseWithModules(int courseId)
@@ -1480,39 +1519,466 @@ namespace Auth_Services.Services
             }
         }
 
-        public async Task<bool> DeleteModule(int moduleId)
+        public async Task<int> AddCourse(NewCourse course)
         {
-            Console.WriteLine($"Marking Module ID {moduleId} as Deleted");
-
             try
             {
-                // SQL remains an UPDATE because it is a soft-delete
-                const string query = @"UPDATE modules SET isDeleted = 1 WHERE module_id = @moduleId;";
+                // We force isDeleted to 0 directly in the query
+                const string sql = @"
+            INSERT INTO courses (nome_curso, duration, level, isDeleted) 
+            VALUES (@name, @duration, @level, 0);";
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@moduleId", moduleId)
+            new MySqlParameter("@name", course.Name),
+            new MySqlParameter("@duration", course.DurationInHours),
+            new MySqlParameter("@level", course.Level)
+        };
+
+                return await ExecuteNonQueryAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DATABASE ERROR: " + ex.Message);
+                return 0;
+            }
+        }
+
+        public async Task<bool> UpdateCourse(Course course)
+        {
+            Console.WriteLine($"Editing Course ID: {course.Id} ({course.Name})");
+
+            try
+            {
+                // SQL targets id_cursos as the primary key
+                const string query = @"
+            UPDATE courses 
+            SET nome_curso = @name, 
+                duration = @duration, 
+                level = @level,
+                isDeleted = @isDeleted
+            WHERE id_cursos = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@name", course.Name),
+            new MySqlParameter("@duration", course.durationInHours),
+            new MySqlParameter("@level", course.Level),
+            new MySqlParameter("@isDeleted", course.IsDeleted),
+            new MySqlParameter("@id", course.Id)
         };
 
                 int result = await ExecuteNonQueryAsync(query, parameters);
 
                 if (result == 0)
                 {
-                    Console.WriteLine($"Delete failed: No module found with ID {moduleId}.");
+                    Console.WriteLine("Update failed: No course found with that ID.");
                     return false;
                 }
-
-                // Important: If you cache modules by ID, clear it here
-                // await InvalidateModuleCacheAsync(moduleId);
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"\n\n** DeleteModule failed - Connection or SQL error: {ex.Message}");
+                Console.WriteLine($"\n\n** Update Course failed - Error: {ex.Message}");
                 return false;
             }
         }
+
+        public async Task<bool> DeleteCourse(int courseId)
+        {
+            Console.WriteLine($"Soft-deleting Course ID: {courseId}");
+
+            try
+            {
+                // 1. Soft delete the course itself
+                const string courseQuery = "UPDATE courses SET isDeleted = 1 WHERE id_cursos = @id;";
+
+                // 2. Soft delete all module links for this course in the junction table
+                const string modulesQuery = "UPDATE course_modules SET isDeleted = 1 WHERE course_id = @id;";
+
+                var parameters = new[] { new MySqlParameter("@id", courseId) };
+
+                // Execute both (you could wrap these in a transaction for extra safety)
+                await ExecuteNonQueryAsync(modulesQuery, parameters);
+                int result = await ExecuteNonQueryAsync(courseQuery, parameters);
+
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting course: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
+
+
+        // ** Course Modules **
+
+        // Add Modules to Course in Batch
+        public async Task<bool> AddModulesToCourseBatch(List<ModuleToCourse> modulesList)
+        {
+            if (modulesList == null || modulesList.Count == 0) return false;
+
+            try
+            {
+                // Using the exact column names from your SQL script
+                // We use ON DUPLICATE KEY UPDATE in case the relationship already exists but needs a new order
+                const string sql = @"
+            INSERT INTO course_modules (course_id, module_id, order_index, isDeleted) 
+            VALUES (@courseId, @moduleId, @orderIndex, 0)
+            ON DUPLICATE KEY UPDATE order_index = @orderIndex, isDeleted = 0;";
+
+                foreach (var item in modulesList)
+                {
+                    var parameters = new[]
+                    {
+                new MySqlParameter("@courseId", item.CourseId),
+                new MySqlParameter("@moduleId", item.ModuleId),
+                new MySqlParameter("@orderIndex", item.OrderIndex)
+            };
+
+                    await ExecuteNonQueryAsync(sql, parameters);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DATABASE ERROR (AddModulesToCourseBatch): " + ex.Message);
+                return false;
+            }
+        }
+
+        // Update or Add the relationship with an Order Index
+        public async Task<bool> UpdateModuleOrder(ModuleToCourse data)
+        {
+            Console.WriteLine($"Updating Course {data.CourseId}, Module {data.ModuleId} to Index {data.OrderIndex}");
+
+            try
+            {
+                // Targeting the composite key from your schema
+                const string query = @"
+            UPDATE course_modules 
+            SET order_index = @orderIndex 
+            WHERE course_id = @courseId AND module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@orderIndex", data.OrderIndex),
+            new MySqlParameter("@courseId", data.CourseId),
+            new MySqlParameter("@moduleId", data.ModuleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // If result is 0, it means that specific module isn't linked to that course
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating module order: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Soft delete a specific module from a specific course
+        public async Task<bool> DeleteModuleFromCourse(int courseId, int moduleId)
+        {
+            Console.WriteLine($"Soft-deleting Module {moduleId} from Course {courseId}");
+
+            try
+            {
+                // Targeting the composite key from your schema
+                const string query = @"
+            UPDATE course_modules 
+            SET isDeleted = 1 
+            WHERE course_id = @courseId AND module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@courseId", courseId),
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if a row was actually updated
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error soft-deleting module-course relationship: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
+
+        // ** Turmas & Enrollments **
+
+        public async Task<List<TurmaDTO>> GetAllTurmas()
+        {
+            try
+            {
+                // Joining tables to get the course name
+                const string query = @"
+            SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso 
+            FROM turmas t
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            WHERE c.isDeleted = 0;";
+
+                var turmas = await GetDataAsync<TurmaDTO>(
+                    query,
+                    reader => new TurmaDTO
+                    {
+                        TurmaId = reader.GetInt32(0),
+                        TurmaName = reader.GetString(1),
+                        CourseId = reader.GetInt32(2),
+                        CourseName = reader.GetString(3)
+                    }
+                );
+
+                return turmas ?? new List<TurmaDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turmas: {ex.Message}");
+                return new List<TurmaDTO>();
+            }
+        }
+
+        public async Task<int> AddTurma(NewTurma turma)
+        {
+            Console.WriteLine($"Creating Turma: {turma.TurmaName} for Course ID: {turma.CourseId}");
+
+            try
+            {
+                // SQL targets turma_name and course_id per your schema
+                const string sql = @"
+            INSERT INTO turmas (turma_name, course_id) 
+            VALUES (@name, @courseId);";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@name", turma.TurmaName),
+            new MySqlParameter("@courseId", turma.CourseId)
+        };
+
+                // ExecuteNonQueryAsync returns the number of rows affected
+                return await ExecuteNonQueryAsync(sql, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DATABASE ERROR (AddTurma): " + ex.Message);
+                return 0;
+            }
+        }
+
+        public async Task<bool> UpdateTurma(UpdateTurma turma)
+        {
+            Console.WriteLine($"Updating Turma ID {turma.TurmaId} to Name: {turma.TurmaName}");
+
+            try
+            {
+                const string query = @"
+            UPDATE turmas 
+            SET turma_name = @name, 
+                course_id = @courseId 
+            WHERE turma_id = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@name", turma.TurmaName),
+            new MySqlParameter("@courseId", turma.CourseId),
+            new MySqlParameter("@id", turma.TurmaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if the record was found and updated
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateTurma failed - Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteTurma(int turmaId)
+        {
+            Console.WriteLine($"Soft-deleting Turma ID: {turmaId}");
+
+            try
+            {
+                // 1. Mark the Turma as deleted
+                const string turmaQuery = "UPDATE turmas SET isDeleted = 1 WHERE turma_id = @id;";
+
+                // 2. Mark all enrollments for this specific Turma as deleted
+                const string enrollmentsQuery = "UPDATE enrollments SET isDeleted = 1 WHERE turma_id = @id;";
+
+                var parameters = new[] { new MySqlParameter("@id", turmaId) };
+
+                // Execute both to ensure data consistency
+                await ExecuteNonQueryAsync(enrollmentsQuery, parameters);
+                int result = await ExecuteNonQueryAsync(turmaQuery, parameters);
+
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting turma: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Student In Turma
+        public async Task<List<StudentInTurmaDTO>> GetStudentsByTurma(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id, 
+                u.username, 
+                u.email, 
+                u.birth_date, 
+                u.isDeleted AS UserIsDeleted, 
+                e.isDeleted AS EnrollmentIsDeleted
+            FROM users u
+            INNER JOIN enrollments e ON u.user_id = e.student_id
+            WHERE e.turma_id = @turmaId;";
+
+                var parameters = new[] { new MySqlParameter("@turmaId", turmaId) };
+
+                return await GetDataAsync<StudentInTurmaDTO>(query, reader => new StudentInTurmaDTO
+                {
+                    UserId = reader.GetInt32("user_id"),
+                    Username = reader.GetString("username"),
+                    Email = reader.GetString("email"),
+                    BirthDate = reader.IsDBNull(reader.GetOrdinal("birth_date")) ? null : reader.GetDateTime("birth_date"),
+                    UserIsDeleted = reader.GetInt32("UserIsDeleted"),
+                    EnrollmentIsDeleted = reader.GetInt32("EnrollmentIsDeleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching students for turma {turmaId}: {ex.Message}");
+                return new List<StudentInTurmaDTO>();
+            }
+        }
+
+
+
+
+        // ** Enrollments **
+
+        public async Task<string> EnrollStudent(NewEnrollment enrollment)
+        {
+            try
+            {
+                // This query does three things:
+                // 1. Checks if the user has role_id = 3 (Student)
+                // 2. Tries to insert the enrollment
+                // 3. If they were previously deleted, it reactivates them (ON DUPLICATE KEY)
+                const string sql = @"
+            INSERT INTO enrollments (student_id, turma_id, enrollment_date, isDeleted)
+            SELECT u.user_id, @turmaId, CURDATE(), 0
+            FROM users u
+            WHERE u.user_id = @studentId AND u.role_id = 3 AND u.isDeleted = 0
+            ON DUPLICATE KEY UPDATE isDeleted = 0, enrollment_date = CURDATE();";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", enrollment.StudentId),
+            new MySqlParameter("@turmaId", enrollment.TurmaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(sql, parameters);
+
+                if (result > 0) return "Success";
+                return "InvalidRole"; // Either not a student or user doesn't exist
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Enrollment Error: " + ex.Message);
+                return "Error";
+            }
+        }
+
+        public async Task<bool> DeleteEnrollment(int studentId, int turmaId)
+        {
+            Console.WriteLine($"Soft-deleting Enrollment: Student {studentId} from Turma {turmaId}");
+
+            try
+            {
+                // Using the exact column names from your schema
+                const string query = @"
+            UPDATE enrollments 
+            SET isDeleted = 1 
+            WHERE student_id = @studentId AND turma_id = @turmaId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", studentId),
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if a row was actually found and updated
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting enrollment: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateStudentTurma(UpdateEnrollment data)
+        {
+            Console.WriteLine($"Moving Student {data.StudentId} from Turma {data.OldTurmaId} to {data.NewTurmaId}");
+
+            try
+            {
+                // SQL targets the specific enrollment relationship
+                const string query = @"
+            UPDATE enrollments 
+            SET turma_name = @newTurmaId, 
+                enrollment_date = CURDATE(),
+                isDeleted = 0
+            WHERE student_id = @studentId AND turma_id = @oldTurmaId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", data.StudentId),
+            new MySqlParameter("@oldTurmaId", data.OldTurmaId),
+            new MySqlParameter("@newTurmaId", data.NewTurmaId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (MySqlException ex) when (ex.Number == 1062) // Duplicate entry error
+            {
+                Console.WriteLine("Student is already enrolled in the target Turma.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating enrollment: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
 
 
 
@@ -1523,24 +1989,22 @@ namespace Auth_Services.Services
         {
             try
             {
-                // Optional: Check if name exists first (similar to your AddUser logic)
                 const string sql = @"
             INSERT INTO salas (sala_nome, tem_pcs, tem_oficina, isDeleted) 
             VALUES (@Nome, @TemPcs, @TemOficina, 0);";
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@Nome", sala.Nome),
-            new MySqlParameter("@TemPcs", sala.TemPcs),
-            new MySqlParameter("@TemOficina", sala.TemOficina)
-        };
+                    new MySqlParameter("@Nome", sala.Nome),
+                    new MySqlParameter("@TemPcs", sala.TemPcs),
+                    new MySqlParameter("@TemOficina", sala.TemOficina)
+                };
 
-                // Returns the number of rows affected (should be 1)
                 return await ExecuteNonQueryAsync(sql, parameters);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("DATABASE ERROR (AddSala): " + ex.ToString());
+                Console.WriteLine("DATABASE ERROR: " + ex.Message);
                 return 0;
             }
         }

@@ -1,4 +1,5 @@
-﻿using Auth_Services.Models;
+﻿using Auth_Services.DTOs;
+using Auth_Services.Models;
 using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -34,75 +35,13 @@ namespace Auth_Services.Controllers
         // ** CRUD Curses **
 
 
-        [HttpGet("curses")]
-        [Authorize(Roles = "Admin")] // Recommended: Only let admins see this
+        [HttpGet("courses")]
+        [AllowAnonymous] // TODO: Change to Authorized later
         public async Task<IActionResult> GetAllCurses()
         {
-            var users = await _dbServices.GetAllAppUsers(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+            var users = await _dbServices.GetAllCourses();
             return Ok(users);
         }
-
-        [HttpGet("allmodules")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetModuleByName()
-        {
-            var users = await _dbServices.GetAllModules(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
-            return Ok(users);
-        }
-
-        [HttpGet("module")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetModuleByName(string module_name)
-        {
-            try
-            {
-                var module = await _dbServices.GetModuleByName(module_name); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
-                if (module.Id == 0)
-                {
-                    return NotFound("Module not found.");
-                }
-                return Ok(module);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpPost("addmodule")]
-        [AllowAnonymous]
-        public async Task<IActionResult> AddModule([FromQuery] NewModule new_module)
-        {
-            // Validate input
-            if (string.IsNullOrWhiteSpace(new_module.Name) || new_module.DurationInHours < 0)
-            {
-                return BadRequest("Invalid module data.");
-            }
-
-            // check if module already exists
-            var existingModule = await _dbServices.GetModuleByName(new_module.Name);
-            if (existingModule.Id != 0) {
-                return Conflict("Module with the same name already exists.");
-            }
-
-            try
-            {
-                // Additional validation or processing can be done here
-                var result = await _dbServices.AddModule(new_module);
-                if (result <= 0)
-                {
-                    return StatusCode(500, "Failed to add module.");
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-
-            //var users = await _dbServices.GetAllModules(); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
-            return Ok(new { message = "Module added successfully" });
-        }
-
 
         [HttpGet("course-id")]
         [AllowAnonymous]
@@ -148,22 +87,80 @@ namespace Auth_Services.Controllers
             }
         }
 
-        [HttpDelete("delete-module/{moduleId}")]
+        [HttpPost("create-course")]
         [AllowAnonymous]
-        public async Task<IActionResult> DeleteModule(int moduleId)
+        public async Task<IActionResult> CreateCourse([FromBody] NewCourse course)
         {
+            if (course == null || string.IsNullOrEmpty(course.Name))
+            {
+                return BadRequest("Invalid course data. Name is required.");
+            }
+
             try
             {
-                bool isDeleted = await _dbServices.DeleteModule(moduleId);
+                int result = await _dbServices.AddCourse(course);
 
-                if (!isDeleted)
+                if (result > 0)
                 {
-                    // Returns 404 if the ID doesn't exist or is already deleted
-                    return NotFound(new { message = $"Module with ID {moduleId} not found." });
+                    return Ok(new { message = "Course created successfully." });
+                }
+                else
+                {
+                    return BadRequest("Failed to create course. It might already exist.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPut("update-course")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateCourse([FromBody] Course course)
+        {
+            // Basic validation to ensure we have a valid ID and object
+            if (course == null || course.Id <= 0)
+            {
+                return BadRequest(new { message = "Invalid course data. A valid Course ID is required." });
+            }
+
+            try
+            {
+                // Call the DB function you provided
+                bool success = await _dbServices.UpdateCourse(course);
+
+                if (!success)
+                {
+                    // If the DB returns false, it means the ID likely doesn't exist
+                    return NotFound(new { message = $"Course with ID {course.Id} not found." });
                 }
 
-                // Returns 200 OK
-                return Ok(new { message = "Module status updated to deleted." });
+                return Ok(new { message = "Course updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                // Log the error and return a 500 status code
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPatch("delete-course/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteCourse(int id)
+        {
+            if (id <= 0) return BadRequest("Invalid Course ID.");
+
+            try
+            {
+                bool success = await _dbServices.DeleteCourse(id);
+
+                if (!success)
+                {
+                    return NotFound(new { message = $"Course with ID {id} not found." });
+                }
+
+                return Ok(new { message = "Course and its module associations marked as deleted." });
             }
             catch (Exception ex)
             {
@@ -172,7 +169,8 @@ namespace Auth_Services.Controllers
         }
 
 
-        
+
+
 
 
     } // End of CursesController class

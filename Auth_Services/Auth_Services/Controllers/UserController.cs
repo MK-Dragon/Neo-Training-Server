@@ -1,4 +1,5 @@
-﻿using Auth_Services.Models;
+﻿using Auth_Services.DTOs;
+using Auth_Services.Models;
 using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

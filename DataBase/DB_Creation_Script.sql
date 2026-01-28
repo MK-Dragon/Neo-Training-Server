@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   `birth_date` DATE NULL,
   `Provider` VARCHAR(45) NULL,
   `ProviderKey` TEXT NULL,
-  `isDeleted` INT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`user_id`),
   INDEX `user_type_idx` (`role_id` ASC) VISIBLE,
   CONSTRAINT `user_type`
@@ -77,9 +77,9 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mydb`.`courses` (
   `id_cursos` INT NOT NULL AUTO_INCREMENT,
   `nome_curso` VARCHAR(45) NOT NULL,
-  `duration` INT NULL,
+  `duration` INT NOT NULL,
   `level` VARCHAR(45) NULL,
-  `isDeleted` INT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_cursos`),
   UNIQUE INDEX `nome_curso_UNIQUE` (`nome_curso` ASC) VISIBLE)
 ENGINE = InnoDB;
@@ -92,8 +92,10 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turmas` (
   `turma_id` INT NOT NULL AUTO_INCREMENT,
   `turma_name` VARCHAR(45) NOT NULL,
   `course_id` INT NOT NULL,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`turma_id`),
   INDEX `course_idx` (`course_id` ASC) VISIBLE,
+  UNIQUE INDEX `turma_name_UNIQUE` (`turma_name` ASC) VISIBLE,
   CONSTRAINT `course_turma`
     FOREIGN KEY (`course_id`)
     REFERENCES `mydb`.`courses` (`id_cursos`)
@@ -110,10 +112,11 @@ CREATE TABLE IF NOT EXISTS `mydb`.`enrollments` (
   `student_id` INT NOT NULL,
   `turma_id` INT NOT NULL,
   `enrollment_date` DATE NOT NULL,
-  `isDeleted` INT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id_enrollment`),
   INDEX `studant_idx` (`student_id` ASC) VISIBLE,
   INDEX `turma_idx` (`turma_id` ASC) VISIBLE,
+  UNIQUE INDEX `id_unic_student_turma` (`student_id` ASC, `turma_id` ASC) VISIBLE,
   CONSTRAINT `studant`
     FOREIGN KEY (`student_id`)
     REFERENCES `mydb`.`users` (`user_id`)
@@ -134,7 +137,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`modules` (
   `module_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `duration_h` INT NOT NULL,
-  `isDeleted` INT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`module_id`),
   UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE)
 ENGINE = InnoDB;
@@ -146,7 +149,8 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mydb`.`course_modules` (
   `course_id` INT NOT NULL,
   `module_id` INT NOT NULL,
-  `order_index` INT NULL,
+  `order_index` INT NOT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`course_id`, `module_id`),
   INDEX `modual_idx` (`module_id` ASC) VISIBLE,
   CONSTRAINT `course_module`
@@ -163,44 +167,14 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`turma_modulo_formador`
--- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulo_formador` (
-  `id_turma_modulo_formador` INT NOT NULL AUTO_INCREMENT,
-  `turma_id` INT NOT NULL,
-  `module_id` INT NOT NULL,
-  `formador_id` INT NOT NULL,
-  PRIMARY KEY (`id_turma_modulo_formador`),
-  INDEX `turma_idx` (`turma_id` ASC) VISIBLE,
-  INDEX `module_idx` (`module_id` ASC) VISIBLE,
-  INDEX `formador_idx` (`formador_id` ASC) VISIBLE,
-  CONSTRAINT `turma_tmf`
-    FOREIGN KEY (`turma_id`)
-    REFERENCES `mydb`.`turmas` (`turma_id`)
-    ON DELETE CASCADE
-    ON UPDATE NO ACTION,
-  CONSTRAINT `module_tmf`
-    FOREIGN KEY (`module_id`)
-    REFERENCES `mydb`.`modules` (`module_id`)
-    ON DELETE CASCADE
-    ON UPDATE NO ACTION,
-  CONSTRAINT `formador_tmf`
-    FOREIGN KEY (`formador_id`)
-    REFERENCES `mydb`.`users` (`user_id`)
-    ON DELETE CASCADE
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
 -- Table `mydb`.`salas`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`salas` (
   `sala_id` INT NOT NULL AUTO_INCREMENT,
   `sala_nome` VARCHAR(45) NOT NULL,
-  `tem_pcs` INT NULL,
-  `tem_oficina` INT NULL DEFAULT 0,
-  `isDeleted` INT NULL DEFAULT 0,
+  `tem_pcs` INT NOT NULL,
+  `tem_oficina` INT NOT NULL DEFAULT 0,
+  `isDeleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`sala_id`),
   UNIQUE INDEX `sala_nome_UNIQUE` (`sala_nome` ASC) VISIBLE)
 ENGINE = InnoDB;
@@ -211,13 +185,13 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`disponibilidades` (
   `dispo_id` INT NOT NULL AUTO_INCREMENT,
-  `user_id` INT NOT NULL,
+  `formador_id` INT NOT NULL,
   `disponivel` INT NOT NULL DEFAULT 0,
   `data_hora` DATETIME NOT NULL,
   PRIMARY KEY (`dispo_id`),
-  INDEX `teacher_idx` (`user_id` ASC) VISIBLE,
+  INDEX `teacher_idx` (`formador_id` ASC) VISIBLE,
   CONSTRAINT `teacher`
-    FOREIGN KEY (`user_id`)
+    FOREIGN KEY (`formador_id`)
     REFERENCES `mydb`.`users` (`user_id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION)
@@ -225,24 +199,83 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`horaios_sala_turma`
+-- Table `mydb`.`formador_teaches_module`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`horaios_sala_turma` (
-  `horadio_id` INT NOT NULL AUTO_INCREMENT,
-  `sala` INT NOT NULL,
-  `id_turma_modulo_formador` INT NOT NULL,
-  PRIMARY KEY (`horadio_id`),
-  INDEX `sala_idx` (`sala` ASC) VISIBLE,
-  INDEX `turma_modulo_formador_idx` (`id_turma_modulo_formador` ASC) VISIBLE,
-  CONSTRAINT `sala`
-    FOREIGN KEY (`sala`)
-    REFERENCES `mydb`.`salas` (`sala_id`)
-    ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS `mydb`.`formador_teaches_module` (
+  `formador_id` INT NOT NULL,
+  `module_id` INT NOT NULL,
+  `isDeleted` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`formador_id`, `module_id`),
+  INDEX `module_idx` (`module_id` ASC) VISIBLE,
+  CONSTRAINT `formador`
+    FOREIGN KEY (`formador_id`)
+    REFERENCES `mydb`.`users` (`user_id`)
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION,
-  CONSTRAINT `turma_modulo_formador`
-    FOREIGN KEY (`id_turma_modulo_formador`)
-    REFERENCES `mydb`.`turma_modulo_formador` (`id_turma_modulo_formador`)
-    ON DELETE CASCADE
+  CONSTRAINT `module`
+    FOREIGN KEY (`module_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`student_grades`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`student_grades` (
+  `id_enrollment` INT NOT NULL,
+  `module_id` INT NOT NULL,
+  `grade` INT NULL,
+  PRIMARY KEY (`id_enrollment`, `module_id`),
+  INDEX `module_idx` (`module_id` ASC) VISIBLE,
+  CONSTRAINT `student_grade`
+    FOREIGN KEY (`id_enrollment`)
+    REFERENCES `mydb`.`enrollments` (`id_enrollment`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `module_grade`
+    FOREIGN KEY (`module_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Table `mydb`.`schedules`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`schedules` (
+  `schedule_id` INT NOT NULL,
+  `turma_id` INT NOT NULL,
+  `module_id` INT NOT NULL,
+  `formador_id` INT NOT NULL,
+  `sala_id` INT NOT NULL,
+  `date_time` DATETIME NOT NULL,
+  PRIMARY KEY (`schedule_id`),
+  INDEX `turma_idx` (`turma_id` ASC) VISIBLE,
+  INDEX `module_idx` (`module_id` ASC) VISIBLE,
+  INDEX `formador_idx` (`formador_id` ASC) VISIBLE,
+  INDEX `sala_idx` (`sala_id` ASC) VISIBLE,
+  CONSTRAINT `turma_schedule`
+    FOREIGN KEY (`turma_id`)
+    REFERENCES `mydb`.`turmas` (`turma_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `module_schedule`
+    FOREIGN KEY (`module_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `formador_schedule`
+    FOREIGN KEY (`formador_id`)
+    REFERENCES `mydb`.`users` (`user_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `sala_schedule`
+    FOREIGN KEY (`sala_id`)
+    REFERENCES `mydb`.`salas` (`sala_id`)
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
