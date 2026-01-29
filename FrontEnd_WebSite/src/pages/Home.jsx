@@ -109,7 +109,7 @@ const Home = () => {
           <Row>
             <DashboardCard title="My Schedule" text="View your upcoming classes." link="/schedule" icon="📅" variant="success" />
             <DashboardCard title="Grade Modules" text="Submit grades for your students." link="/grading" icon="📝" variant="success" />
-            <DashboardCard title="Availability" text="Manage your working hours." link="/availability" icon="⏰" variant="success" />
+            <DashboardCard title="Manage Availability" text="Manage your working hours." link="/TeacherAvailability" icon="⏰" variant="success" />
           </Row>
         </section>
       )}

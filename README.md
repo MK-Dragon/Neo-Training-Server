@@ -38,6 +38,9 @@ You will also need to create or edit the MySettings.json file at Auth_Services\A
 # External APIs and Documentation
 - ChatBot: https://www.tawk.to/
 
+# External Libreries
+QuestPDF: https://www.questpdf.com/invoice-tutorial.html
+
 <br><br><hr><hr><br><br>
 
 # Database Deployment

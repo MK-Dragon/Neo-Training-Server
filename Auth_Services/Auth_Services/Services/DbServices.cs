@@ -216,6 +216,7 @@ namespace Auth_Services.Services
             await InvalidateCacheKeyAsync($"all_app_users"); // profile (no pass or tokens)
         }
 
+
         public async Task InvalidateModulesCacheAsync(Module module)
         {
             // Invalidate Cache for this user and All Users list
@@ -224,7 +225,6 @@ namespace Auth_Services.Services
 
             await InvalidateCacheKeyAsync($"all_modules");
         }
-        
 
         public async Task InvalidateCousesCacheAsync(Course course)
         {
@@ -2070,9 +2070,6 @@ namespace Auth_Services.Services
 
 
 
-
-
-
         // ** Salas **
 
         // Add Sala Method
@@ -2225,6 +2222,104 @@ namespace Auth_Services.Services
         }
 
 
+
+
+        // ** Teacher Availability **
+
+        public async Task<bool> AddTeacherAvailability(TeacherAvailability availability)
+        {
+            Console.WriteLine($"Adding availability for Teacher ID {availability.FormadorId} at {availability.DataHora}");
+
+            try
+            {
+                // SQL only inserts if the user exists and has role_id = 2 (Teacher)
+                const string query = @"
+            INSERT INTO disponibilidades (formador_id, disponivel, data_hora)
+            SELECT u.user_id, @disponivel, @dataHora
+            FROM users u
+            WHERE u.user_id = @formadorId 
+              AND u.role_id = 2 
+              AND u.isDeleted = 0;";
+
+                var parameters = new[]
+                {
+                    new MySqlParameter("@formadorId", availability.FormadorId),
+                    new MySqlParameter("@disponivel", availability.Disponivel),
+                    new MySqlParameter("@dataHora", availability.DataHora)
+                };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding availability: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateAvailability(UpdateAvailability availability)
+        {
+            Console.WriteLine($"Updating Availability ID: {availability.DispoId}");
+
+            try
+            {
+                const string query = @"
+            UPDATE disponibilidades 
+            SET disponivel = @disponivel, 
+                data_hora = @dataHora 
+            WHERE dispo_id = @id;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@disponivel", availability.Disponivel),
+            new MySqlParameter("@dataHora", availability.DataHora),
+            new MySqlParameter("@id", availability.DispoId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating availability: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<List<TeacherAvailability>> GetTeacherAvailability(AvailabilityFilter filter)
+        {
+            try
+            {
+                // Query filters by formador_id and a time range on the data_hora column
+                const string query = @"
+            SELECT dispo_id, formador_id, disponivel, data_hora 
+            FROM disponibilidades 
+            WHERE formador_id = @formadorId 
+              AND data_hora >= @start 
+              AND data_hora <= @end
+            ORDER BY data_hora ASC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@formadorId", filter.FormadorId),
+            new MySqlParameter("@start", filter.StartTime),
+            new MySqlParameter("@end", filter.EndTime)
+        };
+
+                return await GetDataAsync<TeacherAvailability>(query, reader => new TeacherAvailability
+                {
+                    FormadorId = reader.GetInt32("formador_id"),
+                    Disponivel = reader.GetInt32("disponivel"),
+                    DataHora = reader.GetDateTime("data_hora")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teacher availability: {ex.Message}");
+                return new List<TeacherAvailability>();
+            }
+        }
 
 
 

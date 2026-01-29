@@ -444,7 +444,7 @@ namespace Auth_Services.Controllers
 
 
 
-        /*[AllowAnonymous]
+        [AllowAnonymous]
         [HttpPost("invalidate-user-cache")]
         public async Task<IActionResult> InvalidateAllUserCache()
         {
@@ -457,7 +457,7 @@ namespace Auth_Services.Controllers
             }
             
             return Ok(new { message = "Cache Cleared!" });
-        }*/
+        }
 
 
 
