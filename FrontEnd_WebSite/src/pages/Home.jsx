@@ -100,6 +100,8 @@ const Home = () => {
             <DashboardCard title="Sala Management" text="Manage classroom allocations." link="/SalaManagement" icon="🏢" variant="dark" />
             <DashboardCard title="Course Management" text="Organize courses and module links." link="/CourseManagement" icon="🎓" variant="dark" />
             <DashboardCard title="Turma Management" text="Create and manage class groups, link them to courses, and view student lists." link="/TurmaManagement" icon="🏫" variant="success" />
+            <DashboardCard title="Teacher Assignments" text="Assign specific modules to teachers based on their expertise." link="/TeacherModuleManager" icon="🤝" variant="primary" />
+            {/* add manage teacher - module here, thx */}
           </Row>
         </section>
       )}

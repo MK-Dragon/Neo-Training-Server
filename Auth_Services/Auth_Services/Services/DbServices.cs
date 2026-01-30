@@ -2325,5 +2325,119 @@ namespace Auth_Services.Services
 
 
 
+        // Teachers Teache Modules
+
+        public async Task<List<UserSimple>> GetAllTeachers()
+        {
+            try
+            {
+                // Role 2 = Teacher, isDeleted 0 = Active
+                const string query = @"
+            SELECT user_id, username 
+            FROM users 
+            WHERE role_id = 2 
+              AND isDeleted = 0 
+            ORDER BY username ASC;";
+
+                return await GetDataAsync<UserSimple>(query, reader => new UserSimple
+                {
+                    UserId = reader.GetInt32("user_id"),
+                    Username = reader.GetString("username")
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teachers: {ex.Message}");
+                return new List<UserSimple>();
+            }
+        }
+
+        public async Task<bool> AssignModuleToTeacher(FormadorModule association)
+        {
+            try
+            {
+                // We only allow assignment if the user actually has the teacher role (role_id = 2)
+                const string query = @"
+            INSERT INTO formador_teaches_module (formador_id, module_id, isDeleted)
+            SELECT u.user_id, @moduleId, 0
+            FROM users u
+            WHERE u.user_id = @formadorId AND u.role_id = 2
+            ON DUPLICATE KEY UPDATE isDeleted = 0;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@formadorId", association.FormadorId),
+            new MySqlParameter("@moduleId", association.ModuleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error assigning module to teacher: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<List<Module>> GetModulesByTeacher(int formadorId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT m.module_id, m.name, m.duration_h, m.isDeleted
+            FROM modules m
+            INNER JOIN formador_teaches_module ftm ON m.module_id = ftm.module_id
+            WHERE ftm.formador_id = @formadorId
+              AND m.isDeleted = 0
+              AND ftm.isDeleted = 0;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@formadorId", formadorId)
+        };
+
+                return await GetDataAsync<Module>(query, reader => new Module
+                {
+                    Id = reader.GetInt32("module_id"),
+                    Name = reader.GetString("name"),
+                    DurationInHours = reader.GetInt32("duration_h"),
+                    isDeleted = reader.GetInt32("isDeleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teacher modules: {ex.Message}");
+                return new List<Module>();
+            }
+        }
+
+        public async Task<bool> RemoveModuleFromTeacher(FormadorModule association)
+        {
+            try
+            {
+                // We update the soft-delete flag instead of removing the row
+                const string query = @"
+            UPDATE formador_teaches_module 
+            SET isDeleted = 1 
+            WHERE formador_id = @formadorId AND module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@formadorId", association.FormadorId),
+            new MySqlParameter("@moduleId", association.ModuleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error removing module association: {ex.Message}");
+                return false;
+            }
+        }
+
+
     } // the end
 }

@@ -49,7 +49,7 @@ namespace Auth_Services.Controllers
         {
             try
             {
-                var module = await _dbServices.GetModuleByName(module_name); // Assume this returns List<AppUser> (limited info no pass, token, etc.)
+                var module = await _dbServices.GetModuleByName(module_name); // Module
                 if (module.Id == 0)
                 {
                     return NotFound("Module not found.");
@@ -68,7 +68,7 @@ namespace Auth_Services.Controllers
         {
             try
             {
-                var module = await _dbServices.GetModuleById(id);
+                var module = await _dbServices.GetModuleById(id); // Module
 
                 if (module == null)
                 {

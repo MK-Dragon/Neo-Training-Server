@@ -78,6 +78,7 @@ function NavBar() {
                   <NavDropdown.Item as={Link} to="/ModuleManagement" onClick={closeNav}>Manage Modules</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/CourseManagement" onClick={closeNav}>Manage Courses</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/TurmaManagement" onClick={closeNav}>Manage Turmas</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/TeacherModuleManager" onClick={closeNav}>Manage Teacher/Module</NavDropdown.Item>
                   <NavDropdown.Divider />
                   <NavDropdown.Item as={Link} to="/EnrollmentManagement" onClick={closeNav}>Enrollment Management</NavDropdown.Item>
                 </NavDropdown>

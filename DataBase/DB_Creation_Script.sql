@@ -281,6 +281,29 @@ CREATE TABLE IF NOT EXISTS `mydb`.`schedules` (
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- Table `mydb`.`turma_modulas`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulas` (
+  `turma_id` INT NOT NULL,
+  `module_id` INT NOT NULL,
+  `num_hours_completed` INT NOT NULL DEFAULT 0,
+  `isCompleted` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`turma_id`, `module_id`),
+  INDEX `module-turma_idx` (`module_id` ASC) VISIBLE,
+  CONSTRAINT `turma-module`
+    FOREIGN KEY (`turma_id`)
+    REFERENCES `mydb`.`turmas` (`turma_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `module-turma`
+    FOREIGN KEY (`module_id`)
+    REFERENCES `mydb`.`modules` (`module_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
