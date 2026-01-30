@@ -199,7 +199,7 @@ namespace Auth_Services.Controllers
 
         [Authorize]
         [HttpGet("verify")] // Token Verification Endpoint
-        public IActionResult VerifyToken()
+        public async Task<IActionResult> VerifyToken()
         {
             // If the code gets here, the token is 100% valid!
             // The middleware already did the heavy lifting.
@@ -207,8 +207,10 @@ namespace Auth_Services.Controllers
             var username = User.Identity?.Name;
             var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
 
+            User user = await _dbServices.GetUserByUsernameOrEmail(username ?? ""); // get user id because... plan B
+
             Console.WriteLine($"[VERIFY] User '{username}' is authorized.");
-            return Ok(new { status = "Success", message = "User is authorized", username=username, role=role });
+            return Ok(new { status = "Success", message = "User is authorized", username=username, role=role , id=user.Id});
         }
 
         [Authorize]

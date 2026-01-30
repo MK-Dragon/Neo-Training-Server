@@ -34,7 +34,9 @@ const Home = () => {
           const data = await response.json();
           localStorage.setItem("username", data.username);
           localStorage.setItem("userRole", data.role);
-          setUserData({ username: data.username, role: data.role });
+          localStorage.setItem("userId", data.id); // bug fix??
+          console.log("Verify ID: " + data.id);
+          setUserData({ username: data.username, role: data.role, id: data.id });
         } else {
           localStorage.clear();
           navigate('/login');

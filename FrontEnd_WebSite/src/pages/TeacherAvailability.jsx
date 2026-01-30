@@ -16,6 +16,8 @@ const TeacherAvailability = () => {
   const username = localStorage.getItem('username');
   const userRole = localStorage.getItem('userRole');
   const userIsTeacher = (userRole === 'Teacher');
+  const user_id = localStorage.getItem('userId');
+  console.log("user_id: " + user_id);
 
   // We still need the numeric ID for POST/PUT requests. 
   // We'll extract it from the token properly this time.
@@ -27,7 +29,10 @@ const TeacherAvailability = () => {
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(window.atob(base64));
       // Check common claim keys for the ID
-      teacherId = payload.userId || payload.id || payload.nameid || payload.sub;
+      //teacherId = payload.userId || payload.id || payload.nameid || payload.sub;
+      teacherId = localStorage.getItem('userId');
+      console.log("Teacher id: " + teacherId);
+
     } catch (e) {
       console.error("Token parsing error", e);
     }
@@ -88,7 +93,7 @@ const TeacherAvailability = () => {
       } else {
         // MATCHING TeacherAvailability.cs
         const createBody = {
-          FormadorId: fId,
+          FormadorId: teacherId,
           DataHora: dateHour.toISOString(),
           Disponivel: 1 
         };
