@@ -1,7 +1,7 @@
 // src/pages/TeacherAvailability.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Button, Table, Alert, Badge } from 'react-bootstrap';
+import { Container, Card, Button, Table, Alert, Badge, Spinner } from 'react-bootstrap';
 import { format, startOfWeek, addDays, addHours, isSameHour, parseISO } from 'date-fns';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
@@ -9,81 +9,72 @@ const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 const TeacherAvailability = () => {
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingSlot, setProcessingSlot] = useState(null);
   const [error, setError] = useState('');
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   
-  // Use username since teacherId was undefined
   const username = localStorage.getItem('username');
   const userRole = localStorage.getItem('userRole');
   const userIsTeacher = (userRole === 'Teacher');
-  const user_id = localStorage.getItem('userId');
-  console.log("user_id: " + user_id);
-
-  // We still need the numeric ID for POST/PUT requests. 
-  // We'll extract it from the token properly this time.
-  const token = localStorage.getItem('token');
-  let teacherId = null;
-  if (token) {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(window.atob(base64));
-      // Check common claim keys for the ID
-      //teacherId = payload.userId || payload.id || payload.nameid || payload.sub;
-      teacherId = localStorage.getItem('userId');
-      console.log("Teacher id: " + teacherId);
-
-    } catch (e) {
-      console.error("Token parsing error", e);
-    }
-  }
+  const teacherId = localStorage.getItem('userId');
 
   const fetchAvailability = useCallback(async () => {
-    if (!userIsTeacher || !username) return;
+    if (!userIsTeacher || !teacherId) return;
     setLoading(true);
     try {
       const start = currentWeek.toISOString();
       const end = addDays(currentWeek, 7).toISOString();
-      
-      // Updated to use formadorUsername per your new C# endpoint
+
       const response = await fetch(
-        `${ServerIP}/api/Availabilaty/teacher-availability?formadorUsername=${username}&start=${start}&end=${end}`
+        `${ServerIP}/api/Availabilaty/teacher-availability?formadorId=${teacherId}&start=${start}&end=${end}`
       );
       
       if (response.ok) {
         const data = await response.json();
-        setAvailability(Array.isArray(data) ? data : []);
+        
+        // NORMALIZATION: Handle all possible casing from the Backend/DB
+        const normalizedData = (Array.isArray(data) ? data : []).map(item => ({
+          DispoId: item.dispoId ?? item.DispoId ?? item.dispo_id,
+          DataHora: item.dataHora ?? item.DataHora ?? item.data_hora,
+          Disponivel: item.disponivel ?? item.Disponivel ?? 0
+        }));
+
+        setAvailability(normalizedData);
       }
     } catch (err) {
       setError("Failed to load availability data.");
     } finally {
       setLoading(false);
     }
-  }, [username, userIsTeacher, currentWeek]);
+  }, [userIsTeacher, teacherId, currentWeek]);
 
   useEffect(() => {
     fetchAvailability();
   }, [fetchAvailability]);
 
   const handleToggleSlot = async (dateHour) => {
-    const existingSlot = availability.find(a => isSameHour(parseISO(a.DataHora), dateHour));
+    const timeKey = dateHour.toISOString();
+    if (processingSlot === timeKey) return; 
+
+    // Find if we already have a record for this specific hour
+    const existingSlot = availability.find(a => 
+      a.DataHora ? isSameHour(parseISO(a.DataHora), dateHour) : false
+    );
     
-    // Safety check for teacherId
-    /*const fId = parseInt(teacherId);
-    if (!fId) {
-      setError("Could not identify Teacher ID. Please log in again.");
-      return;
-    }*/
+    setProcessingSlot(timeKey);
+    setError('');
 
     try {
       let response;
       if (existingSlot) {
-        // MATCHING UpdateAvailability.cs
+        // UPDATE EXISTING SLOT
         const updateBody = {
-          DispoId: parseInt(existingSlot.DispoId || existingSlot.dispoId || existingSlot.id),
-          Disponivel: existingSlot.Disponivel === 1 ? 0 : 1,
-          DataHora: dateHour.toISOString()
-        };
+        FormadorId: parseInt(teacherId), // Using the ID from localStorage/state
+        Disponivel: existingSlot.Disponivel === 1 ? 0 : 1,
+        DataHora: timeKey
+    };
+
+        console.log("Sending Update:", updateBody);
 
         response = await fetch(`${ServerIP}/api/Availabilaty/update-availability`, {
           method: 'PUT',
@@ -91,12 +82,14 @@ const TeacherAvailability = () => {
           body: JSON.stringify(updateBody)
         });
       } else {
-        // MATCHING TeacherAvailability.cs
+        // CREATE NEW SLOT
         const createBody = {
-          FormadorId: teacherId,
-          DataHora: dateHour.toISOString(),
+          FormadorId: parseInt(teacherId),
+          DataHora: timeKey,
           Disponivel: 1 
         };
+
+        console.log("Sending Create:", createBody);
 
         response = await fetch(`${ServerIP}/api/Availabilaty/set-availability`, {
           method: 'POST',
@@ -106,13 +99,16 @@ const TeacherAvailability = () => {
       }
 
       if (response.ok) {
-        fetchAvailability();
+        await fetchAvailability();
       } else {
-        const errorText = await response.text();
-        setError(`Server Error: ${errorText}`);
+        const errorJson = await response.json();
+        console.error("Server Error Response:", errorJson);
+        setError(`Error: ${JSON.stringify(errorJson.errors || errorJson.message)}`);
       }
     } catch (err) {
-      setError("Network error. " + err);
+      setError("Network error: " + err.message);
+    } finally {
+      setProcessingSlot(null);
     }
   };
 
@@ -125,7 +121,7 @@ const TeacherAvailability = () => {
     <Container className="mt-5 pt-4">
       <Card className="shadow-sm border-0">
         <Card.Header className="bg-dark text-white d-flex justify-content-between align-items-center py-3">
-          <h4 className="mb-0">Availability: {username}</h4>
+          <h4 className="mb-0">Teacher Schedule: {username}</h4>
           <div className="d-flex gap-2">
             <Button variant="outline-light" size="sm" onClick={() => setCurrentWeek(addDays(currentWeek, -7))}>&larr; Prev</Button>
             <Button variant="outline-light" size="sm" onClick={() => setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }))}>Today</Button>
@@ -133,17 +129,23 @@ const TeacherAvailability = () => {
           </div>
         </Card.Header>
         <Card.Body>
-          {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
+          <div className="mb-3 d-flex gap-3 small">
+             <div className="d-flex align-items-center"><Badge bg="success" className="me-1">&nbsp;</Badge> Available</div>
+             <div className="d-flex align-items-center"><Badge bg="danger" className="me-1">&nbsp;</Badge> Busy</div>
+             <div className="d-flex align-items-center"><Badge bg="light" text="dark" border className="me-1">-</Badge> Not Set</div>
+          </div>
+
+          {error && <Alert variant="danger" dismissible onClose={() => setError('')} style={{ fontSize: '0.8rem' }}>{error}</Alert>}
           
-          <div className="table-responsive" style={{ maxHeight: '70vh' }}>
-            <Table bordered hover className="text-center align-middle">
-              <thead className="sticky-top bg-white">
+          <div className="table-responsive" style={{ maxHeight: '75vh' }}>
+            <Table bordered hover size="sm" className="text-center align-middle">
+              <thead className="sticky-top bg-white" style={{ zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '100px' }}>Hour</th>
+                  <th style={{ width: '80px', backgroundColor: '#f8f9fa' }}>Hour</th>
                   {days.map(day => (
-                    <th key={day.toString()} className="small">
-                      {format(day, 'EEE')}<br />
-                      <span className="text-muted">{format(day, 'dd/MM')}</span>
+                    <th key={day.toString()} style={{ minWidth: '100px', backgroundColor: '#f8f9fa' }}>
+                      <div className="fw-bold">{format(day, 'EEE')}</div>
+                      <div className="text-muted extra-small">{format(day, 'dd/MM')}</div>
                     </th>
                   ))}
                 </tr>
@@ -154,19 +156,36 @@ const TeacherAvailability = () => {
                     <td className="fw-bold bg-light">{hour}:00</td>
                     {days.map(day => {
                       const slotTime = addHours(day, hour);
-                      const slotData = availability.find(a => isSameHour(parseISO(a.DataHora), slotTime));
+                      const slotTimeISO = slotTime.toISOString();
+                      
+                      const slotData = availability.find(a => 
+                        a.DataHora ? isSameHour(parseISO(a.DataHora), slotTime) : false
+                      );
+                      
                       const isAvailable = slotData?.Disponivel === 1;
+                      const isBusy = slotData?.Disponivel === 0;
+                      const isProcessing = processingSlot === slotTimeISO;
 
                       return (
                         <td 
                           key={day.toString()} 
-                          onClick={() => handleToggleSlot(slotTime)}
+                          onClick={() => !isProcessing && handleToggleSlot(slotTime)}
                           style={{ 
-                            cursor: 'pointer',
-                            backgroundColor: isAvailable ? '#d1e7dd' : 'transparent',
+                            cursor: isProcessing ? 'not-allowed' : 'pointer',
+                            backgroundColor: isAvailable ? '#d1e7dd' : isBusy ? '#f8d7da' : 'transparent',
+                            height: '45px',
+                            transition: 'all 0.1s'
                           }}
                         >
-                          {isAvailable ? <Badge bg="success">Available</Badge> : <span className="opacity-25">-</span>}
+                          {isProcessing ? (
+                            <Spinner animation="border" size="sm" variant="secondary" />
+                          ) : isAvailable ? (
+                            <Badge bg="success">Available</Badge>
+                          ) : isBusy ? (
+                            <Badge bg="danger">Busy</Badge>
+                          ) : (
+                            <span className="text-muted opacity-25">-</span>
+                          )}
                         </td>
                       );
                     })}

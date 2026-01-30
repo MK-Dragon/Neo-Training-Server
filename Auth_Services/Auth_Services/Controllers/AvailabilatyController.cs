@@ -60,27 +60,26 @@ namespace Auth_Services.Controllers
 
         [HttpPut("update-availability")]
         [AllowAnonymous]
-        public async Task<IActionResult> UpdateAvailability([FromBody] UpdateAvailability availability)
+        public async Task<IActionResult> UpdateAvailability([FromBody] UpdateAvailability data) // Change variable name to 'data'
         {
-            if (availability == null || availability.DispoId <= 0)
+            // Check if the whole object is null
+            if (data == null) return BadRequest("No data received.");
+
+            // Check internal properties
+            if (data.FormadorId <= 0)
             {
-                return BadRequest("Invalid availability ID.");
+                return BadRequest($"Invalid availability ID.");
             }
 
             try
             {
-                bool success = await _dbServices.UpdateAvailability(availability);
-
-                if (!success)
-                {
-                    return NotFound(new { message = "Availability record not found." });
-                }
-
+                bool success = await _dbServices.UpdateAvailability(data);
+                if (!success) return NotFound(new { message = "Availability record not found." });
                 return Ok(new { message = "Availability updated successfully." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                return StatusCode(500, ex.Message);
             }
         }
 

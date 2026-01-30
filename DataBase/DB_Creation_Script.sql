@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`disponibilidades` (
   `data_hora` DATETIME NOT NULL,
   PRIMARY KEY (`dispo_id`),
   INDEX `teacher_idx` (`formador_id` ASC) VISIBLE,
+  INDEX `unique_teacher-time` (`formador_id` ASC, `data_hora` ASC) INVISIBLE,
   CONSTRAINT `teacher`
     FOREIGN KEY (`formador_id`)
     REFERENCES `mydb`.`users` (`user_id`)

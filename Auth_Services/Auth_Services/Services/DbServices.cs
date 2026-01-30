@@ -2228,56 +2228,58 @@ namespace Auth_Services.Services
 
         public async Task<bool> AddTeacherAvailability(TeacherAvailability availability)
         {
-            Console.WriteLine($"Adding availability for Teacher ID {availability.FormadorId} at {availability.DataHora}");
-
             try
             {
-                // SQL only inserts if the user exists and has role_id = 2 (Teacher)
+                // This query:
+                // 1. Tries to insert the availability if the user is a Teacher
+                // 2. If the record (teacher + time) already exists, it updates disponivel to 1
                 const string query = @"
             INSERT INTO disponibilidades (formador_id, disponivel, data_hora)
             SELECT u.user_id, @disponivel, @dataHora
             FROM users u
-            WHERE u.user_id = @formadorId 
-              AND u.role_id = 2 
-              AND u.isDeleted = 0;";
+            WHERE u.user_id = @formadorId AND u.role_id = 2 AND u.isDeleted = 0
+            ON DUPLICATE KEY UPDATE disponivel = 1;";
 
                 var parameters = new[]
                 {
-                    new MySqlParameter("@formadorId", availability.FormadorId),
-                    new MySqlParameter("@disponivel", availability.Disponivel),
-                    new MySqlParameter("@dataHora", availability.DataHora)
-                };
+            new MySqlParameter("@formadorId", availability.FormadorId),
+            new MySqlParameter("@disponivel", availability.Disponivel),
+            new MySqlParameter("@dataHora", availability.DataHora)
+        };
 
                 int result = await ExecuteNonQueryAsync(query, parameters);
                 return result > 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error adding availability: {ex.Message}");
+                Console.WriteLine($"Error adding/updating availability: {ex.Message}");
                 return false;
             }
         }
 
         public async Task<bool> UpdateAvailability(UpdateAvailability availability)
         {
-            Console.WriteLine($"Updating Availability ID: {availability.DispoId}");
+            // Note: We use FormadorId and DataHora to find the specific row
+            Console.WriteLine($"Updating availability for Teacher {availability.FormadorId} at {availability.DataHora}");
 
             try
             {
                 const string query = @"
             UPDATE disponibilidades 
-            SET disponivel = @disponivel, 
-                data_hora = @dataHora 
-            WHERE dispo_id = @id;";
+            SET disponivel = @disponivel
+            WHERE formador_id = @formadorId 
+              AND data_hora = @dataHora;";
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@disponivel", availability.Disponivel),
-            new MySqlParameter("@dataHora", availability.DataHora),
-            new MySqlParameter("@id", availability.DispoId)
-        };
+                    new MySqlParameter("@disponivel", availability.Disponivel),
+                    new MySqlParameter("@formadorId", availability.FormadorId),
+                    new MySqlParameter("@dataHora", availability.DataHora)
+                };
 
                 int result = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if the record existed and was updated
                 return result > 0;
             }
             catch (Exception ex)
@@ -2302,10 +2304,10 @@ namespace Auth_Services.Services
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@formadorId", filter.FormadorId),
-            new MySqlParameter("@start", filter.StartTime),
-            new MySqlParameter("@end", filter.EndTime)
-        };
+                    new MySqlParameter("@formadorId", filter.FormadorId),
+                    new MySqlParameter("@start", filter.StartTime),
+                    new MySqlParameter("@end", filter.EndTime)
+                };
 
                 return await GetDataAsync<TeacherAvailability>(query, reader => new TeacherAvailability
                 {
