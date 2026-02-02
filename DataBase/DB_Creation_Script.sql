@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turmas` (
   `turma_name` VARCHAR(45) NOT NULL,
   `course_id` INT NOT NULL,
   `isDeleted` INT NOT NULL DEFAULT 0,
+  `date_start` DATE NULL,
+  `date_end` DATE NULL,
   PRIMARY KEY (`turma_id`),
   INDEX `course_idx` (`course_id` ASC) VISIBLE,
   UNIQUE INDEX `turma_name_UNIQUE` (`turma_name` ASC) VISIBLE,
@@ -287,10 +289,12 @@ ENGINE = InnoDB;
 CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulas` (
   `turma_id` INT NOT NULL,
   `module_id` INT NOT NULL,
+  `teacher_id` INT NOT NULL,
   `num_hours_completed` INT NOT NULL DEFAULT 0,
   `isCompleted` INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`turma_id`, `module_id`),
   INDEX `module-turma_idx` (`module_id` ASC) VISIBLE,
+  INDEX `module-turma-teacher_idx` (`teacher_id` ASC) VISIBLE,
   CONSTRAINT `turma-module`
     FOREIGN KEY (`turma_id`)
     REFERENCES `mydb`.`turmas` (`turma_id`)
@@ -299,6 +303,11 @@ CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulas` (
   CONSTRAINT `module-turma`
     FOREIGN KEY (`module_id`)
     REFERENCES `mydb`.`modules` (`module_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `module-turma-teacher`
+    FOREIGN KEY (`teacher_id`)
+    REFERENCES `mydb`.`users` (`user_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;

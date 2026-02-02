@@ -95,13 +95,16 @@ const Home = () => {
         <section className="mb-5">
           <h3 className="mb-4 border-bottom pb-2">Management</h3>
           <Row>
+            {/* HR */}
             <DashboardCard title="User Management" text="Manage user accounts and roles." link="/UserManagement" icon="👥" variant="dark" />
-            <DashboardCard title="Module Management" text="Edit curriculum and module details." link="/ModuleManagement" icon="📚" variant="dark" />
-            <DashboardCard title="Sala Management" text="Manage classroom allocations." link="/SalaManagement" icon="🏢" variant="dark" />
-            <DashboardCard title="Course Management" text="Organize courses and module links." link="/CourseManagement" icon="🎓" variant="dark" />
-            <DashboardCard title="Turma Management" text="Create and manage class groups, link them to courses, and view student lists." link="/TurmaManagement" icon="🏫" variant="success" />
+            <DashboardCard title="Enrollment Management" text="Register students into specific modules and track their status." link="/EnrollmentManagement" icon="📋" variant="primary" />
             <DashboardCard title="Teacher Assignments" text="Assign specific modules to teachers based on their expertise." link="/TeacherModuleManager" icon="🤝" variant="primary" />
-            {/* add manage teacher - module here, thx */}
+            {/* Academic */}
+            <DashboardCard title="Course Management" text="Organize courses and module links." link="/CourseManagement" icon="🎓" variant="dark" />
+            <DashboardCard title="Module Management" text="Edit curriculum and module details." link="/ModuleManagement" icon="📚" variant="dark" />
+            <DashboardCard title="Turma Management" text="Create and manage class groups, link them to courses, and view student lists." link="/TurmaManagement" icon="🏫" variant="success" />
+            {/* Scheduling */}
+            <DashboardCard title="Sala Management" text="Manage classroom allocations." link="/SalaManagement" icon="🏢" variant="dark" />
           </Row>
         </section>
       )}

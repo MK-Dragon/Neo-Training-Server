@@ -10,10 +10,10 @@ Google;
     ✅ c. As palavras-passe deverão estar encriptadas;
     ✅ d. Possibilidade de alteração e recuperação da palavra-passe;
     e. ChatBot
-    f. Pesquisa de curso
-    g. Pesquisa de formando
+    ✅f. Pesquisa de curso
+    ✅g. Pesquisa de formando
 
-    h. Pesquisa de formador
+    ✅h. Pesquisa de formador
     i. Lista cursos a decorrer
     j. Lista de cursos a iniciar nos próximos 60 dias
     k. Consulta rápida de um horário de determinada turma, podendo
@@ -26,8 +26,8 @@ Google;
 
 ## 2. Aplicação Web (BackOffice) - 7 Valores
 ```
-    a. Gestão de módulos (Inserir, alterar, eliminar e consultar);
-    b. Gestão de salas (Inserir, alterar, eliminar e consultar);
+    ✅a. Gestão de módulos (Inserir, alterar, eliminar e consultar);
+    ✅b. Gestão de salas (Inserir, alterar, eliminar e consultar);
     c. Gestão de cursos (Inserir, alterar, eliminar e consultar):
         i. Distribuição dos módulos, por curso, por formador e por
     sala;

@@ -49,6 +49,21 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("all-active-turmas")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllActiveTurmas()
+        {
+            try
+            {
+                var turmas = await _dbServices.GetAllActiveTurmas();
+                return Ok(turmas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpPost("create-turma")]
         [AllowAnonymous]
         public async Task<IActionResult> CreateTurma([FromBody] NewTurma turma)

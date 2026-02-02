@@ -15,7 +15,17 @@ INSERT INTO `users` (`username`, `email`, `pass_hash`, `role_id`, `activeted`, `
 ('teacher_bob', 'bob.instructor@example.com', 'hash', 2, 1, '1978-10-20'),
 ('teacher_alice', 'alice.smith@example.com', 'hash', 2, 1, '1982-03-12'),
 ('student_john', 'john.doe@example.com', 'hash', 3, 1, '2002-01-25'),
-('student_mary', 'mary.jane@example.com', 'hash', 3, 1, '2001-11-30');
+('student_mary', 'mary.jane@example.com', 'hash', 3, 1, '2001-11-30'),
+-- more students
+('Vitor', 'v.doe@example.com', 'hash', 3, 1, '2002-01-25'),
+('Grazina', 'gra.doe@example.com', 'hash', 3, 1, '2002-01-25'),
+('Filipe', 'fi.doe@example.com', 'hash', 3, 1, '2002-01-25'),
+('Leonor', 'leo.jane@example.com', 'hash', 3, 1, '2001-11-30'),
+-- more teachers
+('Pacheco', 'v.doe@example.com', 'hash', 2, 1, '2002-01-25'),
+('Vitor_teacher', 'v_teacher.doe@example.com', 'hash', 2, 1, '2002-01-25'),
+('Maria', 'ma.doe@example.com', 'hash', 2, 1, '2002-01-25'),
+('Dario', 'dario.teacher@example.com', 'hash', 2, 1, '2001-11-30');
 
 -- 3. Audit Log
 INSERT INTO `audit` (`user_id`, `token`, `created_at`, `expires_at`, `platform`, `ip_address`) VALUES  
@@ -27,9 +37,12 @@ INSERT INTO `courses` (`nome_curso`, `duration`, `level`) VALUES
 ('Digital Marketing 101', 600, 'Beginner');
 
 -- 5. Turmas (Classes)
-INSERT INTO `turmas` (`turma_name`, `course_id`) VALUES  
-('FS-2026-A', 1),
-('DM-2026-B', 2);
+INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUES  
+('FS-2025-CLOSED', 1, '2025-09-01', '2026-01-15'),
+('DM-2026-SUMMER', 2, '2026-06-01', '2026-08-30'),
+('FS-2026-B-LIVE', 1, '2026-01-01', '2026-05-30'),
+('DM-WORKSHOP-OPEN', 2, '2026-02-01', NULL),
+('FS-2026-CRASH', 1, '2026-01-10', '2026-02-05');
 
 -- 6. Modules
 INSERT INTO `modules` (`name`, `duration_h`) VALUES  

@@ -1,7 +1,6 @@
 // /src/pages/TurmaManagement.jsx
-
-import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Modal, Form, Alert, Row, Col, Card, Badge, ListGroup, InputGroup } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Container, Table, Button, Modal, Form, Alert, Row, Col, Card, Badge, ListGroup, InputGroup, Pagination } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -11,17 +10,21 @@ const TurmaManagement = () => {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState('');
   
-  // Separate Modal States
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   
-  // Data States
   const [editingTurma, setEditingTurma] = useState(null);
   const [viewingTurma, setViewingTurma] = useState(null);
-  const [formData, setFormData] = useState({ TurmaName: '', CourseId: '' });
+  
+  const [formData, setFormData] = useState({ TurmaName: '', CourseId: '', DateStart: '', DateEnd: '' });
 
+  // --- SORTING, FILTERING, PAGINATION STATES ---
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleted, setShowDeleted] = useState(false);
+  const [statusFilters, setStatusFilters] = useState({ Ongoing: true, Upcoming: true, Finished: true });
+  const [sortConfig, setSortConfig] = useState({ key: 'TurmaName', direction: 'asc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const token = localStorage.getItem('token');
 
@@ -50,64 +53,98 @@ const TurmaManagement = () => {
     } catch (err) { console.error("Could not load courses."); }
   };
 
-  // --- VIEW MODAL LOGIC (Click on Name) ---
-  const handleViewTurma = async (turma) => {
-    setViewingTurma(turma);
-    setStudents([]);
-    const id = turma.TurmaId ?? turma.turmaId ?? turma.id;
-    
-    try {
-      const res = await fetch(`${ServerIP}/api/Turma/list-students/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setStudents(data);
-      }
-    } catch (err) { console.log("Error loading students."); }
-    setShowViewModal(true);
+  const formatDateForInput = (dateString) => dateString ? dateString.split('T')[0] : '';
+
+  const getTimingStatus = (start, end) => {
+    const today = new Date().setHours(0,0,0,0);
+    const startDate = start ? new Date(start).setHours(0,0,0,0) : null;
+    const endDate = end ? new Date(end).setHours(0,0,0,0) : null;
+
+    if (endDate && today > endDate) return { label: "Finished", bg: "secondary" };
+    if (startDate && today < startDate) return { label: "Upcoming", bg: "info" };
+    return { label: "Ongoing", bg: "success" };
   };
 
-  // --- EDIT MODAL LOGIC (Click Edit Button) ---
+  // --- FILTERING & SORTING LOGIC ---
+  const processedTurmas = useMemo(() => {
+    let result = [...turmas];
+
+    result = result.filter(t => {
+      const name = (t.turmaName ?? t.TurmaName ?? "").toLowerCase();
+      const course = (t.courseName ?? t.CourseName ?? "").toLowerCase();
+      const isDel = t.isDeleted ?? t.IsDeleted ?? 0;
+      const status = getTimingStatus(t.dateStart ?? t.DateStart, t.dateEnd ?? t.DateEnd).label;
+
+      const matchesSearch = name.includes(searchTerm.toLowerCase()) || course.includes(searchTerm.toLowerCase());
+      const matchesDeleted = showDeleted ? true : isDel === 0;
+      const matchesStatus = statusFilters[status];
+
+      return matchesSearch && matchesDeleted && matchesStatus;
+    });
+
+    result.sort((a, b) => {
+      const aVal = a[sortConfig.key] ?? a[sortConfig.key.charAt(0).toLowerCase() + sortConfig.key.slice(1)] ?? "";
+      const bVal = b[sortConfig.key] ?? b[sortConfig.key.charAt(0).toLowerCase() + sortConfig.key.slice(1)] ?? "";
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [turmas, searchTerm, showDeleted, statusFilters, sortConfig]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = processedTurmas.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(processedTurmas.length / itemsPerPage);
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  // --- ACTION HANDLERS ---
   const handleOpenEditModal = (turma = null) => {
     setError('');
     if (turma) {
       setEditingTurma(turma);
       setFormData({ 
-        TurmaName: turma.TurmaName ?? turma.turmaName, 
-        CourseId: turma.CourseId ?? turma.courseId 
+        TurmaName: turma.turmaName ?? turma.TurmaName, 
+        CourseId: turma.courseId ?? turma.CourseId,
+        DateStart: formatDateForInput(turma.dateStart ?? turma.DateStart),
+        DateEnd: formatDateForInput(turma.dateEnd ?? turma.DateEnd)
       });
     } else {
       setEditingTurma(null);
-      setFormData({ TurmaName: '', CourseId: '' });
+      setFormData({ TurmaName: '', CourseId: '', DateStart: '', DateEnd: '' });
     }
     setShowEditModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (formData.DateStart && formData.DateEnd && formData.DateEnd < formData.DateStart) {
+        setError("End Date cannot be earlier than Start Date.");
+        return;
+    }
     const isEditing = !!editingTurma;
-    const endpoint = isEditing ? 'update-turma' : 'create-turma';
-    const id = editingTurma ? (editingTurma.TurmaId ?? editingTurma.turmaId ?? editingTurma.id) : null;
-    
     const body = { 
-        TurmaId: id, 
+        TurmaId: isEditing ? (editingTurma.turmaId ?? editingTurma.TurmaId) : 0, 
         TurmaName: formData.TurmaName, 
-        CourseId: parseInt(formData.CourseId) 
+        CourseId: parseInt(formData.CourseId),
+        DateStart: formData.DateStart || null,
+        DateEnd: formData.DateEnd || null
     };
-
     try {
-      const response = await fetch(`${ServerIP}/api/Turma/${endpoint}`, {
+      const response = await fetch(`${ServerIP}/api/Turma/${isEditing ? 'update-turma' : 'create-turma'}`, {
         method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
       });
-
-      if (response.ok) {
-        setShowEditModal(false);
-        fetchTurmas();
-      } else {
-        const msg = await response.text();
-        setError(msg || "Failed to save.");
-      }
+      if (response.ok) { setShowEditModal(false); fetchTurmas(); }
+      else { setError(await response.text() || "Failed to save."); }
     } catch (err) { setError("Server error."); }
   };
 
@@ -132,13 +169,15 @@ const TurmaManagement = () => {
     } catch (err) { setError("Server error."); }
   };
 
-  const filteredTurmas = turmas.filter(t => {
-    const name = t.TurmaName ?? t.turmaName ?? "";
-    const isDel = t.isDeleted ?? t.IsDeleted ?? 0;
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDeleted = showDeleted ? true : isDel === 0;
-    return matchesSearch && matchesDeleted;
-  });
+  const handleViewTurma = async (turma) => {
+    setViewingTurma(turma);
+    setStudents([]);
+    try {
+      const res = await fetch(`${ServerIP}/api/Turma/list-students/${turma.turmaId ?? turma.TurmaId}`);
+      if (res.ok) setStudents(await res.json());
+    } catch (err) { console.log("Error loading students."); }
+    setShowViewModal(true);
+  };
 
   return (
     <Container className="mt-5 pt-4">
@@ -149,21 +188,30 @@ const TurmaManagement = () => {
 
       <Card className="mb-4 shadow-sm border-0 bg-light">
         <Card.Body>
-          <Row>
-            <Col md={6}>
+          <Row className="align-items-center g-3">
+            <Col md={4}>
               <InputGroup>
                 <InputGroup.Text>🔍</InputGroup.Text>
                 <Form.Control 
-                  placeholder="Search Turmas..." 
+                  placeholder="Search..." 
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
                 />
               </InputGroup>
             </Col>
-            <Col md={6} className="d-flex justify-content-end align-items-center">
+            <Col md={5} className="d-flex gap-3 justify-content-center">
+                {['Ongoing', 'Upcoming', 'Finished'].map(status => (
+                    <Form.Check 
+                        key={status} type="checkbox" label={status}
+                        checked={statusFilters[status]} 
+                        onChange={() => { setStatusFilters(prev => ({ ...prev, [status]: !prev[status] })); setCurrentPage(1); }}
+                    />
+                ))}
+            </Col>
+            <Col md={3} className="d-flex justify-content-end">
               <Form.Check 
                 type="switch" id="del-switch" label="Show Deleted"
-                checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)}
+                checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setCurrentPage(1); }}
               />
             </Col>
           </Row>
@@ -173,110 +221,93 @@ const TurmaManagement = () => {
       {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
       <Table striped bordered hover responsive>
-        <thead className="table-dark">
+        <thead className="table-dark text-nowrap">
           <tr>
-            <th>ID</th>
-            <th>Turma Name (Click to view)</th>
-            <th>Course</th>
+            <th onClick={() => requestSort('TurmaId')} style={{cursor:'pointer'}}>ID {sortConfig.key === 'TurmaId' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
+            <th onClick={() => requestSort('TurmaName')} style={{cursor:'pointer'}}>Name {sortConfig.key === 'TurmaName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
+            <th onClick={() => requestSort('CourseName')} style={{cursor:'pointer'}}>Course {sortConfig.key === 'CourseName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
+            <th onClick={() => requestSort('DateStart')} style={{cursor:'pointer'}}>Start {sortConfig.key === 'DateStart' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
+            <th onClick={() => requestSort('DateEnd')} style={{cursor:'pointer'}}>End {sortConfig.key === 'DateEnd' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredTurmas.map(t => {
-            const id = t.TurmaId ?? t.turmaId ?? t.id;
+          {currentItems.map(t => {
+            const id = t.turmaId ?? t.TurmaId;
             const isDel = t.isDeleted ?? t.IsDeleted ?? 0;
+            const timing = getTimingStatus(t.dateStart ?? t.DateStart, t.dateEnd ?? t.DateEnd);
+
             return (
               <tr key={id}>
                 <td>{id}</td>
                 <td 
-                    onClick={() => isDel === 0 && handleViewTurma(t)}
-                    style={{ 
-                        cursor: isDel === 0 ? 'pointer' : 'default', 
-                        color: isDel === 0 ? '#0d6efd' : '#6c757d',
-                        textDecoration: isDel === 0 ? 'underline' : 'line-through'
-                    }}
+                  onClick={() => handleViewTurma(t)} 
+                  className="fw-bold" 
+                  style={{ cursor: isDel === 0 ? 'pointer' : 'default', color: isDel === 0 ? '#0d6efd' : '#6c757d', textDecoration: isDel === 0 ? 'underline' : 'line-through' }}
                 >
-                  {t.TurmaName ?? t.turmaName}
+                  {t.turmaName ?? t.TurmaName}
                 </td>
-                <td>{t.CourseName ?? t.courseName}</td>
-                <td>
-                  <Badge bg={isDel === 1 ? "danger" : "success"}>
-                    {isDel === 1 ? "Deleted" : "Active"}
-                  </Badge>
+                <td>{t.courseName ?? t.CourseName}</td>
+                <td>{formatDateForInput(t.dateStart ?? t.DateStart) || '---'}</td>
+                <td>{formatDateForInput(t.dateEnd ?? t.DateEnd) || '---'}</td>
+                <td><Badge bg={isDel === 1 ? "danger" : timing.bg}>{isDel === 1 ? "Deleted" : timing.label}</Badge></td>
+                <td className="text-nowrap">
+                  <Button variant="warning" size="sm" onClick={() => handleOpenEditModal(t)} className="me-2">Edit</Button>
+                  {isDel === 0 ? (
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(id)}>Delete</Button>
+                  ) : (
+                    <Button variant="success" size="sm" onClick={() => handleRecover(id)}>Recover</Button>
+                  )}
                 </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-  <div className="d-flex gap-2">
-    <Button 
-      variant="warning" 
-      size="sm" 
-      onClick={() => handleOpenEditModal(t)}
-      style={{ minWidth: '60px' }}
-    >
-      Edit
-    </Button>
-    
-    {isDel === 0 ? (
-      <Button 
-        variant="danger" 
-        size="sm" 
-        onClick={() => handleDelete(id)}
-        style={{ minWidth: '60px' }}
-      >
-        Delete
-      </Button>
-    ) : (
-      <Button 
-        variant="success" 
-        size="sm" 
-        onClick={() => handleRecover(id)}
-        style={{ minWidth: '75px' }}
-      >
-        Recover
-      </Button>
-    )}
-  </div>
-</td>
               </tr>
             );
           })}
         </tbody>
       </Table>
 
-      {/* --- MODAL A: VIEW ONLY (List of Students) --- */}
+      {totalPages > 1 && (
+        <Pagination className="justify-content-center">
+            {[...Array(totalPages)].map((_, i) => (
+                <Pagination.Item key={i + 1} active={i + 1 === currentPage} onClick={() => setCurrentPage(i + 1)}>
+                    {i + 1}
+                </Pagination.Item>
+            ))}
+        </Pagination>
+      )}
+
+      {/* VIEW MODAL */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered>
-        <Modal.Header closeButton className="bg-info text-white">
-          <Modal.Title>{viewingTurma?.TurmaName ?? viewingTurma?.turmaName}</Modal.Title>
+        <Modal.Header closeButton className={viewingTurma?.isDeleted || viewingTurma?.IsDeleted ? "bg-secondary text-white" : "bg-info text-white"}>
+          <Modal.Title>
+            {viewingTurma?.turmaName ?? viewingTurma?.TurmaName}
+            {(viewingTurma?.isDeleted || viewingTurma?.IsDeleted) && (
+              <Badge bg="danger" className="ms-2" style={{ fontSize: '0.5em' }}>DELETED</Badge>
+            )}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h6 className="fw-bold text-uppercase text-muted">Enrolled Students</h6>
-            <Badge pill bg="primary" style={{ fontSize: '1rem' }}>
-              {students.length} Total
-            </Badge>
-          </div>
-          <ListGroup variant="flush" className="border rounded shadow-sm">
-            {students.map((s, idx) => (
-              <ListGroup.Item key={s.UserId ?? s.userId} className="d-flex justify-content-between">
-                <span>{idx + 1}. <strong>{s.Username ?? s.username}</strong></span>
-                <small className="text-muted">{s.Email ?? s.email}</small>
-              </ListGroup.Item>
-            ))}
-            {students.length === 0 && (
-              <div className="text-center py-4 text-muted">No students assigned to this class.</div>
-            )}
-          </ListGroup>
+            <div className="mb-3 text-center">
+                <Badge bg="light" text="dark" className="border mx-1">Start: {formatDateForInput(viewingTurma?.dateStart ?? viewingTurma?.DateStart) || '---'}</Badge>
+                <Badge bg="light" text="dark" className="border mx-1">End: {formatDateForInput(viewingTurma?.dateEnd ?? viewingTurma?.DateEnd) || '---'}</Badge>
+            </div>
+            <h6 className="fw-bold border-bottom pb-2">Enrolled Students ({students.length})</h6>
+            <ListGroup variant="flush">
+                {students.map((s, idx) => (
+                    <ListGroup.Item key={idx} className="d-flex justify-content-between small">
+                        <span>{idx + 1}. <strong>{s.username ?? s.Username}</strong></span>
+                        <span className="text-muted">{s.email ?? s.Email}</span>
+                    </ListGroup.Item>
+                ))}
+            </ListGroup>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>Close</Button>
-        </Modal.Footer>
       </Modal>
 
-      {/* --- MODAL B: EDIT ONLY (Form Settings) --- */}
+      {/* EDIT MODAL */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
         <Form onSubmit={handleSave}>
           <Modal.Header closeButton>
-            <Modal.Title>{editingTurma ? 'Edit Turma Details' : 'Create New Turma'}</Modal.Title>
+            <Modal.Title>{editingTurma ? 'Edit Turma' : 'New Turma'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Form.Group className="mb-3">
@@ -296,18 +327,31 @@ const TurmaManagement = () => {
               >
                 <option value="">Select a Course...</option>
                 {courses.map(c => (
-                  <option key={c.Id ?? c.id} value={c.Id ?? c.id}>{c.Name ?? c.name}</option>
+                  <option key={c.id ?? c.Id} value={c.id ?? c.Id}>{c.name ?? c.Name}</option>
                 ))}
               </Form.Select>
             </Form.Group>
+            <Row>
+                <Col>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Start Date</Form.Label>
+                        <Form.Control type="date" value={formData.DateStart} onChange={e => setFormData({...formData, DateStart: e.target.value})} />
+                    </Form.Group>
+                </Col>
+                <Col>
+                    <Form.Group className="mb-3">
+                        <Form.Label>End Date</Form.Label>
+                        <Form.Control type="date" value={formData.DateEnd} onChange={e => setFormData({...formData, DateEnd: e.target.value})} />
+                    </Form.Group>
+                </Col>
+            </Row>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
-            <Button variant="primary" type="submit">Save Changes</Button>
+            <Button variant="primary" type="submit">Save</Button>
           </Modal.Footer>
         </Form>
       </Modal>
-
     </Container>
   );
 };

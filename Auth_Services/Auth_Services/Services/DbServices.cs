@@ -1754,16 +1754,18 @@ namespace Auth_Services.Services
 
         // ** Turmas **
 
-        public async Task<List<TurmaDTO>> GetAllTurmas()
+        public async Task<List<TurmaDTO>> GetAllActiveTurmas() // TODO: check Date today < date end
         {
             try
             {
                 // Joining tables to get the course name
                 const string query = @"
-            SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso, t.isDeleted
+            SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso, t.isDeleted, t.date_start, t.date_end
             FROM turmas t
             INNER JOIN courses c ON t.course_id = c.id_cursos
-            WHERE c.isDeleted = 0;";
+            WHERE t.isDeleted = 0 
+              AND c.isDeleted = 0
+              AND (t.date_end IS NULL OR t.date_end >= CURDATE());";
 
                 var turmas = await GetDataAsync<TurmaDTO>(
                     query,
@@ -1773,8 +1775,42 @@ namespace Auth_Services.Services
                         TurmaName = reader.GetString(1),
                         CourseId = reader.GetInt32(2),
                         CourseName = reader.GetString(3),
-                        isDeleted = reader.GetInt32(4)
+                        isDeleted = reader.GetInt32(4),
+                        DateStart = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                        DateEnd = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                    }
+                );
 
+                return turmas ?? new List<TurmaDTO>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turmas: {ex.Message}");
+                return new List<TurmaDTO>();
+            }
+        }
+
+        public async Task<List<TurmaDTO>> GetAllTurmas()
+        {
+            try
+            {
+                // Joining tables to get the course name
+                const string query = @"
+        SELECT t.turma_id, t.turma_name, t.course_id, c.nome_curso, t.isDeleted, t.date_start, t.date_end
+        FROM turmas t
+        INNER JOIN courses c ON t.course_id = c.id_cursos;";
+
+                var turmas = await GetDataAsync<TurmaDTO>(
+                    query,
+                    reader => new TurmaDTO
+                    {
+                        TurmaId = reader.GetInt32(0),
+                        TurmaName = reader.GetString(1),
+                        CourseId = reader.GetInt32(2),
+                        CourseName = reader.GetString(3),
+                        isDeleted = reader.GetInt32(4),
+                        DateStart = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                        DateEnd = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
                     }
                 );
 
@@ -1795,14 +1831,16 @@ namespace Auth_Services.Services
             {
                 // SQL targets turma_name and course_id per your schema
                 const string sql = @"
-            INSERT INTO turmas (turma_name, course_id) 
-            VALUES (@name, @courseId);";
+        INSERT INTO turmas (turma_name, course_id, date_start, date_end) 
+        VALUES (@name, @courseId, @start, @end);";
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@name", turma.TurmaName),
-            new MySqlParameter("@courseId", turma.CourseId)
-        };
+                    new MySqlParameter("@name", turma.TurmaName),
+                    new MySqlParameter("@courseId", turma.CourseId),
+                    new MySqlParameter("@start", (object)turma.DateStart ?? DBNull.Value),
+                    new MySqlParameter("@end", (object)turma.DateEnd ?? DBNull.Value)
+                };
 
                 // ExecuteNonQueryAsync returns the number of rows affected
                 return await ExecuteNonQueryAsync(sql, parameters);
@@ -1823,15 +1861,19 @@ namespace Auth_Services.Services
                 const string query = @"
             UPDATE turmas 
             SET turma_name = @name, 
-                course_id = @courseId 
+                course_id = @courseId,
+                date_start = @start,
+                date_end = @end
             WHERE turma_id = @id;";
 
                 var parameters = new[]
                 {
-            new MySqlParameter("@name", turma.TurmaName),
-            new MySqlParameter("@courseId", turma.CourseId),
-            new MySqlParameter("@id", turma.TurmaId)
-        };
+                    new MySqlParameter("@name", turma.TurmaName),
+                    new MySqlParameter("@courseId", turma.CourseId),
+                    new MySqlParameter("@start", (object)turma.DateStart ?? DBNull.Value),
+                    new MySqlParameter("@end", (object)turma.DateEnd ?? DBNull.Value),
+                    new MySqlParameter("@id", turma.TurmaId)
+                };
 
                 int result = await ExecuteNonQueryAsync(query, parameters);
 
@@ -1973,10 +2015,20 @@ namespace Auth_Services.Services
         {
             try
             {
-                // This query does three things:
-                // 1. Checks if the user has role_id = 3 (Student)
-                // 2. Tries to insert the enrollment
-                // 3. If they were previously deleted, it reactivates them (ON DUPLICATE KEY)
+                // 1. First, check if the Turma has already ended
+                const string checkSql = "SELECT date_end FROM turmas WHERE turma_id = @id;";
+                var checkParams = new[] { new MySqlParameter("@id", enrollment.TurmaId) };
+
+                var turmaData = await GetDataAsync<DateTime?>(checkSql,
+                    reader => reader.IsDBNull(0) ? null : reader.GetDateTime(0),
+                    checkParams);
+
+                if (turmaData.Count > 0 && turmaData[0].HasValue && turmaData[0].Value < DateTime.Now)
+                {
+                    return "TurmaEnded"; // Business logic block
+                }
+
+                // 2. Proceed with enrollment if valid
                 const string sql = @"
             INSERT INTO enrollments (student_id, turma_id, enrollment_date, isDeleted)
             SELECT u.user_id, @turmaId, CURDATE(), 0
@@ -1984,16 +2036,13 @@ namespace Auth_Services.Services
             WHERE u.user_id = @studentId AND u.role_id = 3 AND u.isDeleted = 0
             ON DUPLICATE KEY UPDATE isDeleted = 0, enrollment_date = CURDATE();";
 
-                var parameters = new[]
-                {
+                var parameters = new[] {
             new MySqlParameter("@studentId", enrollment.StudentId),
             new MySqlParameter("@turmaId", enrollment.TurmaId)
         };
 
                 int result = await ExecuteNonQueryAsync(sql, parameters);
-
-                if (result > 0) return "Success";
-                return "InvalidRole"; // Either not a student or user doesn't exist
+                return result > 0 ? "Success" : "InvalidRole";
             }
             catch (Exception ex)
             {
