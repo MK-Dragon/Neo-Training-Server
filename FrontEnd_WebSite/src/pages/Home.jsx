@@ -157,14 +157,32 @@ const Home = () => {
       {/* --- MANAGEMENT SECTION (ADMIN ONLY) --- */}
       {isAdmin && (
         <section className="mb-5">
-          <h3 className="mb-4 border-bottom pb-2">Management</h3>
+          <h3 className="mb-4 border-bottom pb-2">Administrative Management</h3>
           <Row>
-            <DashboardCard title="User Management" text="Manage user accounts." link="/UserManagement" icon="👥" variant="dark" />
-            <DashboardCard title="Enrollment Management" text="Register students." link="/EnrollmentManagement" icon="📋" variant="primary" />
-            <DashboardCard title="Teacher Assignments" text="Assign modules to teachers." link="/TeacherModuleManager" icon="🤝" variant="primary" />
-            <DashboardCard title="Course Management" text="Organize courses." link="/CourseManagement" icon="🎓" variant="dark" />
-            <DashboardCard title="Module Management" text="Edit curriculum." link="/ModuleManagement" icon="📚" variant="dark" />
-            <DashboardCard title="Turma Management" text="Manage class groups." link="/TurmaManagement" icon="🏫" variant="success" />
+            {/* Existing Links */}
+            <DashboardCard title="User Management" text="Manage user accounts and roles." link="/UserManagement" icon="👥" variant="dark" />
+            <DashboardCard title="Course Management" text="Organize and edit course curriculum." link="/CourseManagement" icon="🎓" variant="dark" />
+            <DashboardCard title="Module Management" text="Define and update academic modules." link="/ModuleManagement" icon="📚" variant="dark" />
+
+            <DashboardCard title="Enrollment Management" text="Register and track student enrollments." link="/EnrollmentManagement" icon="📋" variant="success" />
+            <DashboardCard title="Teacher Assignments" text="Assign modules to specific teachers." link="/TeacherModuleManager" icon="🤝" variant="success" />
+            <DashboardCard title="Turma Management" text="Manage class groups and scheduling." link="/TurmaManagement" icon="🏫" variant="success" />
+
+            <DashboardCard 
+              title="Turma Dashboard" 
+              text="Overview of all active classes and statistics." 
+              link="/turmadashboard" 
+              icon="📊" 
+              variant="primary" 
+            />
+
+            <DashboardCard 
+              title="Sala Management" 
+              text="Manage physical and virtual classrooms." 
+              link="/SalaManagement" 
+              icon="🏢" 
+              variant="primary" 
+            />
           </Row>
         </section>
       )}
