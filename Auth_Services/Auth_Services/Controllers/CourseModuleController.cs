@@ -105,7 +105,28 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("course/{courseId}/modules")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCourseModules(int courseId)
+        {
+            if (courseId <= 0) return BadRequest("Invalid Course ID.");
 
+            try
+            {
+                var modules = await _dbServices.GetModulesByCourseId(courseId);
+
+                if (modules == null || modules.Count == 0)
+                {
+                    return Ok(new List<CourseModulePlan>()); // Return empty list if no modules exist
+                }
+
+                return Ok(modules);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
 

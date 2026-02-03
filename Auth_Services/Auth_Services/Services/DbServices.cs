@@ -1749,6 +1749,40 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<CourseModulePlan>> GetModulesByCourseId(int courseId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                m.module_id, 
+                m.name AS module_name, 
+                m.duration_h, 
+                cm.order_index
+            FROM course_modules cm
+            INNER JOIN modules m ON cm.module_id = m.module_id
+            WHERE cm.course_id = @courseId 
+              AND cm.isDeleted = 0 
+              AND m.isDeleted = 0
+            ORDER BY cm.order_index ASC;";
+
+                var parameters = new[] { new MySqlParameter("@courseId", courseId) };
+
+                return await GetDataAsync<CourseModulePlan>(query, reader => new CourseModulePlan
+                {
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    DurationH = reader.GetInt32("duration_h"),
+                    OrderIndex = reader.GetInt32("order_index")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching modules for course {courseId}: {ex.Message}");
+                return new List<CourseModulePlan>();
+            }
+        }
+
 
 
 
@@ -2486,6 +2520,126 @@ namespace Auth_Services.Services
                 return false;
             }
         }
+
+
+        // ** Teacher to Turma Module **
+
+        public async Task<bool> AssignTeacherToModule(AssignTeacherToTurmaModule assignment)
+        {
+            try
+            {
+                // We ensure the teacher exists and has the correct role (2 = Teacher)
+                // while performing the upsert on turma_modules
+                const string query = @"
+            INSERT INTO turma_modules (turma_id, module_id, teacher_id, num_hours_completed, isCompleted)
+            SELECT @turmaId, @moduleId, u.user_id, 0, 0
+            FROM users u
+            WHERE u.user_id = @teacherId AND u.role_id = 2
+            ON DUPLICATE KEY UPDATE teacher_id = @teacherId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", assignment.TurmaId),
+            new MySqlParameter("@moduleId", assignment.ModuleId),
+            new MySqlParameter("@teacherId", assignment.TeacherId)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error assigning teacher to turma module: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<List<TurmaModuleDetails>> GetModulesByTurma(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id, 
+                t.turma_name, 
+                m.module_id, 
+                m.name AS module_name, 
+                u.user_id AS teacher_id, 
+                u.username AS teacher_name, 
+                tm.num_hours_completed, 
+                m.duration_h AS total_duration, 
+                tm.isCompleted
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN users u ON tm.teacher_id = u.user_id
+            WHERE tm.turma_id = @turmaId;";
+
+                var parameters = new[] { new MySqlParameter("@turmaId", turmaId) };
+
+                return await GetDataAsync<TurmaModuleDetails>(query, reader => new TurmaModuleDetails
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    HoursCompleted = reader.GetInt32("num_hours_completed"),
+                    TotalDuration = reader.GetInt32("total_duration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching modules for turma {turmaId}: {ex.Message}");
+                return new List<TurmaModuleDetails>();
+            }
+        }
+
+        public async Task<List<TurmaCourseModulePlaned>> GetTurmaModulePlan(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id, 
+                t.turma_name, 
+                m.module_id, 
+                m.name AS module_name, 
+                m.duration_h, 
+                cm.order_index,
+                m.isDeleted AS module_deleted
+            FROM mydb.turmas t
+            JOIN mydb.courses c ON t.course_id = c.id_cursos
+            JOIN mydb.course_modules cm ON c.id_cursos = cm.course_id
+            JOIN mydb.modules m ON cm.module_id = m.module_id
+            WHERE t.turma_id = @turmaId 
+              AND m.isDeleted = 0
+              AND cm.isDeleted = 0
+            ORDER BY cm.order_index ASC;";
+
+                var parameters = new[] { new MySqlParameter("@turmaId", turmaId) };
+
+                return await GetDataAsync<TurmaCourseModulePlaned>(query, reader => new TurmaCourseModulePlaned
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    DurationH = reader.GetInt32("duration_h"),
+                    OrderIndex = reader.GetInt32("order_index"),
+                    IsModuleDeleted = reader.GetInt32("module_deleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching module plan for turma {turmaId}: {ex.Message}");
+                return new List<TurmaCourseModulePlaned>();
+            }
+        }
+
+
 
 
     } // the end

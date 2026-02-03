@@ -18,3 +18,6 @@ SELECT turma_name, date_end
 FROM turmas 
 WHERE date_end < CURDATE();
 
+SELECT * FROM mydb.turma_modules;
+
+

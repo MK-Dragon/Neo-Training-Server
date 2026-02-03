@@ -1,4 +1,5 @@
-﻿using Auth_Services.Models;
+﻿using Auth_Services.DTOs;
+using Auth_Services.Models;
 using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -119,6 +120,72 @@ namespace Auth_Services.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+
+        // Additional Teacher-Module-Turma
+
+        [HttpPost("assign-teacher-to-module")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AssignTeacher([FromBody] AssignTeacherToTurmaModule assignment)
+        {
+            if (assignment.TurmaId <= 0 || assignment.ModuleId <= 0 || assignment.TeacherId <= 0)
+            {
+                return BadRequest("All IDs (Turma, Module, and Teacher) must be valid.");
+            }
+
+            try
+            {
+                bool success = await _dbServices.AssignTeacherToModule(assignment);
+
+                if (!success)
+                {
+                    return BadRequest("Assignment failed. Ensure the user exists and has the Teacher role.");
+                }
+
+                return Ok(new { message = "Teacher assigned to the module within the turma successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("turma/{turmaId}/modules-details")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTurmaModules(int turmaId)
+        {
+            if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
+
+            try
+            {
+                var details = await _dbServices.GetModulesByTurma(turmaId);
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpGet("turma/{turmaId}/curriculum-plan")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCurriculumPlan(int turmaId)
+        {
+            if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
+
+            try
+            {
+                var plan = await _dbServices.GetTurmaModulePlan(turmaId);
+                return Ok(plan);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+
+
 
 
     } // End of TeacherController class

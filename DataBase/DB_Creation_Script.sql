@@ -284,9 +284,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`turma_modulas`
+-- Table `mydb`.`turma_modules`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`turma_modulas` (
+CREATE TABLE IF NOT EXISTS `mydb`.`turma_modules` (
   `turma_id` INT NOT NULL,
   `module_id` INT NOT NULL,
   `teacher_id` INT NOT NULL,
