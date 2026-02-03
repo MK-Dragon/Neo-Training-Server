@@ -168,6 +168,28 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("turma-module-details")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetSpecificDetails([FromQuery] int turmaId, [FromQuery] int moduleId)
+        {
+            if (turmaId <= 0 || moduleId <= 0)
+                return BadRequest("Invalid Turma or Module ID.");
+
+            try
+            {
+                var details = await _dbServices.GetSpecificTurmaModule(turmaId, moduleId);
+
+                if (details == null)
+                    return NotFound("No assignment found for this specific module and turma.");
+
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         // turma - modules (duratio + index order)
         [HttpGet("turma/{turmaId}/curriculum-plan")]
         [AllowAnonymous]

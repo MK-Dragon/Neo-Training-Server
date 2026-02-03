@@ -2597,6 +2597,55 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<TurmaModuleDetails> GetSpecificTurmaModule(int turmaId, int moduleId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id, 
+                t.turma_name, 
+                m.module_id, 
+                m.name AS module_name, 
+                u.user_id AS teacher_id, 
+                u.username AS teacher_name, 
+                tm.num_hours_completed, 
+                m.duration_h AS total_duration, 
+                tm.isCompleted
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN users u ON tm.teacher_id = u.user_id
+            WHERE tm.turma_id = @turmaId AND tm.module_id = @moduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                var results = await GetDataAsync<TurmaModuleDetails>(query, reader => new TurmaModuleDetails
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    HoursCompleted = reader.GetInt32("num_hours_completed"),
+                    TotalDuration = reader.GetInt32("total_duration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching module {moduleId} for turma {turmaId}: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<List<TurmaCourseModulePlaned>> GetTurmaModulePlan(int turmaId)
         {
             try
@@ -2668,6 +2717,169 @@ namespace Auth_Services.Services
                 return new List<TeacherModuleAssignment>();
             }
         }
+
+
+
+        // ** Student Grade **
+
+        public async Task<List<StudentGradeDetail>> GetGradesByTurma(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id AS student_id, 
+                u.username AS student_name, 
+                m.module_id, 
+                m.name AS module_name, 
+                sg.grade
+            FROM enrollments e
+            INNER JOIN users u ON e.student_id = u.user_id
+            INNER JOIN turmas t ON e.turma_id = t.turma_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id
+            INNER JOIN modules m ON cm.module_id = m.module_id
+            LEFT JOIN student_grades sg ON e.id_enrollment = sg.id_enrollment 
+                                        AND m.module_id = sg.module_id
+            WHERE e.turma_id = @turmaId 
+              AND e.isDeleted = 0 
+              AND u.isDeleted = 0
+            ORDER BY u.username ASC, cm.order_index ASC;";
+
+                var parameters = new[] { new MySqlParameter("@turmaId", turmaId) };
+
+                return await GetDataAsync<StudentGradeDetail>(query, reader => new StudentGradeDetail
+                {
+                    StudentId = reader.GetInt32("student_id"),
+                    StudentName = reader.GetString("student_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    Grade = reader.IsDBNull(reader.GetOrdinal("grade")) ? (int?)null : reader.GetInt32("grade")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching grades for turma {turmaId}: {ex.Message}");
+                return new List<StudentGradeDetail>();
+            }
+        }
+
+        // Student Grade for all Modules
+        public async Task<List<StudentReportCard>> GetStudentGradesInTurma(int studentId, int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                m.module_id, 
+                m.name AS module_name, 
+                sg.grade,
+                tm.isCompleted
+            FROM enrollments e
+            INNER JOIN turmas t ON e.turma_id = t.turma_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id
+            INNER JOIN modules m ON cm.module_id = m.module_id
+            LEFT JOIN student_grades sg ON e.id_enrollment = sg.id_enrollment 
+                                        AND m.module_id = sg.module_id
+            LEFT JOIN turma_modules tm ON t.turma_id = tm.turma_id 
+                                       AND m.module_id = tm.module_id
+            WHERE e.student_id = @studentId 
+              AND e.turma_id = @turmaId
+              AND e.isDeleted = 0
+            ORDER BY cm.order_index ASC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", studentId),
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                return await GetDataAsync<StudentReportCard>(query, reader => new StudentReportCard
+                {
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    Grade = reader.IsDBNull(reader.GetOrdinal("grade")) ? (int?)null : reader.GetInt32("grade"),
+                    IsCompleted = reader.IsDBNull(reader.GetOrdinal("isCompleted")) ? 0 : reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching student grades: {ex.Message}");
+                return new List<StudentReportCard>();
+            }
+        }
+
+        public async Task<List<ModuleGradeEntry>> GetGradesForTurmaModule(int turmaId, int moduleId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id AS student_id, 
+                u.username AS student_name, 
+                sg.grade,
+                e.id_enrollment
+            FROM enrollments e
+            INNER JOIN users u ON e.student_id = u.user_id
+            LEFT JOIN student_grades sg ON e.id_enrollment = sg.id_enrollment 
+                                        AND sg.module_id = @moduleId
+            WHERE e.turma_id = @turmaId 
+              AND e.isDeleted = 0 
+              AND u.isDeleted = 0
+            ORDER BY u.username ASC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                return await GetDataAsync<ModuleGradeEntry>(query, reader => new ModuleGradeEntry
+                {
+                    StudentId = reader.GetInt32("student_id"),
+                    StudentName = reader.GetString("student_name"),
+                    Grade = reader.IsDBNull(reader.GetOrdinal("grade")) ? (int?)null : reader.GetInt32("grade"),
+                    EnrollmentId = reader.GetInt32("id_enrollment")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching module grades: {ex.Message}");
+                return new List<ModuleGradeEntry>();
+            }
+        }
+
+        // update
+        public async Task<bool> UpsertStudentGrade(GradeSubmission submission)
+        {
+            try
+            {
+                // 1. We find the enrollment ID for the student/turma pair
+                // 2. We insert the grade, or update it if the pair (enrollment, module) exists
+                const string query = @"
+            INSERT INTO student_grades (id_enrollment, module_id, grade)
+            SELECT e.id_enrollment, @moduleId, @grade
+            FROM enrollments e
+            WHERE e.student_id = @studentId AND e.turma_id = @turmaId AND e.isDeleted = 0
+            ON DUPLICATE KEY UPDATE grade = @grade;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", submission.StudentId),
+            new MySqlParameter("@turmaId", submission.TurmaId),
+            new MySqlParameter("@moduleId", submission.ModuleId),
+            new MySqlParameter("@grade", submission.Grade)
+        };
+
+                int result = await ExecuteNonQueryAsync(query, parameters);
+                return result > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating grade: {ex.Message}");
+                return false;
+            }
+        }
+
 
 
     } // the end

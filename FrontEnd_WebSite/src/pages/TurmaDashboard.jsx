@@ -1,6 +1,6 @@
 // \src\pages\TurmaDashboard.jsx
 
-
+import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Container, Row, Col, Card, Table, Button, Modal, 
@@ -10,6 +10,8 @@ import {
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
 const TurmaDashboard = () => {
+  const navigate = useNavigate();
+
   // Selection State
   const [activeTurmas, setActiveTurmas] = useState([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState('');
@@ -132,6 +134,7 @@ const TurmaDashboard = () => {
     } catch (err) { alert("Server error."); }
   };
 
+
   return (
     <Container className="mt-5 pt-4">
       <Card className="mb-4 shadow-sm border-0 bg-dark text-white">
@@ -218,6 +221,14 @@ const TurmaDashboard = () => {
                                 onClick={() => handleOpenAssignModal(mod)}
                               >
                                 {mod.teacherId ? "Reassign" : "Assign Teacher"}
+                              </Button>
+                              <Button 
+                                variant="outline-success" 
+                                size="sm" 
+                                className="ms-2"
+                                onClick={() => navigate(`/turma/${selectedTurmaId}/module/${mod.moduleId}/grades`)}
+                              >
+                                Grades
                               </Button>
                             </td>
                           </tr>

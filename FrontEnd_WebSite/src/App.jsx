@@ -33,6 +33,10 @@ import TeacherModuleManager from './pages/TeacherModuleManager.jsx';
 import TeacherAvailability from './pages/TeacherAvailability.jsx';
 import TurmaDashboard from './pages/TurmaDashboard.jsx';
 
+// Grades 
+import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins
+
+
 
 // Enroll Students
 import EnrollmentManagement from './pages/EnrollmentManagement.jsx';
@@ -77,6 +81,9 @@ function NavigationWrapper() {
           {/* Teacher Mangement */}
           <Route path="/TeacherAvailability" element={<ProtectedRoute><TeacherAvailability /></ProtectedRoute>} />
           <Route path="/TurmaDashboard" element={<ProtectedRoute><TurmaDashboard /></ProtectedRoute>} />
+
+          {/* Grades */}
+          <Route path="/turma/:turmaId/module/:moduleId/grades" element={<ProtectedRoute><ModuleGrades /></ProtectedRoute>} />
 
           {/* Enroll Students */}
           <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />
