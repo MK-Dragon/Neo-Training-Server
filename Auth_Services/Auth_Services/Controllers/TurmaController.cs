@@ -40,7 +40,7 @@ namespace Auth_Services.Controllers
         {
             try
             {
-                var turmas = await _dbServices.GetAllTurmas();
+                List<TurmaDTO> turmas = await _dbServices.GetAllTurmas();
                 return Ok(turmas);
             }
             catch (Exception ex)
@@ -168,7 +168,7 @@ namespace Auth_Services.Controllers
 
             try
             {
-                var students = await _dbServices.GetStudentsByTurma(turmaId);
+                List<StudentInTurmaDTO> students = await _dbServices.GetStudentsByTurma(turmaId);
 
                 if (students == null || students.Count == 0)
                 {

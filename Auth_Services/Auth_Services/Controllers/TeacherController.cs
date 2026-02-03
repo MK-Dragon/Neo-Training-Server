@@ -150,6 +150,7 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // turma - List module-teacher (time userd / time total)
         [HttpGet("turma/{turmaId}/modules-details")]
         [AllowAnonymous]
         public async Task<IActionResult> GetTurmaModules(int turmaId)
@@ -158,7 +159,7 @@ namespace Auth_Services.Controllers
 
             try
             {
-                var details = await _dbServices.GetModulesByTurma(turmaId);
+                List<TurmaModuleDetails> details = await _dbServices.GetModulesByTurma(turmaId);
                 return Ok(details);
             }
             catch (Exception ex)
@@ -167,6 +168,7 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // turma - modules (duratio + index order)
         [HttpGet("turma/{turmaId}/curriculum-plan")]
         [AllowAnonymous]
         public async Task<IActionResult> GetCurriculumPlan(int turmaId)
@@ -175,7 +177,7 @@ namespace Auth_Services.Controllers
 
             try
             {
-                var plan = await _dbServices.GetTurmaModulePlan(turmaId);
+                List<TurmaCourseModulePlaned> plan = await _dbServices.GetTurmaModulePlan(turmaId);
                 return Ok(plan);
             }
             catch (Exception ex)
@@ -184,7 +186,25 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // techer that teach THIS module
+        [HttpGet("module/{moduleId}/teachers")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetModuleTeachers(int moduleId)
+        {
+            if (moduleId <= 0) return BadRequest("Invalid Module ID.");
 
+            try
+            {
+                List<TeacherModuleAssignment> teachers = await _dbServices.GetTeachersByModule(moduleId);
+
+                // Return an empty list if no teachers are qualified for this module
+                return Ok(teachers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
 

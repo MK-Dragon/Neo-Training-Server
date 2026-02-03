@@ -81,6 +81,7 @@ function NavBar() {
                   <NavDropdown.Item as={Link} to="/TeacherModuleManager" onClick={closeNav}>Manage Teacher/Module</NavDropdown.Item>
                   <NavDropdown.Divider />
                   <NavDropdown.Item as={Link} to="/EnrollmentManagement" onClick={closeNav}>Enrollment Management</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/TurmaDashboard" onClick={closeNav}>Turma Dashboard</NavDropdown.Item>
                 </NavDropdown>
               )}
 

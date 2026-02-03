@@ -2639,7 +2639,35 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<TeacherModuleAssignment>> GetTeachersByModule(int moduleId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id, 
+                u.username
+            FROM formador_teaches_module ftm
+            INNER JOIN users u ON ftm.formador_id = u.user_id
+            WHERE ftm.module_id = @moduleId 
+              AND ftm.isDeleted = 0 
+              AND u.isDeleted = 0
+            ORDER BY u.username ASC;";
 
+                var parameters = new[] { new MySqlParameter("@moduleId", moduleId) };
+
+                return await GetDataAsync<TeacherModuleAssignment>(query, reader => new TeacherModuleAssignment
+                {
+                    UserId = reader.GetInt32("user_id"),
+                    Username = reader.GetString("username")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teachers for module {moduleId}: {ex.Message}");
+                return new List<TeacherModuleAssignment>();
+            }
+        }
 
 
     } // the end

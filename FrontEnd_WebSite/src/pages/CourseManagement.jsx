@@ -1,20 +1,19 @@
 // /src/pages/CourseManagement.jsx
-
-import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Modal, Form, Alert, Row, Col, Card, Badge, ListGroup, InputGroup } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Container, Table, Button, Modal, Form, Alert, Row, Col, Badge, ListGroup, InputGroup } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
-  const [allModules, setAllModules] = useState([]); 
+  const [allModulesList, setAllModulesList] = useState([]); // List for the dropdown
+  const [courseModules, setCourseModules] = useState([]); // Active modules for editing course
+  
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [error, setError] = useState('');
   
-  // Form State
-  const [formData, setFormData] = useState({ Name: '', Level: 'Beginner', durationInHours: 0 });
-  const [courseModules, setCourseModules] = useState([]); 
+  const [formData, setFormData] = useState({ Name: '', Level: 'Beginner', DurationInHours: 0 });
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -22,8 +21,13 @@ const CourseManagement = () => {
 
   useEffect(() => {
     fetchCourses();
-    fetchAllModules();
+    fetchAllAvailableModules();
   }, []);
+
+  // Sort by orderIndex automatically for the UI
+  const sortedModules = useMemo(() => {
+    return [...courseModules].sort((a, b) => a.orderIndex - b.orderIndex);
+  }, [courseModules]);
 
   const fetchCourses = async () => {
     try {
@@ -35,92 +39,85 @@ const CourseManagement = () => {
     } catch (err) { setError("Failed to fetch courses."); }
   };
 
-  const fetchAllModules = async () => {
+  const fetchAllAvailableModules = async () => {
     try {
       const response = await fetch(`${ServerIP}/api/Module/allmodules`);
       if (response.ok) {
         const data = await response.json();
-        // Filter out deleted modules immediately
-        setAllModules(data.filter(m => (m.isDeleted ?? m.IsDeleted ?? 0) === 0));
+        setAllModulesList(data.filter(m => (m.isDeleted ?? m.IsDeleted ?? 0) === 0));
       }
-    } catch (err) { console.error("Could not load modules list."); }
+    } catch (err) { console.error("Could not load modules."); }
   };
 
   const handleOpenModal = async (course = null) => {
     setError('');
+    setSelectedModuleId('');
     if (course) {
-      const id = course.Id ?? course.id;
+      const id = course.id ?? course.Id;
       setEditingCourse(course);
       setFormData({ 
-        Name: course.Name ?? course.name ?? '', 
-        Level: course.Level ?? course.level ?? 'Beginner', 
-        durationInHours: course.durationInHours ?? course.DurationInHours ?? 0 
+        Name: course.name ?? course.Name ?? '', 
+        Level: course.level ?? course.Level ?? 'Beginner', 
+        DurationInHours: course.durationInHours ?? course.DurationInHours ?? 0 
       });
       
       try {
-        const res = await fetch(`${ServerIP}/api/Courses/course-id?course_id=${id}`);
+        const res = await fetch(`${ServerIP}/api/CourseModule/course/${id}/modules`);
         if (res.ok) {
-          const fullCourse = await res.json();
-          setCourseModules(fullCourse.Modules || fullCourse.modules || []);
+          const data = await res.json();
+          
+          // Map strictly to the names your React state expects
+          const normalized = data.map(m => ({
+            moduleId: m.moduleId ?? m.ModuleId,
+            moduleName: m.moduleName ?? m.ModuleName,
+            durationH: m.durationH ?? m.DurationH,
+            // Fallback chain for the tier index
+            orderIndex: m.orderIndex !== undefined ? m.orderIndex : (m.OrderIndex !== undefined ? m.OrderIndex : 0)
+          }));
+          
+          setCourseModules(normalized);
         }
-      } catch (err) { setError("Could not load course modules."); }
+      } catch (err) { setError("Could not load modules."); }
     } else {
       setEditingCourse(null);
-      setFormData({ Name: '', Level: 'Beginner', durationInHours: 0 });
+      setFormData({ Name: '', Level: 'Beginner', DurationInHours: 0 });
       setCourseModules([]);
     }
     setShowModal(true);
   };
 
-  const handleSaveCourse = async (e) => {
-    e.preventDefault();
-    const isEditing = !!editingCourse;
-    const endpoint = isEditing ? 'update-course' : 'create-course';
-    
-    // Construct body to match your C# DTOs
-    const body = isEditing 
-      ? { 
-          Id: editingCourse.Id ?? editingCourse.id,
-          Name: formData.Name, 
-          Level: formData.Level, 
-          durationInHours: formData.durationInHours,
-          IsDeleted: 0,
-          Modules: courseModules 
-        } 
-      : { 
-          Name: formData.Name, 
-          Level: formData.Level,
-          DurationInHours: formData.durationInHours 
-        };
+  const handleTierChange = async (moduleId, newTier) => {
+    const courseId = editingCourse.id ?? editingCourse.Id;
+    const tierInt = parseInt(newTier) || 0;
+
+    // 1. Optimistic UI update
+    setCourseModules(prev => prev.map(m => 
+      m.moduleId === moduleId ? { ...m, orderIndex: tierInt } : m
+    ));
 
     try {
-      const response = await fetch(`${ServerIP}/api/Courses/${endpoint}`, {
-        method: isEditing ? 'PUT' : 'POST',
+      // 2. Call the HttpPatch("update-module-order") endpoint
+      await fetch(`${ServerIP}/api/CourseModule/update-module-order`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          courseId: courseId,
+          moduleId: moduleId,
+          orderIndex: tierInt
+        })
       });
-
-      if (response.ok) {
-        setShowModal(false);
-        fetchCourses();
-      } else {
-        const msg = await response.text();
-        setError(msg || "Failed to save course.");
-      }
-    } catch (err) { setError("Server error."); }
+    } catch (err) { console.error("Failed to update order on server."); }
   };
 
   const addModuleToCourse = async () => {
     if (!selectedModuleId || !editingCourse) return;
-    
+    const courseId = editingCourse.id ?? editingCourse.Id;
     const modIdInt = parseInt(selectedModuleId);
-    const moduleToAdd = allModules.find(m => (m.Id ?? m.id) === modIdInt);
-    const courseId = editingCourse.Id ?? editingCourse.id;
 
     const payload = [{
-      CourseId: courseId,
-      ModuleId: modIdInt,
-      OrderIndex: courseModules.length
+      courseId: courseId,
+      moduleId: modIdInt,
+      orderIndex: courseModules.length + 1
     }];
 
     try {
@@ -130,57 +127,51 @@ const CourseManagement = () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setCourseModules([...courseModules, moduleToAdd]);
-        setSelectedModuleId('');
-      } else {
-        setError("Module is already in this course or error occurred.");
+        // Reload modules list to ensure we have correct names/durations from DB
+        handleOpenModal(editingCourse);
       }
     } catch (err) { setError("Failed to link module."); }
   };
 
   const removeModuleFromCourse = async (moduleId) => {
-  if (!window.confirm("Remove this module from the course?")) return;
-  
-  // Normalize IDs to handle potential casing issues from the API
-  const courseId = editingCourse.Id ?? editingCourse.id;
-  
-  // Log for debugging: Open F12 console to see these values
-  console.log(`Attempting to remove Module ${moduleId} from Course ${courseId}`);
+    if (!window.confirm("Remove module from this course?")) return;
+    const courseId = editingCourse.id ?? editingCourse.Id;
 
-  try {
-    const res = await fetch(`${ServerIP}/api/CourseModule/delete-module-from-course/${courseId}/${moduleId}`, {
-      method: 'PATCH', // Standardized method name
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json' 
+    try {
+      const res = await fetch(`${ServerIP}/api/CourseModule/delete-module-from-course/${courseId}/${moduleId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setCourseModules(prev => prev.filter(m => m.moduleId !== moduleId));
       }
-    });
+    } catch (err) { setError("Could not remove module."); }
+  };
 
-    if (res.ok) {
-      // ONLY update the UI if the database confirmed the delete
-      setCourseModules(prevModules => 
-        prevModules.filter(m => (m.Id ?? m.id) !== moduleId)
-      );
-      console.log("Successfully removed from database.");
-    } else {
-      // If res.ok is false, the database did NOT change
-      const errorData = await res.json().catch(() => ({}));
-      const errorMsg = errorData.message || "Failed to remove module from database.";
-      setError(errorMsg);
-      console.error("Backend Error:", errorMsg);
-    }
-  } catch (err) {
-    console.error("Network/Server Error:", err);
-    setError("Could not connect to the server to delete the module.");
-  }
-};
+  const handleSaveCourseSettings = async (e) => {
+    e.preventDefault();
+    const isEditing = !!editingCourse;
+    const body = { 
+      Id: isEditing ? (editingCourse.id ?? editingCourse.Id) : 0,
+      Name: formData.Name, 
+      Level: formData.Level, 
+      DurationInHours: formData.DurationInHours
+    };
 
-  // Safe filtering logic
-  const filteredCourses = courses.filter(c => {
-    const name = c.Name ?? c.name ?? "";
-    const deleted = c.IsDeleted ?? c.isDeleted ?? 0;
-    return name.toLowerCase().includes(searchTerm.toLowerCase()) && deleted === 0;
-  });
+    try {
+      const res = await fetch(`${ServerIP}/api/Courses/${isEditing ? 'update-course' : 'create-course'}`, {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        setShowModal(false);
+        fetchCourses();
+      } else {
+        setError(await res.text() || "Failed to save course settings.");
+      }
+    } catch (err) { setError("Server error."); }
+  };
 
   return (
     <Container className="mt-5 pt-4">
@@ -192,8 +183,7 @@ const CourseManagement = () => {
       <InputGroup className="mb-4">
         <InputGroup.Text>🔍</InputGroup.Text>
         <Form.Control 
-          placeholder="Search courses by name..." 
-          value={searchTerm}
+          placeholder="Search by name..." 
           onChange={(e) => setSearchTerm(e.target.value)} 
         />
       </InputGroup>
@@ -201,56 +191,39 @@ const CourseManagement = () => {
       <Table striped bordered hover responsive>
         <thead className="table-dark">
           <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Level</th>
-            <th>Duration</th>
-            <th>Actions</th>
+            <th>ID</th><th>Name</th><th>Level</th><th>Duration</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredCourses.map(c => {
-            const id = c.Id ?? c.id;
-            const name = c.Name ?? c.name;
-            const level = c.Level ?? c.level;
-            const duration = c.durationInHours ?? c.DurationInHours;
-
-            return (
-              <tr key={id}>
-                <td>{id}</td>
-                <td>{name}</td>
-                <td><Badge bg="info">{level}</Badge></td>
-                <td>{duration}h</td>
-                <td>
-                  <Button variant="warning" size="sm" onClick={() => handleOpenModal(c)}>
-                    Edit / Modules
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
+          {courses.filter(c => (c.name ?? c.Name).toLowerCase().includes(searchTerm.toLowerCase())).map(c => (
+            <tr key={c.id ?? c.Id}>
+              <td>{c.id ?? c.Id}</td>
+              <td>{c.name ?? c.Name}</td>
+              <td><Badge bg="info">{c.level ?? c.Level}</Badge></td>
+              <td>{c.durationInHours ?? c.DurationInHours}h</td>
+              <td>
+                <Button variant="warning" size="sm" onClick={() => handleOpenModal(c)}>Edit / Modules</Button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </Table>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
-        <Form onSubmit={handleSaveCourse}>
+        <Form onSubmit={handleSaveCourseSettings}>
           <Modal.Header closeButton>
-            <Modal.Title>{editingCourse ? 'Edit Course' : 'Create New Course'}</Modal.Title>
+            <Modal.Title>{editingCourse ? 'Course Structure & Tiers' : 'New Course'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
             <Row>
-              <Col md={6}>
-                <h6 className="text-muted text-uppercase small fw-bold">General Information</h6>
-                <Form.Group className="mb-3">
-                  <Form.Label>Course Name</Form.Label>
-                  <Form.Control 
-                    value={formData.Name} 
-                    onChange={e => setFormData({...formData, Name: e.target.value})} 
-                    required 
-                  />
+              <Col md={5}>
+                <h6 className="fw-bold mb-3">Course Info</h6>
+                <Form.Group className="mb-2">
+                  <Form.Label>Name</Form.Label>
+                  <Form.Control value={formData.Name} onChange={e => setFormData({...formData, Name: e.target.value})} required />
                 </Form.Group>
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-2">
                   <Form.Label>Level</Form.Label>
                   <Form.Select value={formData.Level} onChange={e => setFormData({...formData, Level: e.target.value})}>
                     <option value="Beginner">Beginner</option>
@@ -260,65 +233,62 @@ const CourseManagement = () => {
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Base Duration (Hours)</Form.Label>
-                  <Form.Control 
-                    type="number"
-                    value={formData.durationInHours} 
-                    onChange={e => setFormData({...formData, durationInHours: parseInt(e.target.value)})} 
-                  />
+                  <Form.Control type="number" value={formData.DurationInHours} onChange={e => setFormData({...formData, DurationInHours: parseInt(e.target.value)})} />
                 </Form.Group>
+                <Button variant="primary" type="submit" className="w-100">Update Core Info</Button>
               </Col>
               
-              <Col md={6} className="border-start">
-                <h6 className="text-muted text-uppercase small fw-bold">Course Modules</h6>
-                <ListGroup className="mb-3" style={{maxHeight: '250px', overflowY: 'auto'}}>
-                  {courseModules.map(m => (
-                    <ListGroup.Item key={m.Id ?? m.id} className="d-flex justify-content-between align-items-center">
-                      <span>{m.Name ?? m.name} <small className="text-muted">({m.DurationInHours ?? m.durationInHours}h)</small></span>
-                      <Button variant="link" className="text-danger p-0" onClick={() => removeModuleFromCourse(m.Id ?? m.id)}>
-                        Remove
-                      </Button>
+              <Col md={7} className="border-start">
+                <h6 className="fw-bold mb-3">Module Tiers (Order)</h6>
+                <ListGroup className="mb-3" style={{maxHeight: '300px', overflowY: 'auto'}}>
+                  {sortedModules.map(m => (
+                    <ListGroup.Item key={m.moduleId} className="p-2">
+                      <Row className="align-items-center g-2">
+                        <Col xs={3}>
+                          <Form.Control 
+                            type="number" size="sm" 
+                            value={m.orderIndex} 
+                            onChange={(e) => handleTierChange(m.moduleId, e.target.value)}
+                            title="Set Tier / Order"
+                          />
+                        </Col>
+                        <Col xs={7}>
+                          <div className="text-truncate fw-bold small">{m.moduleName}</div>
+                          <small className="text-muted">{m.durationH}h</small>
+                        </Col>
+                        <Col xs={2} className="text-end">
+                          <Button variant="link" className="text-danger p-0" onClick={() => removeModuleFromCourse(m.moduleId)}>
+                            Remove
+                          </Button>
+                        </Col>
+                      </Row>
                     </ListGroup.Item>
                   ))}
                   {courseModules.length === 0 && (
-                    <ListGroup.Item className="text-center py-4 text-muted">
-                      No modules assigned to this course.
-                    </ListGroup.Item>
+                    <div className="text-center text-muted p-4">No modules linked yet.</div>
                   )}
                 </ListGroup>
 
                 {editingCourse && (
-                  <div className="bg-light p-2 rounded">
-                    <Form.Label className="small fw-bold">Add Module</Form.Label>
+                  <div className="bg-light p-2 rounded border">
+                    <Form.Label className="small fw-bold">Link New Module</Form.Label>
                     <InputGroup size="sm">
                       <Form.Select value={selectedModuleId} onChange={e => setSelectedModuleId(e.target.value)}>
                         <option value="">Select a module...</option>
-                        {allModules
-                          .filter(am => !courseModules.some(cm => (cm.Id ?? cm.id) === (am.Id ?? am.id)))
+                        {allModulesList
+                          .filter(am => !courseModules.some(cm => cm.moduleId === (am.id ?? am.Id)))
                           .map(am => (
-                            <option key={am.Id ?? am.id} value={am.Id ?? am.id}>
-                              {am.Name ?? am.name}
-                            </option>
+                            <option key={am.id ?? am.Id} value={am.id ?? am.Id}>{am.name ?? am.Name}</option>
                           ))
                         }
                       </Form.Select>
-                      <Button variant="primary" onClick={addModuleToCourse} disabled={!selectedModuleId}>
-                        Add
-                      </Button>
+                      <Button variant="success" onClick={addModuleToCourse} disabled={!selectedModuleId}>Add</Button>
                     </InputGroup>
                   </div>
-                )}
-                {!editingCourse && (
-                  <Alert variant="info" className="small">
-                    Create the course first to manage its modules.
-                  </Alert>
                 )}
               </Col>
             </Row>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button variant="primary" type="submit">Save Course Changes</Button>
-          </Modal.Footer>
         </Form>
       </Modal>
     </Container>

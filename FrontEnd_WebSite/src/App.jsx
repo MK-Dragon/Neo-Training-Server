@@ -31,6 +31,7 @@ import TeacherModuleManager from './pages/TeacherModuleManager.jsx';
 
 // Teacher Management
 import TeacherAvailability from './pages/TeacherAvailability.jsx';
+import TurmaDashboard from './pages/TurmaDashboard.jsx';
 
 
 // Enroll Students
@@ -75,6 +76,7 @@ function NavigationWrapper() {
 
           {/* Teacher Mangement */}
           <Route path="/TeacherAvailability" element={<ProtectedRoute><TeacherAvailability /></ProtectedRoute>} />
+          <Route path="/TurmaDashboard" element={<ProtectedRoute><TurmaDashboard /></ProtectedRoute>} />
 
           {/* Enroll Students */}
           <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />
