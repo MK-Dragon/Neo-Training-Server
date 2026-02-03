@@ -228,6 +228,25 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // turma - module a teacher teachs
+        [HttpGet("teacher/{teacherId}/assignments")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTeacherAssignments(int teacherId)
+        {
+            if (teacherId <= 0) return BadRequest("Invalid Teacher ID.");
+
+            try
+            {
+                var assignments = await _dbServices.GetAssignmentsByTeacher(teacherId); // List<TeacherAssignment>
+
+                // Return an empty list if the teacher has no assignments yet
+                return Ok(assignments);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
     } // End of TeacherController class

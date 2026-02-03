@@ -15,12 +15,16 @@ const ModuleGrades = () => {
   
   // Data State
   const [students, setStudents] = useState([]); 
-  const [details, setDetails] = useState(null); // Holds TurmaModuleDetails from C#
+  const [details, setDetails] = useState(null); 
   
   // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Role Check: Get role from localStorage
+  const userRole = localStorage.getItem('userRole');
+  const isAdmin = userRole === 'Admin';
 
   useEffect(() => {
     loadPageData();
@@ -30,7 +34,6 @@ const ModuleGrades = () => {
     setLoading(true);
     setError('');
     try {
-      // Run both fetches in parallel for better performance
       await Promise.all([
         fetchGrades(),
         fetchModuleMetadata()
@@ -58,7 +61,6 @@ const ModuleGrades = () => {
 
   const fetchModuleMetadata = async () => {
     try {
-      // Calling your TeacherController.cs -> GetSpecificDetails
       const res = await fetch(`${ServerIP}/api/Teacher/turma-module-details?turmaId=${turmaId}&moduleId=${moduleId}`);
       if (res.ok) {
         const data = await res.json();
@@ -70,7 +72,6 @@ const ModuleGrades = () => {
   };
 
   const handleGradeChange = (studentId, value) => {
-    // Basic validation: ensure it's within 0-20 or empty
     const val = value === '' ? '' : parseInt(value);
     setStudents(prev => prev.map(s => 
       (s.studentId ?? s.StudentId) === studentId ? { ...s, grade: val, Grade: val } : s
@@ -121,7 +122,17 @@ const ModuleGrades = () => {
   return (
     <Container className="mt-5 pt-4">
       <Breadcrumb className="mb-4">
-        <Breadcrumb.Item onClick={() => navigate('/turmadashboard')}>Dashboard</Breadcrumb.Item>
+        {/* Only show "Back to Dashboard" for Admin. 
+            Teachers will use the browser back button or the Home link in your Navbar */}
+        {isAdmin ? (
+          <Breadcrumb.Item onClick={() => navigate('/turmadashboard')}>
+            Back to Turma Dashboard
+          </Breadcrumb.Item>
+        ) : (
+          <Breadcrumb.Item onClick={() => navigate('/')}>
+            Home
+          </Breadcrumb.Item>
+        )}
         <Breadcrumb.Item active>
             {details?.moduleName || 'Module'} Evaluation
         </Breadcrumb.Item>

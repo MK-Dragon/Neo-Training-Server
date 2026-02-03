@@ -64,6 +64,29 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("turma/{turmaId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTurma(int turmaId)
+        {
+            if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
+
+            try
+            {
+                var turma = await _dbServices.GetTurmaById(turmaId);
+
+                if (turma == null)
+                {
+                    return NotFound($"Turma with ID {turmaId} not found.");
+                }
+
+                return Ok(turma);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         [HttpPost("create-turma")]
         [AllowAnonymous]
         public async Task<IActionResult> CreateTurma([FromBody] NewTurma turma)

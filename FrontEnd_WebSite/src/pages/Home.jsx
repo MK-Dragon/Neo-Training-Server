@@ -1,17 +1,32 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Container, Row, Col, Card, Button, Image } from 'react-bootstrap';
+import { 
+  Container, Row, Col, Card, Button, Image, 
+  Modal, ListGroup, Spinner, Badge as RBBadge 
+} from 'react-bootstrap';
 import profilePic from '../images/profile/user.jpg';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
 const Home = () => {
   const navigate = useNavigate();
+  
+  // --- User Identity State ---
   const [userData, setUserData] = useState({
     username: localStorage.getItem('username') || 'User',
-    role: localStorage.getItem('userRole') || ''
+    role: localStorage.getItem('userRole') || '',
+    id: localStorage.getItem('userId') || null
   });
+
+  // --- Modal & Data States ---
+  const [showGradingModal, setShowGradingModal] = useState(false);
+  const [teacherAssignments, setTeacherAssignments] = useState([]);
+  
+  const [showStudentTurmaModal, setShowStudentTurmaModal] = useState(false);
+  const [studentTurmas, setStudentTurmas] = useState([]);
+  
+  const [loadingModalData, setLoadingModalData] = useState(false);
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -34,8 +49,7 @@ const Home = () => {
           const data = await response.json();
           localStorage.setItem("username", data.username);
           localStorage.setItem("userRole", data.role);
-          localStorage.setItem("userId", data.id); // bug fix??
-          console.log("Verify ID: " + data.id);
+          localStorage.setItem("userId", data.id);
           setUserData({ username: data.username, role: data.role, id: data.id });
         } else {
           localStorage.clear();
@@ -49,21 +63,71 @@ const Home = () => {
     verifyToken();
   }, [navigate]);
 
+  // --- Teacher Logic: Fetch Assignments ---
+  const handleOpenGrading = async () => {
+    const userId = userData.id || localStorage.getItem('userId');
+    if (!userId) return;
+
+    setShowGradingModal(true);
+    setLoadingModalData(true);
+    try {
+      const res = await fetch(`${ServerIP}/api/Teacher/teacher/${userId}/assignments`);
+      if (res.ok) {
+        const data = await res.json();
+        setTeacherAssignments(data);
+      }
+    } catch (err) {
+      console.error("Teacher fetch error:", err);
+    } finally {
+      setLoadingModalData(false);
+    }
+  };
+
+  // --- Student Logic: Fetch Enrolled Turmas ---
+  const handleOpenStudentGrades = async () => {
+    const userId = userData.id || localStorage.getItem('userId');
+    if (!userId) return;
+
+    setShowStudentTurmaModal(true);
+    setLoadingModalData(true);
+    try {
+      const res = await fetch(`${ServerIP}/api/Student/student/${userId}/enrolled-turmas`);
+      if (res.ok) {
+        const data = await res.json();
+        setStudentTurmas(data);
+      }
+    } catch (err) {
+      console.error("Student fetch error:", err);
+    } finally {
+      setLoadingModalData(false);
+    }
+  };
+
   const isAdmin = userData.role === 'Admin';
   const isTeacher = userData.role === 'Teacher' || isAdmin;
   const isStudent = userData.role === 'Student' || isAdmin;
 
   // Reusable Component for Dashboard Cards
-  const DashboardCard = ({ title, text, link, icon, variant = "primary" }) => (
+  const DashboardCard = ({ title, text, link, icon, variant = "primary", onClick }) => (
     <Col md={4} className="mb-4">
-      <Card className="h-100 shadow-sm border-0 transition-hover" style={{ cursor: 'pointer' }}>
+      <Card 
+        className="h-100 shadow-sm border-0 transition-hover" 
+        style={{ cursor: 'pointer' }}
+        onClick={onClick}
+      >
         <Card.Body className="text-center d-flex flex-column justify-content-center">
           <div className={`text-${variant} mb-3`} style={{ fontSize: '2rem' }}>{icon}</div>
           <Card.Title className="fw-bold">{title}</Card.Title>
           <Card.Text className="text-muted small">{text}</Card.Text>
-          <Button as={Link} to={link} variant={`outline-${variant}`} size="sm" className="mt-auto stretched-link">
-            Open
-          </Button>
+          {link ? (
+            <Button as={Link} to={link} variant={`outline-${variant}`} size="sm" className="mt-auto stretched-link">
+              Open
+            </Button>
+          ) : (
+            <Button variant={`outline-${variant}`} size="sm" className="mt-auto">
+              Select
+            </Button>
+          )}
         </Card.Body>
       </Card>
     </Col>
@@ -95,16 +159,12 @@ const Home = () => {
         <section className="mb-5">
           <h3 className="mb-4 border-bottom pb-2">Management</h3>
           <Row>
-            {/* HR */}
-            <DashboardCard title="User Management" text="Manage user accounts and roles." link="/UserManagement" icon="👥" variant="dark" />
-            <DashboardCard title="Enrollment Management" text="Register students into specific modules and track their status." link="/EnrollmentManagement" icon="📋" variant="primary" />
-            <DashboardCard title="Teacher Assignments" text="Assign specific modules to teachers based on their expertise." link="/TeacherModuleManager" icon="🤝" variant="primary" />
-            {/* Academic */}
-            <DashboardCard title="Course Management" text="Organize courses and module links." link="/CourseManagement" icon="🎓" variant="dark" />
-            <DashboardCard title="Module Management" text="Edit curriculum and module details." link="/ModuleManagement" icon="📚" variant="dark" />
-            <DashboardCard title="Turma Management" text="Create and manage class groups, link them to courses, and view student lists." link="/TurmaManagement" icon="🏫" variant="success" />
-            {/* Scheduling */}
-            <DashboardCard title="Sala Management" text="Manage classroom allocations." link="/SalaManagement" icon="🏢" variant="dark" />
+            <DashboardCard title="User Management" text="Manage user accounts." link="/UserManagement" icon="👥" variant="dark" />
+            <DashboardCard title="Enrollment Management" text="Register students." link="/EnrollmentManagement" icon="📋" variant="primary" />
+            <DashboardCard title="Teacher Assignments" text="Assign modules to teachers." link="/TeacherModuleManager" icon="🤝" variant="primary" />
+            <DashboardCard title="Course Management" text="Organize courses." link="/CourseManagement" icon="🎓" variant="dark" />
+            <DashboardCard title="Module Management" text="Edit curriculum." link="/ModuleManagement" icon="📚" variant="dark" />
+            <DashboardCard title="Turma Management" text="Manage class groups." link="/TurmaManagement" icon="🏫" variant="success" />
           </Row>
         </section>
       )}
@@ -115,8 +175,14 @@ const Home = () => {
           <h3 className="mb-4 border-bottom pb-2">Teacher Dashboard</h3>
           <Row>
             <DashboardCard title="My Schedule" text="View your upcoming classes." link="/schedule" icon="📅" variant="success" />
-            <DashboardCard title="Grade Modules" text="Submit grades for your students." link="/grading" icon="📝" variant="success" />
-            <DashboardCard title="Manage Availability" text="Manage your working hours." link="/TeacherAvailability" icon="⏰" variant="success" />
+            <DashboardCard 
+              title="Grade Modules" 
+              text="Submit grades for your students." 
+              icon="📝" 
+              variant="success" 
+              onClick={handleOpenGrading} 
+            />
+            <DashboardCard title="Manage Availability" text="Manage your hours." link="/TeacherAvailability" icon="⏰" variant="success" />
           </Row>
         </section>
       )}
@@ -127,16 +193,78 @@ const Home = () => {
           <h3 className="mb-4 border-bottom pb-2">Student Hub</h3>
           <Row>
             <DashboardCard title="My Schedule" text="Check your class timings." link="/schedule" icon="📅" variant="info" />
-            <DashboardCard title="My Grades" text="View your academic performance." link="/grades" icon="🏆" variant="info" />
+            <DashboardCard 
+              title="My Grades" 
+              text="View your academic performance." 
+              icon="🏆" 
+              variant="info" 
+              onClick={handleOpenStudentGrades} 
+            />
             <DashboardCard title="Course Materials" text="Access files and resources." link="/materials" icon="📁" variant="info" />
           </Row>
         </section>
       )}
+
+      {/* --- MODAL: TEACHER GRADING SELECTION --- */}
+      <Modal show={showGradingModal} onHide={() => setShowGradingModal(false)} centered scrollable>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>Select Module to Grade</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          {loadingModalData ? (
+            <div className="text-center p-5"><Spinner animation="border" variant="success" /></div>
+          ) : (
+            <ListGroup variant="flush">
+              {teacherAssignments.length > 0 ? (
+                teacherAssignments.map((item, idx) => (
+                  <ListGroup.Item key={idx} action onClick={() => navigate(`/turma/${item.turmaId ?? item.TurmaId}/module/${item.moduleId ?? item.ModuleId}/grades`)} className="d-flex justify-content-between align-items-center py-3 px-4">
+                    <div>
+                      <div className="fw-bold">{item.turmaName ?? item.TurmaName}</div>
+                      <div className="text-muted small">{item.moduleName ?? item.ModuleName}</div>
+                    </div>
+                    <RBBadge bg="success" pill>Open Grades</RBBadge>
+                  </ListGroup.Item>
+                ))
+              ) : (
+                <div className="p-5 text-center text-muted">No active assignments found.</div>
+              )}
+            </ListGroup>
+          )}
+        </Modal.Body>
+      </Modal>
+
+      {/* --- MODAL: STUDENT TURMA SELECTION --- */}
+      <Modal show={showStudentTurmaModal} onHide={() => setShowStudentTurmaModal(false)} centered scrollable>
+        <Modal.Header closeButton className="bg-light">
+          <Modal.Title>Select Your Course</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0">
+          {loadingModalData ? (
+            <div className="text-center p-5"><Spinner animation="border" variant="info" /></div>
+          ) : (
+            <ListGroup variant="flush">
+              {studentTurmas.length > 0 ? (
+                studentTurmas.map((t, idx) => (
+                  <ListGroup.Item key={idx} action onClick={() => navigate(`/student-report/${t.turmaId ?? t.TurmaId}`)} className="d-flex justify-content-between align-items-center py-3 px-4">
+                    <div>
+                      <div className="fw-bold">{t.courseName ?? t.CourseName}</div>
+                      <div className="text-muted small">Turma: {t.turmaName ?? t.TurmaName}</div>
+                    </div>
+                    <RBBadge bg="info" pill>View Report</RBBadge>
+                  </ListGroup.Item>
+                ))
+              ) : (
+                <div className="p-5 text-center text-muted">You are not enrolled in any active classes.</div>
+              )}
+            </ListGroup>
+          )}
+        </Modal.Body>
+      </Modal>
+
     </Container>
   );
 };
 
-// Simple helper for the Hero badge
 const Badge = ({ children, bg, text }) => (
   <span className={`badge bg-${bg} text-${text} px-3 py-2 rounded-pill shadow-sm`}>
     {children}

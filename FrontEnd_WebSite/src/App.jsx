@@ -35,7 +35,7 @@ import TurmaDashboard from './pages/TurmaDashboard.jsx';
 
 // Grades 
 import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins
-
+import StudentReport from './pages/StudentReport.jsx'; // for Students
 
 
 // Enroll Students
@@ -84,6 +84,7 @@ function NavigationWrapper() {
 
           {/* Grades */}
           <Route path="/turma/:turmaId/module/:moduleId/grades" element={<ProtectedRoute><ModuleGrades /></ProtectedRoute>} />
+          <Route path="/student-report/:turmaId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
 
           {/* Enroll Students */}
           <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />

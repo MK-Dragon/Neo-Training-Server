@@ -1857,6 +1857,48 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<TurmaDTO?> GetTurmaById(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id, 
+                t.turma_name, 
+                t.course_id, 
+                c.nome_curso AS CourseName, 
+                t.isDeleted, 
+                t.date_start AS DateStart, 
+                t.date_end AS DateEnd
+            FROM turmas t
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            WHERE t.turma_id = @turmaId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                var result = await GetDataAsync<TurmaDTO>(query, reader => new TurmaDTO
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    CourseId = reader.GetInt32("course_id"),
+                    CourseName = reader.GetString("CourseName"),
+                    isDeleted = reader.GetInt32("isDeleted"),
+                    DateStart = reader.IsDBNull(reader.GetOrdinal("DateStart")) ? (DateTime?)null : reader.GetDateTime("DateStart"),
+                    DateEnd = reader.IsDBNull(reader.GetOrdinal("DateEnd")) ? (DateTime?)null : reader.GetDateTime("DateEnd")
+                }, parameters);
+
+                return result.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turma {turmaId}: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<int> AddTurma(NewTurma turma)
         {
             Console.WriteLine($"Creating Turma: {turma.TurmaName} for Course ID: {turma.CourseId}");
@@ -2718,6 +2760,48 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<TeacherAssignment>> GetAssignmentsByTeacher(int teacherId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                tm.turma_id, 
+                t.turma_name, 
+                tm.module_id, 
+                m.name AS module_name, 
+                tm.num_hours_completed, 
+                m.duration_h AS total_duration, 
+                tm.isCompleted
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            WHERE tm.teacher_id = @teacherId 
+              AND t.isDeleted = 0 
+              AND m.isDeleted = 0;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@teacherId", teacherId)
+        };
+
+                return await GetDataAsync<TeacherAssignment>(query, reader => new TeacherAssignment
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    HoursCompleted = reader.GetInt32("num_hours_completed"),
+                    TotalDuration = reader.GetInt32("total_duration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching assignments for teacher {teacherId}: {ex.Message}");
+                return new List<TeacherAssignment>();
+            }
+        }
 
 
         // ** Student Grade **
@@ -2881,6 +2965,51 @@ namespace Auth_Services.Services
         }
 
 
+
+        // ** Student **
+        public async Task<List<TurmaDTO>> GetStudentEnrolledTurmas(int studentId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id, 
+                t.turma_name, 
+                t.course_id, 
+                c.nome_curso AS CourseName, 
+                t.isDeleted, 
+                t.date_start AS DateStart, 
+                t.date_end AS DateEnd
+            FROM enrollments e
+            INNER JOIN turmas t ON e.turma_id = t.turma_id
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            WHERE e.student_id = @studentId 
+              AND e.isDeleted = 0 
+              AND t.isDeleted = 0
+            ORDER BY t.date_start DESC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@studentId", studentId)
+        };
+
+                return await GetDataAsync<TurmaDTO>(query, reader => new TurmaDTO
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    CourseId = reader.GetInt32("course_id"),
+                    CourseName = reader.GetString("CourseName"),
+                    isDeleted = reader.GetInt32("isDeleted"),
+                    DateStart = reader.IsDBNull(reader.GetOrdinal("DateStart")) ? (DateTime?)null : reader.GetDateTime("DateStart"),
+                    DateEnd = reader.IsDBNull(reader.GetOrdinal("DateEnd")) ? (DateTime?)null : reader.GetDateTime("DateEnd")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turmas for student {studentId}: {ex.Message}");
+                return new List<TurmaDTO>();
+            }
+        }
 
     } // the end
 }
