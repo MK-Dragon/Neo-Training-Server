@@ -260,6 +260,7 @@ CREATE TABLE IF NOT EXISTS `mydb`.`schedules` (
   INDEX `module_idx` (`module_id` ASC) VISIBLE,
   INDEX `formador_idx` (`formador_id` ASC) VISIBLE,
   INDEX `sala_idx` (`sala_id` ASC) VISIBLE,
+  INDEX `unique_sala_time` (`sala_id` ASC, `date_time` ASC) VISIBLE,
   CONSTRAINT `turma_schedule`
     FOREIGN KEY (`turma_id`)
     REFERENCES `mydb`.`turmas` (`turma_id`)

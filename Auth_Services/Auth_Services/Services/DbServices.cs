@@ -2382,6 +2382,70 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<string> ReplicateAvailabilityForWeek(ReplicateAvailabilityRequest request)
+        {
+            try
+            {
+                // 1. Get the template slots for that specific day
+                const string getTemplateQuery = @"
+            SELECT data_hora, disponivel 
+            FROM disponibilidades 
+            WHERE formador_id = @formadorId 
+              AND DATE(data_hora) = DATE(@templateDate);";
+
+                var templateParams = new[] {
+            new MySqlParameter("@formadorId", request.FormadorId),
+            new MySqlParameter("@templateDate", request.TemplateDate)
+        };
+
+                var templateSlots = await GetDataAsync<TeacherAvailability>(getTemplateQuery, reader => new TeacherAvailability
+                {
+                    DataHora = reader.GetDateTime("data_hora"),
+                    Disponivel = reader.GetInt32("disponivel")
+                }, templateParams);
+
+                if (templateSlots.Count == 0) return "No availability found for the template day.";
+
+                // 2. Identify the Start of the Week (Monday)
+                DateTime startOfWeek = request.TemplateDate.AddDays(-(int)request.TemplateDate.DayOfWeek + (int)DayOfWeek.Monday);
+
+                // 3. Prepare the Bulk Insert
+                // We will loop through Monday (0) to Friday (4)
+                foreach (int dayOffset in Enumerable.Range(0, 5))
+                {
+                    DateTime targetDay = startOfWeek.AddDays(dayOffset);
+
+                    // Skip the template day itself to avoid duplicate key errors
+                    if (targetDay.Date == request.TemplateDate.Date) continue;
+
+                    foreach (var slot in templateSlots)
+                    {
+                        // Reconstruct the date with the same time as the template
+                        DateTime newTime = targetDay.Date.Add(slot.DataHora.TimeOfDay);
+
+                        const string insertQuery = @"
+                    INSERT INTO disponibilidades (formador_id, disponivel, data_hora)
+                    VALUES (@formadorId, @disponivel, @dataHora)
+                    ON DUPLICATE KEY UPDATE disponivel = @disponivel;";
+
+                        var insertParams = new[] {
+                    new MySqlParameter("@formadorId", request.FormadorId),
+                    new MySqlParameter("@disponivel", slot.Disponivel),
+                    new MySqlParameter("@dataHora", newTime)
+                };
+
+                        await ExecuteNonQueryAsync(insertQuery, insertParams);
+                    }
+                }
+
+                return "Success";
+            }
+            catch (Exception ex)
+            {
+                return $"Error replicating: {ex.Message}";
+            }
+        }
+
         public async Task<bool> UpdateAvailability(UpdateAvailability availability)
         {
             // Note: We use FormadorId and DataHora to find the specific row
@@ -3010,6 +3074,203 @@ namespace Auth_Services.Services
                 return new List<TurmaDTO>();
             }
         }
+
+
+        // ** Shedule **
+        // Create Schedule with ALL THE RULES!
+        public async Task<string> CreateSchedule(ScheduleRequest request)
+        {
+            // 1. Business Logic: Time constraint
+            if (request.DateTime.Hour < 8)
+            {
+                return "Schedules cannot be set between 00:00 and 08:00.";
+            }
+
+            try
+            {
+                // 2. CHECK TEACHER AVAILABILITY (Permission check)
+                // We check if a record exists for this teacher at this time where disponivel = 1
+                const string availabilityQuery = @"
+            SELECT COUNT(*) as total 
+            FROM disponibilidades 
+            WHERE formador_id = @formadorId 
+              AND data_hora = @dateTime 
+              AND disponivel = 1;";
+
+                var availabilityParams = new[] {
+            new MySqlParameter("@formadorId", request.FormadorId),
+            new MySqlParameter("@dateTime", request.DateTime)
+        };
+
+                var availabilityResults = await GetDataAsync<int>(availabilityQuery,
+                    reader => reader.GetInt32("total"),
+                    availabilityParams);
+
+                if (availabilityResults.Count == 0 || availabilityResults[0] == 0)
+                {
+                    return "The teacher is not marked as available for this specific date and time.";
+                }
+
+                // 3. COMPREHENSIVE CONFLICT CHECK (Occupied check)
+                const string conflictQuery = @"
+            SELECT 
+                CASE 
+                    WHEN sala_id = @salaId THEN 'room'
+                    WHEN formador_id = @formadorId THEN 'teacher'
+                    WHEN turma_id = @turmaId THEN 'turma'
+                END AS conflict_type
+            FROM schedules 
+            WHERE date_time = @dateTime
+              AND (sala_id = @salaId OR formador_id = @formadorId OR turma_id = @turmaId)
+            LIMIT 1;";
+
+                var conflictParams = new[] {
+            new MySqlParameter("@salaId", request.SalaId),
+            new MySqlParameter("@formadorId", request.FormadorId),
+            new MySqlParameter("@turmaId", request.TurmaId),
+            new MySqlParameter("@dateTime", request.DateTime)
+        };
+
+                var conflicts = await GetDataAsync<string>(conflictQuery,
+                    reader => reader.GetString("conflict_type"),
+                    conflictParams);
+
+                if (conflicts.Count > 0)
+                {
+                    return conflicts[0] switch
+                    {
+                        "room" => "The selected room is already occupied at this time.",
+                        "teacher" => "The teacher is already teaching another class at this time.",
+                        "turma" => "This turma already has a scheduled module at this time.",
+                        _ => "Schedule conflict detected."
+                    };
+                }
+
+                // 4. INSERT ENTRY
+                const string insertQuery = @"
+            INSERT INTO schedules (turma_id, module_id, formador_id, sala_id, date_time)
+            VALUES (@turmaId, @moduleId, @formadorId, @salaId, @dateTime);";
+
+                var insertParams = new[] {
+            new MySqlParameter("@turmaId", request.TurmaId),
+            new MySqlParameter("@moduleId", request.ModuleId),
+            new MySqlParameter("@formadorId", request.FormadorId),
+            new MySqlParameter("@salaId", request.SalaId),
+            new MySqlParameter("@dateTime", request.DateTime)
+        };
+
+                int result = await ExecuteNonQueryAsync(insertQuery, insertParams);
+                return result > 0 ? "Success" : "Error performing insert.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Scheduling Error: {ex.Message}");
+                return $"Database error: {ex.Message}";
+            }
+        }
+
+        // Read Time Frame
+        public async Task<List<ScheduleDetailsDTO>> GetSchedulesByTimeRange(DateTime start, DateTime end)
+        {
+            try
+            {
+                // If start and end are the same, the >= and <= logic handles the specific time block.
+                const string query = @"
+            SELECT 
+                s.schedule_id, 
+                t.turma_name, 
+                m.name AS module_name, 
+                u.username AS teacher_name, 
+                sl.sala_nome, 
+                s.date_time
+            FROM schedules s
+            INNER JOIN turmas t ON s.turma_id = t.turma_id
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN users u ON s.formador_id = u.user_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE s.date_time >= @start AND s.date_time <= @end
+            ORDER BY s.date_time ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end)
+        };
+
+                return await GetDataAsync<ScheduleDetailsDTO>(query, reader => new ScheduleDetailsDTO
+                {
+                    ScheduleId = reader.GetInt32("schedule_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    SalaNome = reader.GetString("sala_nome"),
+                    DateTime = reader.GetDateTime("date_time")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching schedules: {ex.Message}");
+                return new List<ScheduleDetailsDTO>();
+            }
+        }
+
+        // Read Time Frame With Filters!
+        public async Task<List<ScheduleDetailsDTO>> GetSchedulesAdvanced(
+                                            DateTime start,
+                                            DateTime end,
+                                            int? turmaId = null,
+                                            int? teacherId = null,
+                                            int? moduleId = null,
+                                            int? salaId = null)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                s.schedule_id, 
+                t.turma_name, 
+                m.name AS module_name, 
+                u.username AS teacher_name, 
+                sl.sala_nome, 
+                s.date_time
+            FROM schedules s
+            INNER JOIN turmas t ON s.turma_id = t.turma_id
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN users u ON s.formador_id = u.user_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE (s.date_time >= @start AND s.date_time <= @end)
+              AND (@turmaId IS NULL OR s.turma_id = @turmaId)
+              AND (@teacherId IS NULL OR s.formador_id = @teacherId)
+              AND (@moduleId IS NULL OR s.module_id = @moduleId)
+              AND (@salaId IS NULL OR s.sala_id = @salaId)
+            ORDER BY s.date_time ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end),
+            // We use DBNull.Value if the parameter is null so the SQL 'IS NULL' check works
+            new MySqlParameter("@turmaId", (object)turmaId ?? DBNull.Value),
+            new MySqlParameter("@teacherId", (object)teacherId ?? DBNull.Value),
+            new MySqlParameter("@moduleId", (object)moduleId ?? DBNull.Value),
+            new MySqlParameter("@salaId", (object)salaId ?? DBNull.Value)
+        };
+
+                return await GetDataAsync<ScheduleDetailsDTO>(query, reader => new ScheduleDetailsDTO
+                {
+                    ScheduleId = reader.GetInt32("schedule_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    SalaNome = reader.GetString("sala_nome"),
+                    DateTime = reader.GetDateTime("date_time")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Advanced search error: {ex.Message}");
+                return new List<ScheduleDetailsDTO>();
+            }
+        }
+
 
     } // the end
 }

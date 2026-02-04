@@ -31,7 +31,7 @@ namespace Auth_Services.Controllers
             _httpContextAccessor = httpContextAccessor;
         }
 
-
+        // Single TimeSlot
         [HttpPost("set-availability")]
         [AllowAnonymous]
         public async Task<IActionResult> SetAvailability([FromBody] TeacherAvailability availability)
@@ -56,6 +56,18 @@ namespace Auth_Services.Controllers
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
+        }
+
+        // Replicat for the week
+        [HttpPost("replicate-weekly-availability")]
+        public async Task<IActionResult> ReplicateWeekly([FromBody] ReplicateAvailabilityRequest request)
+        {
+            var result = await _dbServices.ReplicateAvailabilityForWeek(request);
+
+            if (result == "Success")
+                return Ok(new { message = "Availability replicated for the full work week." });
+
+            return BadRequest(new { message = result });
         }
 
         [HttpPut("update-availability")]

@@ -62,6 +62,5 @@ JOIN
 JOIN 
     mydb.modules m ON ftm.module_id = m.module_id;
     
-    
-    
-    
+
+
