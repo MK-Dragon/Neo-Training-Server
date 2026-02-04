@@ -61,3 +61,7 @@ JOIN
     mydb.users u ON ftm.formador_id = u.user_id
 JOIN 
     mydb.modules m ON ftm.module_id = m.module_id;
+    
+    
+    
+    

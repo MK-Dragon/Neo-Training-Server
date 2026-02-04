@@ -249,7 +249,7 @@ ENGINE = InnoDB;
 -- Table `mydb`.`schedules`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`schedules` (
-  `schedule_id` INT NOT NULL,
+  `schedule_id` INT NOT NULL AUTO_INCREMENT,
   `turma_id` INT NOT NULL,
   `module_id` INT NOT NULL,
   `formador_id` INT NOT NULL,
