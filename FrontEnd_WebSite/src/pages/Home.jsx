@@ -183,6 +183,13 @@ const Home = () => {
               icon="🏢" 
               variant="primary" 
             />
+            <DashboardCard 
+              title="Teacher Schedules" 
+              text="Manage and override teacher availability and assignments." 
+              link="/AdminTeacherSchedule" 
+              icon="📅" 
+              variant="primary" 
+            />
           </Row>
         </section>
       )}
