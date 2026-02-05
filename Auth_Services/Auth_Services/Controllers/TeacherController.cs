@@ -249,5 +249,23 @@ namespace Auth_Services.Controllers
         }
 
 
+        // IncrementHour in Module
+        [HttpPatch("increment-hour")]
+        [AllowAnonymous]
+        public async Task<IActionResult> IncrementHour([FromQuery] int turmaId, [FromQuery] int moduleId)
+        {
+            if (turmaId <= 0 || moduleId <= 0)
+                return BadRequest("Valid Turma and Module IDs are required.");
+
+            var result = await _dbServices.IncrementModuleHour(turmaId, moduleId);
+
+            if (result == "Success")
+            {
+                return Ok(new { message = "Hour successfully logged." });
+            }
+
+            return BadRequest(new { message = result });
+        }
+
     } // End of TeacherController class
 }

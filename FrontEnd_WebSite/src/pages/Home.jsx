@@ -190,6 +190,14 @@ const Home = () => {
               icon="📅" 
               variant="primary" 
             />
+
+            <DashboardCard 
+              title="Turma Schedules" 
+              text="Monitor weekly classroom and teacher distributions." 
+              link="/TurmaScheduleAdmin" 
+              icon="🗓️" 
+              variant="success" 
+            />
           </Row>
         </section>
       )}

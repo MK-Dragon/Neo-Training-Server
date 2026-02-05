@@ -2867,6 +2867,53 @@ namespace Auth_Services.Services
             }
         }
 
+        // increment hours
+        public async Task<string> IncrementModuleHour(int turmaId, int moduleId)
+        {
+            try
+            {
+                // 1. We join with the modules table to get the 'duration_h' limit
+                // 2. We increment 'num_hours_completed' ONLY if it's currently less than 'duration_h'
+                // 3. We update 'isCompleted' to 1 if the new value reaches the limit
+                const string query = @"
+            UPDATE turma_modules tm
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            SET tm.num_hours_completed = tm.num_hours_completed + 1,
+                tm.isCompleted = CASE 
+                    WHEN (tm.num_hours_completed + 1) >= m.duration_h THEN 1 
+                    ELSE 0 
+                END
+            WHERE tm.turma_id = @turmaId 
+              AND tm.module_id = @moduleId
+              AND tm.num_hours_completed < m.duration_h;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                int rowsAffected = await ExecuteNonQueryAsync(query, parameters);
+
+                if (rowsAffected > 0)
+                {
+                    return "Success";
+                }
+                else
+                {
+                    // If no rows were updated, it's either because IDs are wrong 
+                    // or the module is already at max hours.
+                    return "Cannot increment. Module may already be completed or does not exist.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error incrementing class hour: {ex.Message}");
+                return $"Database error: {ex.Message}";
+            }
+        }
+
+
 
         // ** Student Grade **
 
@@ -3174,13 +3221,16 @@ namespace Auth_Services.Services
         {
             try
             {
-                // If start and end are the same, the >= and <= logic handles the specific time block.
                 const string query = @"
             SELECT 
                 s.schedule_id, 
+                s.turma_id,
                 t.turma_name, 
+                s.module_id,
                 m.name AS module_name, 
+                s.formador_id AS teacher_id,
                 u.username AS teacher_name, 
+                s.sala_id,
                 sl.sala_nome, 
                 s.date_time
             FROM schedules s
@@ -3199,9 +3249,13 @@ namespace Auth_Services.Services
                 return await GetDataAsync<ScheduleDetailsDTO>(query, reader => new ScheduleDetailsDTO
                 {
                     ScheduleId = reader.GetInt32("schedule_id"),
+                    TurmaId = reader.GetInt32("turma_id"),
                     TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
                     ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
                     TeacherName = reader.GetString("teacher_name"),
+                    SalaId = reader.GetInt32("sala_id"),
                     SalaNome = reader.GetString("sala_nome"),
                     DateTime = reader.GetDateTime("date_time")
                 }, parameters);
@@ -3215,21 +3269,25 @@ namespace Auth_Services.Services
 
         // Read Time Frame With Filters!
         public async Task<List<ScheduleDetailsDTO>> GetSchedulesAdvanced(
-                                            DateTime start,
-                                            DateTime end,
-                                            int? turmaId = null,
-                                            int? teacherId = null,
-                                            int? moduleId = null,
-                                            int? salaId = null)
+    DateTime start,
+    DateTime end,
+    int? turmaId = null,
+    int? teacherId = null,
+    int? moduleId = null,
+    int? salaId = null)
         {
             try
             {
                 const string query = @"
             SELECT 
                 s.schedule_id, 
+                s.turma_id,
                 t.turma_name, 
+                s.module_id,
                 m.name AS module_name, 
+                s.formador_id AS teacher_id,
                 u.username AS teacher_name, 
+                s.sala_id,
                 sl.sala_nome, 
                 s.date_time
             FROM schedules s
@@ -3247,7 +3305,6 @@ namespace Auth_Services.Services
                 var parameters = new[] {
             new MySqlParameter("@start", start),
             new MySqlParameter("@end", end),
-            // We use DBNull.Value if the parameter is null so the SQL 'IS NULL' check works
             new MySqlParameter("@turmaId", (object)turmaId ?? DBNull.Value),
             new MySqlParameter("@teacherId", (object)teacherId ?? DBNull.Value),
             new MySqlParameter("@moduleId", (object)moduleId ?? DBNull.Value),
@@ -3257,9 +3314,13 @@ namespace Auth_Services.Services
                 return await GetDataAsync<ScheduleDetailsDTO>(query, reader => new ScheduleDetailsDTO
                 {
                     ScheduleId = reader.GetInt32("schedule_id"),
+                    TurmaId = reader.GetInt32("turma_id"),
                     TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
                     ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
                     TeacherName = reader.GetString("teacher_name"),
+                    SalaId = reader.GetInt32("sala_id"),
                     SalaNome = reader.GetString("sala_nome"),
                     DateTime = reader.GetDateTime("date_time")
                 }, parameters);
@@ -3268,6 +3329,122 @@ namespace Auth_Services.Services
             {
                 Console.WriteLine($"Advanced search error: {ex.Message}");
                 return new List<ScheduleDetailsDTO>();
+            }
+        }
+
+        // Update
+        public async Task<string> UpdateSchedule(ScheduleDetailsDTO request)
+        {
+            // 1. Business Logic: Time constraint
+            if (request.DateTime.Hour < 8)
+            {
+                return "Schedules cannot be set between 00:00 and 08:00.";
+            }
+
+            try
+            {
+                // 2. Check Teacher Availability (Permission check)
+                const string availabilityQuery = @"
+            SELECT COUNT(*) as total 
+            FROM disponibilidades 
+            WHERE formador_id = @formadorId AND data_hora = @dateTime AND disponivel = 1;";
+
+                var availabilityParams = new[] {
+            new MySqlParameter("@formadorId", request.TeacherId),
+            new MySqlParameter("@dateTime", request.DateTime)
+        };
+
+                var availabilityResults = await GetDataAsync<int>(availabilityQuery, reader => reader.GetInt32("total"), availabilityParams);
+                if (availabilityResults.Count == 0 || availabilityResults[0] == 0)
+                {
+                    return "The teacher is not marked as available for this specific date and time.";
+                }
+
+                // 3. Comprehensive Conflict Check (Ignoring the CURRENT schedule_id)
+                const string conflictQuery = @"
+            SELECT 
+                CASE 
+                    WHEN sala_id = @salaId THEN 'room'
+                    WHEN formador_id = @formadorId THEN 'teacher'
+                    WHEN turma_id = @turmaId THEN 'turma'
+                END AS conflict_type
+            FROM schedules 
+            WHERE date_time = @dateTime 
+              AND schedule_id != @scheduleId
+              AND (sala_id = @salaId OR formador_id = @formadorId OR turma_id = @turmaId)
+            LIMIT 1;";
+
+                var conflictParams = new[] {
+            new MySqlParameter("@salaId", request.SalaId),
+            new MySqlParameter("@formadorId", request.TeacherId),
+            new MySqlParameter("@turmaId", request.TurmaId),
+            new MySqlParameter("@dateTime", request.DateTime),
+            new MySqlParameter("@scheduleId", request.ScheduleId)
+        };
+
+                var conflicts = await GetDataAsync<string>(conflictQuery, reader => reader.GetString("conflict_type"), conflictParams);
+
+                if (conflicts.Count > 0)
+                {
+                    return conflicts[0] switch
+                    {
+                        "room" => "The selected room is occupied by another class at this time.",
+                        "teacher" => "The teacher is assigned to another class at this time.",
+                        "turma" => "This turma already has a module scheduled at this time.",
+                        _ => "Schedule conflict detected."
+                    };
+                }
+
+                // 4. Update the Entry
+                const string updateQuery = @"
+            UPDATE schedules 
+            SET turma_id = @turmaId, 
+                module_id = @moduleId, 
+                formador_id = @formadorId, 
+                sala_id = @salaId, 
+                date_time = @dateTime
+            WHERE schedule_id = @scheduleId;";
+
+                var updateParams = new[] {
+            new MySqlParameter("@turmaId", request.TurmaId),
+            new MySqlParameter("@moduleId", request.ModuleId),
+            new MySqlParameter("@formadorId", request.TeacherId),
+            new MySqlParameter("@salaId", request.SalaId),
+            new MySqlParameter("@dateTime", request.DateTime),
+            new MySqlParameter("@scheduleId", request.ScheduleId)
+        };
+
+                int result = await ExecuteNonQueryAsync(updateQuery, updateParams);
+                return result > 0 ? "Success" : "Schedule entry not found.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Update Error: {ex.Message}");
+                return $"Database error: {ex.Message}";
+            }
+        }
+
+        // Delete Delete
+        public async Task<bool> DeleteSchedule(int scheduleId)
+        {
+            try
+            {
+                const string query = "DELETE FROM schedules WHERE schedule_id = @scheduleId;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@scheduleId", scheduleId)
+        };
+
+                int rowsAffected = await ExecuteNonQueryAsync(query, parameters);
+
+                // Returns true if a row was actually deleted
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting schedule {scheduleId}: {ex.Message}");
+                return false;
             }
         }
 

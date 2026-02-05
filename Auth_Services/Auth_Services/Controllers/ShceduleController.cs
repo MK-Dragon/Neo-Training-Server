@@ -57,7 +57,7 @@ namespace Auth_Services.Controllers
 
             try
             {
-                var schedules = await _dbServices.GetSchedulesByTimeRange(start, end);
+                var schedules = await _dbServices.GetSchedulesByTimeRange(start, end); // List<ScheduleDetailsDTO>
                 return Ok(schedules);
             }
             catch (Exception ex)
@@ -81,7 +81,7 @@ namespace Auth_Services.Controllers
             try
             {
                 var results = await _dbServices.GetSchedulesAdvanced(start, end, turmaId, teacherId, moduleId, salaId); // List<ScheduleDetailsDTO>
-                return Ok(results);
+                return Ok(results); // List<ScheduleDetailsDTO>
             }
             catch (Exception ex)
             {
@@ -89,7 +89,46 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // Update Entry
+        [HttpPut("update-schedule")]
+        public async Task<IActionResult> UpdateSchedule([FromBody] ScheduleDetailsDTO request)
+        {
+            if (request.ScheduleId <= 0) return BadRequest("Valid Schedule ID is required.");
 
+            var result = await _dbServices.UpdateSchedule(request);
+
+            if (result == "Success")
+                return Ok(new { message = "Schedule updated successfully." });
+
+            if (result.Contains("occupied") || result.Contains("available") || result.Contains("08:00"))
+                return BadRequest(new { message = result });
+
+            return StatusCode(500, new { error = result });
+        }
+
+
+        // Delete Entry
+        [HttpDelete("delete-schedule/{scheduleId}")]
+        public async Task<IActionResult> DeleteSchedule(int scheduleId)
+        {
+            if (scheduleId <= 0) return BadRequest("Invalid Schedule ID.");
+
+            try
+            {
+                bool success = await _dbServices.DeleteSchedule(scheduleId);
+
+                if (!success)
+                {
+                    return NotFound(new { message = $"Schedule with ID {scheduleId} not found or already deleted." });
+                }
+
+                return Ok(new { message = "Schedule entry deleted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error during deletion.", details = ex.Message });
+            }
+        }
 
 
     } // the end

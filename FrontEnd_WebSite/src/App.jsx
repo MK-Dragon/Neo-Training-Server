@@ -29,6 +29,7 @@ import CourseManagement from './pages/CourseManagement.jsx';
 import TurmaManagement from './pages/TurmaManagement.jsx';
 import TeacherModuleManager from './pages/TeacherModuleManager.jsx';
 import AdminTeacherSchedule from './pages/AdminTeacherSchedule.jsx';
+import TurmaScheduleAdmin from './pages/TurmaScheduleAdmin.jsx';
 
 // Teacher Management
 import TeacherAvailability from './pages/TeacherAvailability.jsx';
@@ -79,6 +80,7 @@ function NavigationWrapper() {
           <Route path="/TurmaManagement" element={<ProtectedRoute><TurmaManagement /></ProtectedRoute>} />
           <Route path="/TeacherModuleManager" element={<ProtectedRoute><TeacherModuleManager /></ProtectedRoute>} />
           <Route path="/AdminTeacherSchedule" element={<ProtectedRoute><AdminTeacherSchedule /></ProtectedRoute>} />
+          <Route path="/TurmaScheduleAdmin" element={<ProtectedRoute><TurmaScheduleAdmin /></ProtectedRoute>} />
 
           {/* Teacher Mangement */}
           <Route path="/TeacherAvailability" element={<ProtectedRoute><TeacherAvailability /></ProtectedRoute>} />
