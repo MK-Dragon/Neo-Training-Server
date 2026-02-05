@@ -44,7 +44,7 @@ INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUE
 ('FS-2026-B-LIVE', 1, '2026-01-01', '2026-05-30'),
 ('DM-WORKSHOP-OPEN', 2, '2026-02-01', NULL),
 ('FS-2026-CRASH', 1, '2026-01-10', '2026-02-05'),
-('TPS 05 25', 3, '2026-01-10', '2026-05-05');
+('TPS 05 25', 3, '2026-01-10', '2026-05-05'); -- 6
 
 -- 6. Modules
 INSERT INTO `modules` (`name`, `duration_h`) VALUES  
@@ -151,6 +151,12 @@ INSERT INTO `disponibilidades` (`formador_id`, `disponivel`, `data_hora`) VALUES
 (4, 1, '2026-02-01 09:00:00');
 
 -- 13. Schedules (NEW: The updated schedule table)
-INSERT INTO `schedules` (`schedule_id`, `turma_id`, `module_id`, `formador_id`, `sala_id`, `date_time`) VALUES 
-(1, 1, 1, 3, 1, '2026-02-01 09:00:00'), -- Class A, Backend, Bob, Lab 1
-(2, 1, 2, 4, 1, '2026-02-01 14:00:00'); -- Class A, Frontend, Alice, Lab 1
+INSERT INTO `schedules` (`turma_id`, `module_id`, `formador_id`, `sala_id`, `date_time`) VALUES 
+(1, 1, 3, 1, '2026-02-01 09:00:00'), -- Class A, Backend, Bob, Lab 1
+(1, 2, 4, 1, '2026-02-01 14:00:00'), -- Class A, Frontend, Alice, Lab 1
+
+(6, 4, 11, 1, '2026-02-04 09:00:00'), -- TPSI pacheco C/C++ Lab 1
+(6, 4, 11, 1, '2026-02-04 10:00:00'), -- TPSI pacheco C/C++ Lab 1
+(6, 4, 11, 1, '2026-02-04 11:00:00') -- TPSI pacheco C/C++ Lab 1
+
+;

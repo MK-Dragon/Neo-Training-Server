@@ -1,6 +1,22 @@
 SELECT * FROM mydb.users;
 
 
+-- Horarios! 
+SELECT * FROM mydb.schedules;
+
+-- Teacher
+SELECT * FROM mydb.schedules 
+WHERE formador_id = 4 
+AND date_time BETWEEN '2026-02-01 00:00:00' AND '2026-02-01 23:59:59';
+
+-- Turma
+SELECT * FROM mydb.schedules 
+WHERE turma_id = 1 
+AND date_time BETWEEN '2026-02-01 00:00:00' AND '2026-02-01 23:59:59';
+
+
+
+
 SELECT * FROM mydb.formador_teaches_module;
 
 
