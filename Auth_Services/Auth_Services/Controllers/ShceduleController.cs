@@ -131,5 +131,30 @@ namespace Auth_Services.Controllers
         }
 
 
+        // ** GET TEACHER SCHEDULE!!! **
+        [HttpGet("teacher/{teacherId}/schedule")]
+        public async Task<IActionResult> GetTeacherSchedule(int teacherId, [FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            if (teacherId <= 0) return BadRequest("Invalid Teacher ID.");
+
+            try
+            {
+                // Return type: Task<List<TeacherScheduleDetailDTO>>
+                var schedule = await _dbServices.GetTeacherScheduleByRange(teacherId, start, end);
+
+                if (schedule == null || schedule.Count == 0)
+                {
+                    return Ok(new { message = "No classes scheduled for this period.", data = new List<TeacherScheduleDetailDTO>() });
+                }
+
+                return Ok(schedule);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error.", details = ex.Message });
+            }
+        }
+
+
     } // the end
 }

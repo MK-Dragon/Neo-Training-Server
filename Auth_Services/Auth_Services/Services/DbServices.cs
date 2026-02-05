@@ -2346,7 +2346,47 @@ namespace Auth_Services.Services
             }
         }
 
+        // Salas Available [time frame]
+        public async Task<List<Sala>> GetAvailableSalas(DateTime start, DateTime end)
+        {
+            try
+            {
+                // We select rooms from 'salas'
+                // WHERE there is NO record in 'schedules' that overlaps with [start, end]
+                const string query = @"
+            SELECT s.sala_id, s.sala_nome, s.tem_pcs, s.tem_oficina, s.isDeleted
+            FROM salas s
+            WHERE s.isDeleted = 0
+              AND NOT EXISTS (
+                  SELECT 1 
+                  FROM schedules sch 
+                  WHERE sch.sala_id = s.sala_id 
+                    AND sch.date_time >= @start 
+                    AND sch.date_time <= @end
+              )
+            ORDER BY s.sala_nome ASC;";
 
+                var parameters = new[]
+                {
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end)
+        };
+
+                return await GetDataAsync<Sala>(query, reader => new Sala
+                {
+                    Id = reader.GetInt32("sala_id"),
+                    Nome = reader.GetString("sala_nome"),
+                    TemPcs = reader.GetInt32("tem_pcs"),
+                    TemOficina = reader.GetInt32("tem_oficina"),
+                    IsDeleted = reader.GetInt32("isDeleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching available rooms: {ex.Message}");
+                return new List<Sala>();
+            }
+        }
 
 
         // ** Teacher Availability **
@@ -2627,6 +2667,40 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<TeacherModuleAssignment>> GetTeachersToTeacheModule(int moduleId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id AS UserId, 
+                u.username AS Username
+            FROM users u
+            INNER JOIN formador_teaches_module ftm ON u.user_id = ftm.formador_id
+            INNER JOIN user_roles ur ON u.role_id = ur.role_id
+            WHERE ftm.module_id = @moduleId
+              AND ftm.isDeleted = 0
+              AND u.isDeleted = 0
+              AND ur.title = 'Teacher'
+            ORDER BY u.username ASC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                return await GetDataAsync<TeacherModuleAssignment>(query, reader => new TeacherModuleAssignment
+                {
+                    UserId = reader.GetInt32("UserId"),
+                    Username = reader.GetString("Username")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teachers for module {moduleId}: {ex.Message}");
+                return new List<TeacherModuleAssignment>();
+            }
+        }
 
         // ** Teacher to Turma Module **
 
@@ -3448,6 +3522,284 @@ namespace Auth_Services.Services
             }
         }
 
+        // GET Teacher Schedule!
+        public async Task<List<TeacherScheduleDetailDTO>> GetTeacherScheduleByRange(int teacherId, DateTime start, DateTime end)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                s.date_time,
+                t.turma_id,
+                t.turma_name,
+                m.module_id,
+                m.name AS module_name,
+                m.duration_h AS TotalDuration,
+                tm.num_hours_completed AS HoursCompleted,
+                sl.sala_id,
+                sl.sala_nome,
+                sl.tem_pcs,
+                sl.tem_oficina
+            FROM schedules s
+            INNER JOIN turmas t ON s.turma_id = t.turma_id
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN turma_modules tm ON s.turma_id = tm.turma_id AND s.module_id = tm.module_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE s.formador_id = @teacherId 
+              AND s.date_time >= @start 
+              AND s.date_time <= @end
+            ORDER BY s.date_time ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@teacherId", teacherId),
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end)
+        };
+
+                return await GetDataAsync<TeacherScheduleDetailDTO>(query, reader => new TeacherScheduleDetailDTO
+                {
+                    DateTime = reader.GetDateTime("date_time"),
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TotalDuration = reader.GetInt32("TotalDuration"),
+                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    SalaId = reader.GetInt32("sala_id"),
+                    SalaNome = reader.GetString("sala_nome"),
+                    HasPc = reader.GetInt32("tem_pcs"),
+                    HasOficina = reader.GetInt32("tem_oficina")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teacher schedule: {ex.Message}");
+                return new List<TeacherScheduleDetailDTO>();
+            }
+        }
+
+
+
+        // ** Additional Teacher-Module-Turma **
+
+        // Modules not completed by a turma order by order_index (for the next modules to be completed)
+        public async Task<List<TurmaModuleDetails>> GetIncompleteModulesByTier(int turmaId, int tierIndex)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                tm.turma_id,
+                t.turma_name,
+                tm.module_id,
+                m.name AS module_name,
+                tm.teacher_id,
+                u.username AS teacher_name,
+                tm.num_hours_completed AS HoursCompleted,
+                m.duration_h AS TotalDuration,
+                tm.isCompleted
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN users u ON tm.teacher_id = u.user_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id AND tm.module_id = cm.module_id
+            WHERE tm.turma_id = @turmaId
+              AND cm.order_index = @tierIndex
+              AND tm.isCompleted = 0
+              AND tm.num_hours_completed < m.duration_h
+            ORDER BY m.name ASC;"; // Sorted alphabetically within the tier
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@tierIndex", tierIndex)
+        };
+
+                return await GetDataAsync<TurmaModuleDetails>(query, reader => new TurmaModuleDetails
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    TotalDuration = reader.GetInt32("TotalDuration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching modules for tier {tierIndex}: {ex.Message}");
+                return new List<TurmaModuleDetails>();
+            }
+        }
+
+        // All modules not completed by a turma by index order and completion status
+        public async Task<List<TurmaModuleDetails>> GetAllIncompleteModules(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                tm.turma_id,
+                t.turma_name,
+                tm.module_id,
+                m.name AS module_name,
+                tm.teacher_id,
+                u.username AS teacher_name,
+                tm.num_hours_completed AS HoursCompleted,
+                m.duration_h AS TotalDuration,
+                tm.isCompleted,
+                cm.order_index
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN users u ON tm.teacher_id = u.user_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id AND tm.module_id = cm.module_id
+            WHERE tm.turma_id = @turmaId
+              AND tm.isCompleted = 0
+              AND tm.num_hours_completed < m.duration_h
+            ORDER BY cm.order_index ASC, tm.num_hours_completed DESC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                return await GetDataAsync<TurmaModuleDetails>(query, reader => new TurmaModuleDetails
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    TotalDuration = reader.GetInt32("TotalDuration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching all incomplete modules: {ex.Message}");
+                return new List<TurmaModuleDetails>();
+            }
+        }
+
+        public async Task<List<TurmaModuleDetails>> GetOngoingModules(int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                tm.turma_id,
+                t.turma_name,
+                tm.module_id,
+                m.name AS module_name,
+                tm.teacher_id,
+                u.username AS teacher_name,
+                tm.num_hours_completed AS HoursCompleted,
+                m.duration_h AS TotalDuration,
+                tm.isCompleted
+            FROM turma_modules tm
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN users u ON tm.teacher_id = u.user_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id AND tm.module_id = cm.module_id
+            WHERE tm.turma_id = @turmaId
+              AND tm.isCompleted = 0
+              AND tm.num_hours_completed > 0
+              AND tm.num_hours_completed < m.duration_h
+            ORDER BY cm.order_index ASC, tm.num_hours_completed DESC;";
+
+                var parameters = new[]
+                {
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                return await GetDataAsync<TurmaModuleDetails>(query, reader => new TurmaModuleDetails
+                {
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    TotalDuration = reader.GetInt32("TotalDuration"),
+                    IsCompleted = reader.GetInt32("isCompleted")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching ongoing modules: {ex.Message}");
+                return new List<TurmaModuleDetails>();
+            }
+        }
+
+        // teacher - module available for time frame
+        public async Task<List<AvailableTeacherModule>> GetAvailableTeachersAndModules(TeacherModuleSuggestionRequest request)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id AS TeacherId,
+                u.username AS TeacherName,
+                m.module_id AS ModuleId,
+                m.name AS ModuleName,
+                cm.order_index AS OrderIndex,
+                tm.num_hours_completed AS HoursCompleted,
+                m.duration_h AS TotalDuration
+            FROM turma_modules tm
+            INNER JOIN modules m ON tm.module_id = m.module_id
+            INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            INNER JOIN course_modules cm ON t.course_id = cm.course_id AND m.module_id = cm.module_id
+            INNER JOIN formador_teaches_module ftm ON m.module_id = ftm.module_id
+            INNER JOIN users u ON ftm.formador_id = u.user_id
+            WHERE tm.turma_id = @turmaId
+              AND tm.isCompleted = 0
+              AND u.isDeleted = 0
+              AND ftm.isDeleted = 0
+              -- 1. Check Teacher Availability (Permission)
+              AND EXISTS (
+                  SELECT 1 FROM disponibilidades d 
+                  WHERE d.formador_id = u.user_id 
+                  AND d.data_hora >= @start AND d.data_hora <= @end 
+                  AND d.disponivel = 1
+              )
+              -- 2. Check Teacher Conflict (Occupied)
+              AND NOT EXISTS (
+                  SELECT 1 FROM schedules s 
+                  WHERE s.formador_id = u.user_id 
+                  AND s.date_time >= @start AND s.date_time <= @end
+              )
+            ORDER BY cm.order_index ASC, u.username ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@turmaId", request.TurmaId),
+            new MySqlParameter("@start", request.StartTime),
+            new MySqlParameter("@end", request.EndTime)
+        };
+
+                return await GetDataAsync<AvailableTeacherModule>(query, reader => new AvailableTeacherModule
+                {
+                    TeacherId = reader.GetInt32("TeacherId"),
+                    TeacherName = reader.GetString("TeacherName"),
+                    ModuleId = reader.GetInt32("ModuleId"),
+                    ModuleName = reader.GetString("ModuleName"),
+                    OrderIndex = reader.GetInt32("OrderIndex"),
+                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    TotalDuration = reader.GetInt32("TotalDuration")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching suggestions: {ex.Message}");
+                return new List<AvailableTeacherModule>();
+            }
+        }
 
     } // the end
 }

@@ -151,7 +151,31 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // Get available salas in a time frame
+        [HttpGet("available-rooms-range")]
+        public async Task<IActionResult> GetAvailableInRange([FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            try
+            {
+                // Return type: Task<List<Sala>>
+                var availableSalas = await _dbServices.GetAvailableSalas(start, end);
 
+                if (availableSalas == null || availableSalas.Count == 0)
+                {
+                    return Ok(new
+                    {
+                        message = "No rooms are available for the entire selected time frame.",
+                        data = new List<Sala>()
+                    });
+                }
+
+                return Ok(availableSalas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Search failed.", details = ex.Message });
+            }
+        }
 
 
 

@@ -105,7 +105,7 @@ const AdminTeacherSchedule = () => {
   };
 
   const days = [...Array(7)].map((_, i) => addDays(currentWeek, i));
-  const hours = [...Array(24)].map((_, i) => i);
+  const hours = [...Array(15)].map((_, i) => i + 8);
 
   return (
     <Container className="mt-5 pt-4">

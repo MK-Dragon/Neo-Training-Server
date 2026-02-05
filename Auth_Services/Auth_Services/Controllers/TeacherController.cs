@@ -95,7 +95,7 @@ namespace Auth_Services.Controllers
             }
         }
 
-        [HttpPatch("remove-module")]
+        [HttpDelete("remove-module")]
         [AllowAnonymous]
         public async Task<IActionResult> RemoveModule([FromBody] FormadorModule association)
         {
@@ -121,6 +121,29 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // get teachers assigned to a module
+        [HttpGet("teacher-to-teach-module/{moduleId}/teachers")]
+        public async Task<IActionResult> GetAssignedTeachers(int moduleId)
+        {
+            if (moduleId <= 0) return BadRequest("Invalid Module ID.");
+
+            try
+            {
+                // Return type: Task<List<TeacherModuleAssignment>>
+                var teachers = await _dbServices.GetTeachersToTeacheModule(moduleId);
+
+                if (teachers == null || teachers.Count == 0)
+                {
+                    return Ok(new { message = "No active teachers found for this module.", data = new List<TeacherModuleAssignment>() });
+                }
+
+                return Ok(teachers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
 
         // Additional Teacher-Module-Turma
 
@@ -266,6 +289,7 @@ namespace Auth_Services.Controllers
 
             return BadRequest(new { message = result });
         }
+
 
     } // End of TeacherController class
 }
