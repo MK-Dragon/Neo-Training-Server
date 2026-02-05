@@ -25,6 +25,7 @@ const Home = () => {
   
   const [showStudentTurmaModal, setShowStudentTurmaModal] = useState(false);
   const [studentTurmas, setStudentTurmas] = useState([]);
+  const [studentModalTarget, setStudentModalTarget] = useState('grades'); // 'grades' or 'schedule'
   
   const [loadingModalData, setLoadingModalData] = useState(false);
 
@@ -84,10 +85,11 @@ const Home = () => {
   };
 
   // --- Student Logic: Fetch Enrolled Turmas ---
-  const handleOpenStudentGrades = async () => {
+  const handleOpenStudentTurmas = async (target) => {
     const userId = userData.id || localStorage.getItem('userId');
     if (!userId) return;
 
+    setStudentModalTarget(target);
     setShowStudentTurmaModal(true);
     setLoadingModalData(true);
     try {
@@ -225,13 +227,19 @@ const Home = () => {
         <section className="mb-5">
           <h3 className="mb-4 border-bottom pb-2">Student Hub</h3>
           <Row>
-            <DashboardCard title="My Schedule" text="Check your class timings." link="/schedule" icon="📅" variant="info" />
+            <DashboardCard 
+                title="My Schedule" 
+                text="Check your class timings." 
+                icon="📅" 
+                variant="info" 
+                onClick={() => handleOpenStudentTurmas('schedule')}
+            />
             <DashboardCard 
               title="My Grades" 
               text="View your academic performance." 
               icon="🏆" 
               variant="info" 
-              onClick={handleOpenStudentGrades} 
+              onClick={() => handleOpenStudentTurmas('grades')} 
             />
             <DashboardCard title="Course Materials" text="Access files and resources." link="/materials" icon="📁" variant="info" />
           </Row>
@@ -278,12 +286,24 @@ const Home = () => {
             <ListGroup variant="flush">
               {studentTurmas.length > 0 ? (
                 studentTurmas.map((t, idx) => (
-                  <ListGroup.Item key={idx} action onClick={() => navigate(`/student-report/${t.turmaId ?? t.TurmaId}`)} className="d-flex justify-content-between align-items-center py-3 px-4">
+                  <ListGroup.Item 
+                    key={idx} 
+                    action 
+                    onClick={() => {
+                        if (studentModalTarget === 'schedule') {
+                            navigate(`/StudentSchedule?turmaId=${t.turmaId ?? t.TurmaId}`);
+                        } else {
+                            navigate(`/student-report/${t.turmaId ?? t.TurmaId}`);
+                        }
+                        setShowStudentTurmaModal(false);
+                    }} 
+                    className="d-flex justify-content-between align-items-center py-3 px-4"
+                  >
                     <div>
                       <div className="fw-bold">{t.courseName ?? t.CourseName}</div>
                       <div className="text-muted small">Turma: {t.turmaName ?? t.TurmaName}</div>
                     </div>
-                    <RBBadge bg="info" pill>View Report</RBBadge>
+                    <RBBadge bg="info" pill>Select</RBBadge>
                   </ListGroup.Item>
                 ))
               ) : (

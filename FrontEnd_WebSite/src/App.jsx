@@ -35,6 +35,9 @@ import TurmaScheduleAdmin from './pages/TurmaScheduleAdmin.jsx';
 import TeacherAvailability from './pages/TeacherAvailability.jsx';
 import TurmaDashboard from './pages/TurmaDashboard.jsx';
 
+// Schedule Pages
+import StudentSchedule from './pages/StudentSchedule.jsx';
+
 // Grades 
 import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins
 import StudentReport from './pages/StudentReport.jsx'; // for Students
@@ -85,6 +88,9 @@ function NavigationWrapper() {
           {/* Teacher Mangement */}
           <Route path="/TeacherAvailability" element={<ProtectedRoute><TeacherAvailability /></ProtectedRoute>} />
           <Route path="/TurmaDashboard" element={<ProtectedRoute><TurmaDashboard /></ProtectedRoute>} />
+
+          {/* Schedule Pages for users */}
+          <Route path="/StudentSchedule" element={<ProtectedRoute><StudentSchedule /></ProtectedRoute>} />
 
           {/* Grades */}
           <Route path="/turma/:turmaId/module/:moduleId/grades" element={<ProtectedRoute><ModuleGrades /></ProtectedRoute>} />

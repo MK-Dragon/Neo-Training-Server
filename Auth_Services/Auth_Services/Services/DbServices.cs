@@ -3522,33 +3522,34 @@ namespace Auth_Services.Services
             }
         }
 
-        // GET Teacher Schedule!
+        // * GET Teacher Schedule!
         public async Task<List<TeacherScheduleDetailDTO>> GetTeacherScheduleByRange(int teacherId, DateTime start, DateTime end)
         {
             try
             {
                 const string query = @"
-            SELECT 
-                s.date_time,
-                t.turma_id,
-                t.turma_name,
-                m.module_id,
-                m.name AS module_name,
-                m.duration_h AS TotalDuration,
-                tm.num_hours_completed AS HoursCompleted,
-                sl.sala_id,
-                sl.sala_nome,
-                sl.tem_pcs,
-                sl.tem_oficina
-            FROM schedules s
-            INNER JOIN turmas t ON s.turma_id = t.turma_id
-            INNER JOIN modules m ON s.module_id = m.module_id
-            INNER JOIN turma_modules tm ON s.turma_id = tm.turma_id AND s.module_id = tm.module_id
-            INNER JOIN salas sl ON s.sala_id = sl.sala_id
-            WHERE s.formador_id = @teacherId 
-              AND s.date_time >= @start 
-              AND s.date_time <= @end
-            ORDER BY s.date_time ASC;";
+    SELECT 
+        s.date_time,
+        t.turma_id,
+        t.turma_name,
+        m.module_id,
+        m.name AS module_name,
+        m.duration_h AS TotalDuration,
+        COALESCE(tm.num_hours_completed, 0) AS HoursCompleted, -- Handle NULLs from Left Join
+        sl.sala_id,
+        sl.sala_nome,
+        sl.tem_pcs,
+        sl.tem_oficina
+    FROM schedules s
+    INNER JOIN turmas t ON s.turma_id = t.turma_id
+    INNER JOIN modules m ON s.module_id = m.module_id
+    INNER JOIN salas sl ON s.sala_id = sl.sala_id
+    -- Change to LEFT JOIN to prevent missing records from hiding the schedule
+    LEFT JOIN turma_modules tm ON s.turma_id = tm.turma_id AND s.module_id = tm.module_id
+    WHERE s.formador_id = @teacherId 
+      AND s.date_time >= @start 
+      AND s.date_time <= @end
+    ORDER BY s.date_time ASC;";
 
                 var parameters = new[] {
             new MySqlParameter("@teacherId", teacherId),
@@ -3564,7 +3565,8 @@ namespace Auth_Services.Services
                     ModuleId = reader.GetInt32("module_id"),
                     ModuleName = reader.GetString("module_name"),
                     TotalDuration = reader.GetInt32("TotalDuration"),
-                    HoursCompleted = reader.GetInt32("HoursCompleted"),
+                    // Use GetOrdinal to handle potential nulls safely if not using COALESCE
+                    HoursCompleted = reader.IsDBNull(reader.GetOrdinal("HoursCompleted")) ? 0 : reader.GetInt32("HoursCompleted"),
                     SalaId = reader.GetInt32("sala_id"),
                     SalaNome = reader.GetString("sala_nome"),
                     HasPc = reader.GetInt32("tem_pcs"),
@@ -3578,6 +3580,103 @@ namespace Auth_Services.Services
             }
         }
 
+        // * GET Turma Schedule!
+        public async Task<List<TurmaScheduleDetailDTO>> GetTurmaScheduleByRange(int turmaId, DateTime start, DateTime end)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                s.date_time,
+                m.module_id,
+                m.name AS module_name,
+                u.user_id AS teacher_id,
+                u.username AS teacher_name,
+                sl.sala_id,
+                sl.sala_nome
+            FROM schedules s
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN users u ON s.formador_id = u.user_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE s.turma_id = @turmaId 
+              AND s.date_time >= @start 
+              AND s.date_time <= @end
+            ORDER BY s.date_time ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end)
+        };
+
+                return await GetDataAsync<TurmaScheduleDetailDTO>(query, reader => new TurmaScheduleDetailDTO
+                {
+                    DateTime = reader.GetDateTime("date_time"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    SalaId = reader.GetInt32("sala_id"),
+                    SalaNome = reader.GetString("sala_nome")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turma schedule: {ex.Message}");
+                return new List<TurmaScheduleDetailDTO>();
+            }
+        }
+
+        // * GET Student Schedule!
+        public async Task<List<TurmaScheduleDetailDTO>> GetStudentSchedule(int studentId, DateTime start, DateTime end)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                s.date_time,
+                m.module_id,
+                m.name AS module_name,
+                u_teacher.user_id AS teacher_id,
+                u_teacher.username AS teacher_name,
+                sl.sala_id,
+                sl.sala_nome
+            FROM users u_student
+            INNER JOIN user_roles ur ON u_student.role_id = ur.role_id
+            INNER JOIN schedules s ON u_student.turma_id = s.turma_id
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN users u_teacher ON s.formador_id = u_teacher.user_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE u_student.user_id = @studentId 
+              AND ur.title = 'Student'
+              AND u_student.isDeleted = 0
+              AND s.date_time >= @start 
+              AND s.date_time <= @end
+            ORDER BY s.date_time ASC;";
+
+                var parameters = new[] {
+            new MySqlParameter("@studentId", studentId),
+            new MySqlParameter("@start", start),
+            new MySqlParameter("@end", end)
+        };
+
+                return await GetDataAsync<TurmaScheduleDetailDTO>(query, reader => new TurmaScheduleDetailDTO
+                {
+                    DateTime = reader.GetDateTime("date_time"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    SalaId = reader.GetInt32("sala_id"),
+                    SalaNome = reader.GetString("sala_nome")
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching student schedule: {ex.Message}");
+                return new List<TurmaScheduleDetailDTO>();
+            }
+        }
 
 
         // ** Additional Teacher-Module-Turma **
@@ -3755,27 +3854,26 @@ namespace Auth_Services.Services
             FROM turma_modules tm
             INNER JOIN modules m ON tm.module_id = m.module_id
             INNER JOIN turmas t ON tm.turma_id = t.turma_id
+            -- Join users directly to the teacher assigned in turma_modules
+            INNER JOIN users u ON tm.teacher_id = u.user_id 
             INNER JOIN course_modules cm ON t.course_id = cm.course_id AND m.module_id = cm.module_id
-            INNER JOIN formador_teaches_module ftm ON m.module_id = ftm.module_id
-            INNER JOIN users u ON ftm.formador_id = u.user_id
             WHERE tm.turma_id = @turmaId
               AND tm.isCompleted = 0
               AND u.isDeleted = 0
-              AND ftm.isDeleted = 0
-              -- 1. Check Teacher Availability (Permission)
+              -- 1. Check if the specific assigned teacher is available
               AND EXISTS (
                   SELECT 1 FROM disponibilidades d 
                   WHERE d.formador_id = u.user_id 
                   AND d.data_hora >= @start AND d.data_hora <= @end 
                   AND d.disponivel = 1
               )
-              -- 2. Check Teacher Conflict (Occupied)
+              -- 2. Check if the specific assigned teacher has a conflict
               AND NOT EXISTS (
                   SELECT 1 FROM schedules s 
                   WHERE s.formador_id = u.user_id 
                   AND s.date_time >= @start AND s.date_time <= @end
               )
-            ORDER BY cm.order_index ASC, u.username ASC;";
+            ORDER BY cm.order_index ASC;";
 
                 var parameters = new[] {
             new MySqlParameter("@turmaId", request.TurmaId),
@@ -3800,6 +3898,10 @@ namespace Auth_Services.Services
                 return new List<AvailableTeacherModule>();
             }
         }
+
+
+
+
 
     } // the end
 }

@@ -155,6 +155,59 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // ** GET TURMA SCHEDULE!!! **
+        [HttpGet("turma/{turmaId}/schedule")]
+        public async Task<IActionResult> GetTurmaSchedule(int turmaId, [FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
+
+            try
+            {
+                // Return type: Task<List<TurmaScheduleDetailDTO>>
+                var schedule = await _dbServices.GetTurmaScheduleByRange(turmaId, start, end);
+
+                if (schedule == null || schedule.Count == 0)
+                {
+                    return Ok(new { message = "No classes found for this turma in the selected period.", data = new List<TurmaScheduleDetailDTO>() });
+                }
+
+                return Ok(schedule);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error.", details = ex.Message });
+            }
+        }
+
+        // ** GET STUDENT SCHEDULE!!! **
+        [HttpGet("student/{studentId}/schedule")]
+        public async Task<IActionResult> GetScheduleByStudent(int studentId, [FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            if (studentId <= 0) return BadRequest("Invalid Student ID.");
+
+            try
+            {
+                // Return type: Task<List<TurmaScheduleDetailDTO>>
+                var schedule = await _dbServices.GetStudentSchedule(studentId, start, end);
+
+                if (schedule == null || schedule.Count == 0)
+                {
+                    return Ok(new
+                    {
+                        message = "No schedule found. Verify if the user is an active student and assigned to a turma.",
+                        data = new List<TurmaScheduleDetailDTO>()
+                    });
+                }
+
+                return Ok(schedule);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error.", details = ex.Message });
+            }
+        }
+
+
 
     } // the end
 }

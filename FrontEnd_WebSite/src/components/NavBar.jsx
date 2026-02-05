@@ -90,6 +90,10 @@ function NavBar() {
               {userRole === 'Teacher' && (
                 <Nav.Link as={Link} to="/TeacherAvailability" onClick={closeNav}>Manage Availability</Nav.Link>
               )}
+
+              {userRole === 'Student' && (
+                <Nav.Link as={Link} to="/StudentSchedule" onClick={closeNav}>Student Schedule</Nav.Link>
+              )}
             </Nav>
 
             <Nav>
