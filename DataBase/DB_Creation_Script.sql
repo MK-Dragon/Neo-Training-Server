@@ -27,6 +27,22 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `mydb`.`files`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`files` (
+  `file_id` INT NOT NULL,
+  `file_name` VARCHAR(256) NOT NULL,
+  `file_type` VARCHAR(128) NULL,
+  `file_size_bytes` INT NULL,
+  `file_path` VARCHAR(512) NULL,
+  `file_data` LONGBLOB NULL,
+  `uploaded_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `isDeleted` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`file_id`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `mydb`.`users`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`users` (
@@ -40,12 +56,19 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   `Provider` VARCHAR(45) NULL,
   `ProviderKey` TEXT NULL,
   `isDeleted` INT NOT NULL DEFAULT 0,
+  `photo_id` INT NULL,
   PRIMARY KEY (`user_id`),
   INDEX `user_type_idx` (`role_id` ASC) VISIBLE,
+  INDEX `user_photo_idx` (`photo_id` ASC) VISIBLE,
   CONSTRAINT `user_type`
     FOREIGN KEY (`role_id`)
     REFERENCES `mydb`.`user_roles` (`role_id`)
     ON DELETE CASCADE
+    ON UPDATE NO ACTION,
+  CONSTRAINT `user_photo`
+    FOREIGN KEY (`photo_id`)
+    REFERENCES `mydb`.`files` (`file_id`)
+    ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 

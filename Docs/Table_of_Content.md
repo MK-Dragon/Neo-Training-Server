@@ -28,14 +28,14 @@ Google;
 ```
     ✅a. Gestão de módulos (Inserir, alterar, eliminar e consultar);
     ✅b. Gestão de salas (Inserir, alterar, eliminar e consultar);
-    c. Gestão de cursos (Inserir, alterar, eliminar e consultar):
-        i. Distribuição dos módulos, por curso, por formador e por
+    ✅c. Gestão de cursos (Inserir, alterar, eliminar e consultar):
+        ✅i. Distribuição dos módulos, por curso, por formador e por
     sala;
     d. Gestão formandos (Inserir, alterar, eliminar e consultar):
         i. Deverá ser possível anexar ficheiros à ficha do formando;
     e. Gestão formadores (Inserir, alterar, eliminar e consultar):
         i. Deverá ser possível anexar ficheiros à ficha do formador;
-    f. Criação de horários, garantindo a não sobreposição de aulas na
+    ✅f. Criação de horários, garantindo a não sobreposição de aulas na
     mesma sala à mesma hora, a não alocação do mesmo formador
     em duas aulas ao mesmo tempo e garantindo que não se
     ultrapassa o nº máximo de horas do módulo, utilizando um
@@ -58,10 +58,10 @@ Google;
 ```
 a. Login
 b. Consultas rápidas:
-i. Cursos
-ii. Formandos
-iii. Formadores
-iv. Disponibilidade de salas
+    i. Cursos
+    ii. Formandos
+    iii. Formadores
+    iv. Disponibilidade de salas
 ```
 
 ## 4. Aplicação geração automática de horários (web, mobile ou forms) - 3 Valores

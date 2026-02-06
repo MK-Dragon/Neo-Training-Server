@@ -158,5 +158,4 @@ INSERT INTO `schedules` (`turma_id`, `module_id`, `formador_id`, `sala_id`, `dat
 (6, 4, 11, 1, '2026-02-04 09:00:00'), -- TPSI pacheco C/C++ Lab 1
 (6, 4, 11, 1, '2026-02-04 10:00:00'), -- TPSI pacheco C/C++ Lab 1
 (6, 4, 11, 1, '2026-02-04 11:00:00') -- TPSI pacheco C/C++ Lab 1
-
 ;
