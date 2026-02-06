@@ -129,7 +129,7 @@ namespace Auth_Services.Services
             {
                 _redis = ConnectionMultiplexer.Connect(RedisConnectionString);
                 _redisDb = _redis.GetDatabase();
-                Console.WriteLine("Redis connection established successfully.");
+                //Console.WriteLine("Redis connection established successfully.");
             }
             catch (Exception ex)
             {
@@ -3290,6 +3290,82 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<string> CreateBulkSchedule(BulkScheduleRequest request)
+        {
+            // 1. Logic Check: Business Hours
+            if (request.StartTime.Hour < 8 || request.EndTime.Hour > 23)
+                return "Schedules must be between 08:00 and 23:00.";
+
+            if (request.EndTime < request.StartTime)
+                return "End time cannot be before start time.";
+
+            // Use a transaction to ensure all-or-nothing
+            using var connection = new MySqlConnection(Builder.ConnectionString);
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+
+            try
+            {
+                // Calculate the hours to insert (e.g., 9 to 11 = 9:00, 10:00, 11:00)
+                int hoursToSchedule = (int)(request.EndTime - request.StartTime).TotalHours;
+
+                for (int i = 0; i <= hoursToSchedule; i++)
+                {
+                    DateTime currentSlot = request.StartTime.AddHours(i);
+
+                    // A. CHECK TEACHER AVAILABILITY
+                    const string availQuery = "SELECT COUNT(*) FROM disponibilidades WHERE formador_id = @fId AND data_hora = @dt AND disponivel = 1;";
+                    var availCmd = new MySqlCommand(availQuery, connection, transaction);
+                    availCmd.Parameters.AddWithValue("@fId", request.FormadorId);
+                    availCmd.Parameters.AddWithValue("@dt", currentSlot);
+
+                    var isAvailable = Convert.ToInt32(await availCmd.ExecuteScalarAsync()) > 0;
+                    if (!isAvailable)
+                    {
+                        await transaction.RollbackAsync();
+                        return $"Teacher is not available at {currentSlot:HH:mm}.";
+                    }
+
+                    // B. CHECK CONFLICTS
+                    const string conflictQuery = @"
+                SELECT COUNT(*) FROM schedules 
+                WHERE date_time = @dt AND (sala_id = @sId OR formador_id = @fId OR turma_id = @tId);";
+                    var conflictCmd = new MySqlCommand(conflictQuery, connection, transaction);
+                    conflictCmd.Parameters.AddWithValue("@dt", currentSlot);
+                    conflictCmd.Parameters.AddWithValue("@sId", request.SalaId);
+                    conflictCmd.Parameters.AddWithValue("@fId", request.FormadorId);
+                    conflictCmd.Parameters.AddWithValue("@tId", request.TurmaId);
+
+                    if (Convert.ToInt32(await conflictCmd.ExecuteScalarAsync()) > 0)
+                    {
+                        await transaction.RollbackAsync();
+                        return $"Conflict detected at {currentSlot:HH:mm}. Range cancelled.";
+                    }
+
+                    // C. INSERT ENTRY
+                    const string insertQuery = @"
+                INSERT INTO schedules (turma_id, module_id, formador_id, sala_id, date_time)
+                VALUES (@tId, @mId, @fId, @sId, @dt);";
+                    var insertCmd = new MySqlCommand(insertQuery, connection, transaction);
+                    insertCmd.Parameters.AddWithValue("@tId", request.TurmaId);
+                    insertCmd.Parameters.AddWithValue("@mId", request.ModuleId);
+                    insertCmd.Parameters.AddWithValue("@fId", request.FormadorId);
+                    insertCmd.Parameters.AddWithValue("@sId", request.SalaId);
+                    insertCmd.Parameters.AddWithValue("@dt", currentSlot);
+
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                return "Success";
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return $"Transaction failed: {ex.Message}";
+            }
+        }
+
         // Read Time Frame
         public async Task<List<ScheduleDetailsDTO>> GetSchedulesByTimeRange(DateTime start, DateTime end)
         {
@@ -3843,37 +3919,40 @@ namespace Auth_Services.Services
             try
             {
                 const string query = @"
-            SELECT 
-                u.user_id AS TeacherId,
-                u.username AS TeacherName,
-                m.module_id AS ModuleId,
-                m.name AS ModuleName,
-                cm.order_index AS OrderIndex,
-                tm.num_hours_completed AS HoursCompleted,
-                m.duration_h AS TotalDuration
-            FROM turma_modules tm
-            INNER JOIN modules m ON tm.module_id = m.module_id
-            INNER JOIN turmas t ON tm.turma_id = t.turma_id
-            -- Join users directly to the teacher assigned in turma_modules
-            INNER JOIN users u ON tm.teacher_id = u.user_id 
-            INNER JOIN course_modules cm ON t.course_id = cm.course_id AND m.module_id = cm.module_id
-            WHERE tm.turma_id = @turmaId
-              AND tm.isCompleted = 0
-              AND u.isDeleted = 0
-              -- 1. Check if the specific assigned teacher is available
-              AND EXISTS (
-                  SELECT 1 FROM disponibilidades d 
-                  WHERE d.formador_id = u.user_id 
-                  AND d.data_hora >= @start AND d.data_hora <= @end 
-                  AND d.disponivel = 1
-              )
-              -- 2. Check if the specific assigned teacher has a conflict
-              AND NOT EXISTS (
-                  SELECT 1 FROM schedules s 
-                  WHERE s.formador_id = u.user_id 
-                  AND s.date_time >= @start AND s.date_time <= @end
-              )
-            ORDER BY cm.order_index ASC;";
+    SELECT 
+        u.user_id AS TeacherId,
+        u.username AS TeacherName,
+        m.module_id AS ModuleId,
+        m.name AS ModuleName,
+        cm.order_index AS OrderIndex,
+        tm.num_hours_completed AS HoursCompleted,
+        m.duration_h AS TotalDuration
+    FROM turma_modules tm
+    INNER JOIN modules m ON tm.module_id = m.module_id
+    INNER JOIN turmas t ON tm.turma_id = t.turma_id
+    INNER JOIN users u ON tm.teacher_id = u.user_id 
+    INNER JOIN course_modules cm ON t.course_id = cm.course_id AND m.module_id = cm.module_id
+    WHERE tm.turma_id = @turmaId
+      AND tm.isCompleted = 0
+      AND u.isDeleted = 0
+      -- 1. FIXED: Check if the teacher is available for EVERY hour in the range
+      AND (
+          SELECT COUNT(*) 
+          FROM disponibilidades d 
+          WHERE d.formador_id = u.user_id 
+            AND d.data_hora >= @start 
+            AND d.data_hora <= @end 
+            AND d.disponivel = 1
+      ) = (TIMESTAMPDIFF(HOUR, @start, @end) + 1)
+      
+      -- 2. FIXED: Ensure NO conflicts exist anywhere in the range
+      AND NOT EXISTS (
+          SELECT 1 FROM schedules s 
+          WHERE s.formador_id = u.user_id 
+            AND s.date_time >= @start 
+            AND s.date_time <= @end
+      )
+    ORDER BY cm.order_index ASC;";
 
                 var parameters = new[] {
             new MySqlParameter("@turmaId", request.TurmaId),

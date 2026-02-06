@@ -45,6 +45,20 @@ namespace Auth_Services.Controllers
             return StatusCode(500, new { error = result });
         }
 
+        // Bulk Create Entries with Rules
+        [HttpPost("add-schedule-bulk")]
+        public async Task<IActionResult> AddScheduleBulk([FromBody] BulkScheduleRequest request)
+        {
+            // Returns type: Task<string>
+            var result = await _dbServices.CreateBulkSchedule(request);
+
+            if (result == "Success")
+                return Ok(new { message = "All schedule entries added successfully." });
+
+            // Handles conflicts or availability failures
+            return BadRequest(new { message = result });
+        }
+
         // Read Time Frame
         [HttpGet("schedules-range")]
         public async Task<IActionResult> GetSchedulesByRange([FromQuery] DateTime start, [FromQuery] DateTime end)
