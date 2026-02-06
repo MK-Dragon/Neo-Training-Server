@@ -37,6 +37,7 @@ import TurmaDashboard from './pages/TurmaDashboard.jsx';
 
 // Schedule Pages
 import StudentSchedule from './pages/StudentSchedule.jsx';
+import TeacherSchedule from './pages/TeacherSchedule.jsx';
 
 // Grades 
 import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins
@@ -91,6 +92,7 @@ function NavigationWrapper() {
 
           {/* Schedule Pages for users */}
           <Route path="/StudentSchedule" element={<ProtectedRoute><StudentSchedule /></ProtectedRoute>} />
+          <Route path="/TeacherSchedule" element={<ProtectedRoute><TeacherSchedule /></ProtectedRoute>} />
 
           {/* Grades */}
           <Route path="/turma/:turmaId/module/:moduleId/grades" element={<ProtectedRoute><ModuleGrades /></ProtectedRoute>} />

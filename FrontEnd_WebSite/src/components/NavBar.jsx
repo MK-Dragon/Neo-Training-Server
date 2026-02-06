@@ -79,7 +79,7 @@ function NavBar() {
                   <NavDropdown.Item as={Link} to="/CourseManagement" onClick={closeNav}>Manage Courses</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/TurmaManagement" onClick={closeNav}>Manage Turmas</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/TeacherModuleManager" onClick={closeNav}>Manage Teacher/Module</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/AdminTeacherSchedule" onClick={closeNav}>Admin: Teacher Schedule</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/AdminTeacherSchedule" onClick={closeNav}>Teacher Availabilaty</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/TurmaScheduleAdmin" onClick={closeNav}>Admin: Turma Schedule</NavDropdown.Item>
                   <NavDropdown.Divider />
                   <NavDropdown.Item as={Link} to="/EnrollmentManagement" onClick={closeNav}>Enrollment Management</NavDropdown.Item>
@@ -88,7 +88,8 @@ function NavBar() {
               )}
 
               {userRole === 'Teacher' && (
-                <Nav.Link as={Link} to="/TeacherAvailability" onClick={closeNav}>Manage Availability</Nav.Link>
+                <Nav.Link as={Link} to="/TeacherAvailability" onClick={closeNav}>Manage Availability</Nav.Link>,
+                <Nav.Link as={Link} to="/TeacherSchedule" onClick={closeNav}>Teacher Schedule</Nav.Link>
               )}
 
               {userRole === 'Student' && (

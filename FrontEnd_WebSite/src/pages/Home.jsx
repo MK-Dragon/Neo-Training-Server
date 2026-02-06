@@ -186,7 +186,7 @@ const Home = () => {
               variant="primary" 
             />
             <DashboardCard 
-              title="Teacher Schedules" 
+              title="Teacher Availabilaty" 
               text="Manage and override teacher availability and assignments." 
               link="/AdminTeacherSchedule" 
               icon="📅" 
@@ -209,7 +209,7 @@ const Home = () => {
         <section className="mb-5">
           <h3 className="mb-4 border-bottom pb-2">Teacher Dashboard</h3>
           <Row>
-            <DashboardCard title="My Schedule" text="View your upcoming classes." link="/schedule" icon="📅" variant="success" />
+            <DashboardCard title="My Schedule" text="View your upcoming classes." link="/TeacherSchedule" icon="📅" variant="success" />
             <DashboardCard 
               title="Grade Modules" 
               text="Submit grades for your students." 
