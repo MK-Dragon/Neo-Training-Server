@@ -30,7 +30,7 @@ ENGINE = InnoDB;
 -- Table `mydb`.`files`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`files` (
-  `file_id` INT NOT NULL,
+  `file_id` INT NOT NULL AUTO_INCREMENT,
   `file_name` VARCHAR(256) NOT NULL,
   `file_type` VARCHAR(128) NULL,
   `file_size_bytes` INT NULL,
@@ -56,17 +56,17 @@ CREATE TABLE IF NOT EXISTS `mydb`.`users` (
   `Provider` VARCHAR(45) NULL,
   `ProviderKey` TEXT NULL,
   `isDeleted` INT NOT NULL DEFAULT 0,
-  `photo_id` INT NULL,
+  `profile_image` INT NULL,
   PRIMARY KEY (`user_id`),
   INDEX `user_type_idx` (`role_id` ASC) VISIBLE,
-  INDEX `user_photo_idx` (`photo_id` ASC) VISIBLE,
+  INDEX `user_photo_idx` (`profile_image` ASC) VISIBLE,
   CONSTRAINT `user_type`
     FOREIGN KEY (`role_id`)
     REFERENCES `mydb`.`user_roles` (`role_id`)
     ON DELETE CASCADE
     ON UPDATE NO ACTION,
   CONSTRAINT `user_photo`
-    FOREIGN KEY (`photo_id`)
+    FOREIGN KEY (`profile_image`)
     REFERENCES `mydb`.`files` (`file_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)

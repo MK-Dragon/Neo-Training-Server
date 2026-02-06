@@ -1,7 +1,6 @@
 // /src/pages/UserManagement.jsx
-
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, InputGroup, Row, Col, Badge, Alert, Pagination, Card } from 'react-bootstrap';
+import { Table, Button, Modal, Form, InputGroup, Row, Col, Badge, Alert, Pagination, Card, Spinner } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -21,16 +20,17 @@ const UserManagement = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    // --- Password & UI States ---
+    // --- Password, Image & UI States ---
     const [newPass, setNewPass] = useState('');
     const [confirmPass, setConfirmPass] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const [imgTimestamp, setImgTimestamp] = useState(Date.now()); 
 
     useEffect(() => {
         fetchUsers();
     }, []);
 
-    // Reset to page 1 when filters or search change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, filterRole, showDeleted, itemsPerPage]);
@@ -57,6 +57,33 @@ const UserManagement = () => {
         }
     };
 
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedUser) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setUploading(true);
+        try {
+            const res = await fetch(`${ServerIP}/api/DownloadUpload/upload-profile-image/${selectedUser.id}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+
+            if (res.ok) {
+                setImgTimestamp(Date.now());
+            } else {
+                setErrorMsg("Failed to upload image.");
+            }
+        } catch (err) {
+            setErrorMsg("Network error during upload.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -65,7 +92,6 @@ const UserManagement = () => {
         setSortConfig({ key, direction });
     };
 
-    // 1. Process Data (Filter & Sort)
     const processedUsers = users
         .filter(u => {
             const matchesRole = filterRole === 'all' || u.role === filterRole;
@@ -83,7 +109,6 @@ const UserManagement = () => {
             return 0;
         });
 
-    // 2. Pagination Logic
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentUsers = processedUsers.slice(indexOfFirstItem, indexOfLastItem);
@@ -91,6 +116,7 @@ const UserManagement = () => {
 
     const handleEditClick = (user) => {
         setSelectedUser({ ...user }); 
+        setImgTimestamp(Date.now()); 
         setShowModal(true);
     };
 
@@ -99,12 +125,7 @@ const UserManagement = () => {
             setErrorMsg("Passwords do not match!");
             return;
         }
-
-        const dataToSend = {
-            ...selectedUser,
-            newPasswordHash: newPass 
-        };
-
+        const dataToSend = { ...selectedUser, newPasswordHash: newPass };
         try {
             const res = await fetch(`${ServerIP}/api/User/users/${selectedUser.id}`, {
                 method: 'PUT',
@@ -114,7 +135,6 @@ const UserManagement = () => {
                 },
                 body: JSON.stringify(dataToSend)
             });
-
             if (res.ok) {
                 setShowModal(false);
                 fetchUsers();
@@ -122,16 +142,13 @@ const UserManagement = () => {
                 const text = await res.text();
                 setErrorMsg(text || "Failed to save changes.");
             }
-        } catch (err) {
-            setErrorMsg("Server error.");
-        }
+        } catch (err) { setErrorMsg("Server error."); }
     };
 
     return (
         <div className="container mt-5 pt-4">
             <h3 className="mb-4">User Management</h3>
 
-            {/* Filter Bar */}
             <Card className="mb-4 shadow-sm border-0 bg-light">
                 <Card.Body>
                     <Row className="g-3 align-items-end">
@@ -139,11 +156,7 @@ const UserManagement = () => {
                             <Form.Label className="fw-bold">Search</Form.Label>
                             <InputGroup>
                                 <InputGroup.Text>🔍</InputGroup.Text>
-                                <Form.Control
-                                    placeholder="Username or email..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                                <Form.Control placeholder="Username or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                             </InputGroup>
                         </Col>
                         <Col md={2}>
@@ -161,34 +174,22 @@ const UserManagement = () => {
                                 <option value={5}>5</option>
                                 <option value={10}>10</option>
                                 <option value={20}>20</option>
-                                <option value={50}>50</option>
                             </Form.Select>
                         </Col>
                         <Col md={4} className="d-flex align-items-center justify-content-end">
-                            <Form.Check 
-                                type="switch"
-                                id="show-deleted-check"
-                                label="Include Deleted"
-                                checked={showDeleted}
-                                onChange={(e) => setShowDeleted(e.target.checked)}
-                            />
+                            <Form.Check type="switch" id="show-deleted-check" label="Include Deleted" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
                         </Col>
                     </Row>
                 </Card.Body>
             </Card>
 
-            <Table striped bordered hover responsive>
+            <Table striped bordered hover responsive className="align-middle">
                 <thead className="table-dark text-nowrap">
                     <tr>
-                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
-                            ID {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
-                        </th>
-                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>
-                            Username {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
-                        </th>
-                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>
-                            Email {sortConfig.key === 'email' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}
-                        </th>
+                        <th>Avatar</th>
+                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>ID {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
+                        <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>Username {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
+                        <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>Email {sortConfig.key === 'email' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
                         <th>Role</th>
                         <th className="text-center">Action</th>
                     </tr>
@@ -196,73 +197,74 @@ const UserManagement = () => {
                 <tbody>
                     {currentUsers.map(u => (
                         <tr key={u.id} className={u.isDeleted === 1 ? "table-secondary opacity-75" : ""}>
+                            <td className="text-center" style={{ width: '80px' }}>
+                                <img 
+                                    src={`${ServerIP}/api/DownloadUpload/profile-image/${u.id}?t=${imgTimestamp}`} 
+                                    alt="User" 
+                                    className="rounded-circle border"
+                                    style={{ width: '40px', height: '40px', objectFit: 'cover' }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${u.username}&background=random&size=64`; }}
+                                />
+                            </td>
                             <td>{u.id}</td>
                             <td style={u.isDeleted === 1 ? { textDecoration: 'line-through' } : {}}>
                                 {u.username} {u.isDeleted === 1 && <Badge bg="danger" className="ms-2">DELETED</Badge>}
                             </td>
                             <td>{u.email}</td>
                             <td>
-                                <Badge bg={u.role === 'Admin' ? 'danger' : u.role === 'Teacher' ? 'primary' : 'secondary'}>
-                                    {u.role}
-                                </Badge>
+                                <Badge bg={u.role === 'Admin' ? 'danger' : u.role === 'Teacher' ? 'primary' : 'secondary'}>{u.role}</Badge>
                             </td>
                             <td className="text-center">
-                                <Button 
-                                    variant={u.isDeleted === 1 ? "outline-dark" : "warning"} 
-                                    size="sm" 
-                                    onClick={() => handleEditClick(u)}
-                                    className="px-3"
-                                >
+                                <Button variant={u.isDeleted === 1 ? "outline-dark" : "warning"} size="sm" onClick={() => handleEditClick(u)} className="px-3">
                                     {u.isDeleted === 1 ? "Restore" : "Edit"}
                                 </Button>
                             </td>
                         </tr>
                     ))}
-                    {currentUsers.length === 0 && (
-                        <tr>
-                            <td colSpan="5" className="text-center text-muted py-3">No users found.</td>
-                        </tr>
-                    )}
                 </tbody>
             </Table>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div className="d-flex justify-content-center mt-3">
                     <Pagination>
                         <Pagination.First onClick={() => setCurrentPage(1)} disabled={currentPage === 1} />
                         <Pagination.Prev onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} />
-                        
                         {[...Array(totalPages)].map((_, idx) => (
-                            <Pagination.Item 
-                                key={idx + 1} 
-                                active={idx + 1 === currentPage} 
-                                onClick={() => setCurrentPage(idx + 1)}
-                            >
-                                {idx + 1}
-                            </Pagination.Item>
+                            <Pagination.Item key={idx + 1} active={idx + 1 === currentPage} onClick={() => setCurrentPage(idx + 1)}>{idx + 1}</Pagination.Item>
                         ))}
-
                         <Pagination.Next onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} />
                         <Pagination.Last onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} />
                     </Pagination>
                 </div>
             )}
 
-            {/* Modal remains the same */}
             <Modal show={showModal} onHide={() => setShowModal(false)} centered size="lg">
-                {/* ... existing modal content ... */}
-                <Modal.Header closeButton>
-                    <Modal.Title>Manage User: {selectedUser?.username}</Modal.Title>
-                </Modal.Header>
+                <Modal.Header closeButton><Modal.Title>Manage User: {selectedUser?.username}</Modal.Title></Modal.Header>
                 <Modal.Body>
                     {selectedUser && (
                         <Form>
+                            <div className="text-center mb-4 p-3 border-bottom bg-light rounded-top">
+                                <div className="position-relative d-inline-block">
+                                    <img 
+                                        src={`${ServerIP}/api/DownloadUpload/profile-image/${selectedUser.id}?t=${imgTimestamp}`}
+                                        alt="Profile"
+                                        className="rounded-circle shadow-sm border border-3 border-white"
+                                        style={{ width: '120px', height: '120px', objectFit: 'cover' }}
+                                        onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${selectedUser.username}&background=random&size=128`; }}
+                                    />
+                                    {uploading && <div className="position-absolute top-50 start-50 translate-middle"><Spinner animation="border" variant="primary" size="sm" /></div>}
+                                </div>
+                                <div className="mt-3">
+                                    <Form.Group controlId="formFileSm">
+                                        <Form.Label className="small fw-bold text-secondary">Change Profile Photo</Form.Label>
+                                        <Form.Control type="file" size="sm" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                                    </Form.Group>
+                                </div>
+                            </div>
                             <Row>
                                 <Col md={6}><Form.Group className="mb-3"><Form.Label>Username</Form.Label><Form.Control value={selectedUser.username} onChange={(e) => setSelectedUser({...selectedUser, username: e.target.value})} /></Form.Group></Col>
                                 <Col md={6}><Form.Group className="mb-3"><Form.Label>Email</Form.Label><Form.Control type="email" value={selectedUser.email} onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})} /></Form.Group></Col>
                             </Row>
-
                             <Row>
                                 <Col md={6}>
                                     <Form.Group className="mb-3">
@@ -274,25 +276,10 @@ const UserManagement = () => {
                                         </Form.Select>
                                     </Form.Group>
                                 </Col>
-                                <Col md={3}>
-                                    <Form.Label>Status</Form.Label>
-                                    <Form.Check type="switch" label="Activated" checked={selectedUser.activated === 1} onChange={(e) => setSelectedUser({...selectedUser, activated: e.target.checked ? 1 : 0})} />
-                                </Col>
-                                <Col md={3}>
-                                    <Form.Label>Visibility</Form.Label>
-                                    <Form.Check 
-                                        type="switch" 
-                                        id="modal-delete-switch" 
-                                        label={selectedUser.isDeleted === 1 ? "Deleted" : "Active"} 
-                                        className={selectedUser.isDeleted === 1 ? "text-danger fw-bold" : "text-success"}
-                                        checked={selectedUser.isDeleted === 1} 
-                                        onChange={(e) => setSelectedUser({...selectedUser, isDeleted: e.target.checked ? 1 : 0})} 
-                                    />
-                                </Col>
+                                <Col md={3}><Form.Label>Status</Form.Label><Form.Check type="switch" label="Activated" checked={selectedUser.activated === 1} onChange={(e) => setSelectedUser({...selectedUser, activated: e.target.checked ? 1 : 0})} /></Col>
+                                <Col md={3}><Form.Label>Visibility</Form.Label><Form.Check type="switch" id="modal-delete-switch" label={selectedUser.isDeleted === 1 ? "Deleted" : "Active"} className={selectedUser.isDeleted === 1 ? "text-danger fw-bold" : "text-success"} checked={selectedUser.isDeleted === 1} onChange={(e) => setSelectedUser({...selectedUser, isDeleted: e.target.checked ? 1 : 0})} /></Col>
                             </Row>
-
-                            <hr />
-                            <h5 className="text-primary">Administrative Password Override</h5>
+                            <hr /><h5 className="text-primary">Administrative Password Override</h5>
                             {errorMsg && <Alert variant="danger" className="py-2">{errorMsg}</Alert>}
                             <Row>
                                 <Col md={6}><Form.Group className="mb-2"><Form.Label>New Password</Form.Label><Form.Control type="password" placeholder="Leave empty to keep current" value={newPass} onChange={(e) => setNewPass(e.target.value)} /></Form.Group></Col>
@@ -303,7 +290,7 @@ const UserManagement = () => {
                 </Modal.Body>
                 <Modal.Footer className="bg-light">
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-                    <Button variant="primary" onClick={handleSaveChanges}>Apply Changes</Button>
+                    <Button variant="primary" onClick={handleSaveChanges} disabled={uploading}>Apply Changes</Button>
                 </Modal.Footer>
             </Modal>
         </div>

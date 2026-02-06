@@ -4032,8 +4032,126 @@ namespace Auth_Services.Services
             }
         }
 
+        // * Update ALL Turma-Module Hours Completed!
+        public async Task<string> UpdateProgressToPresent()
+        {
+            try
+            {
+                // This query recalculates completed hours based ONLY on classes in the past
+                const string query = @"
+            UPDATE turma_modules tm
+            SET tm.num_hours_completed = (
+                SELECT COUNT(*) 
+                FROM schedules s 
+                WHERE s.turma_id = tm.turma_id 
+                  AND s.module_id = tm.module_id
+                  AND s.date_time <= NOW()
+            );";
+
+                int affectedRows = await ExecuteNonQueryAsync(query);
+                return $"Success: Updated {affectedRows} module records based on completed classes.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
 
 
+        // ** Download | Upload **
+
+        // Upload Profile Image
+        public async Task<int> SaveFileToDb(string fileName, byte[] fileData)
+        {
+            try
+            {
+                const string query = @"
+            INSERT INTO files (file_name, file_type, file_size_bytes, file_data, uploaded_at, isDeleted)
+            VALUES (@name, @type, @size, @data, NOW(), 0);
+            SELECT LAST_INSERT_ID();";
+
+                var parameters = new[] {
+            new MySqlParameter("@name", fileName),
+            new MySqlParameter("@type", Path.GetExtension(fileName)),
+            new MySqlParameter("@size", fileData.Length),
+            new MySqlParameter("@data", fileData) // MySqlConnector handles the byte array automatically
+        };
+
+                var results = await GetDataAsync<int>(query, reader => Convert.ToInt32(reader[0]), parameters);
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DB Save Error: {ex.Message}");
+                return 0;
+            }
+        }
+
+        // Link uploaded image to user profile
+        public async Task<bool> LinkImageToUser(int userId, int fileId)
+        {
+            try
+            {
+                const string query = @"
+            UPDATE users 
+            SET profile_image = @fileId 
+            WHERE user_id = @userId;";
+
+                var parameters = new[] {
+            new MySqlParameter("@fileId", fileId),
+            new MySqlParameter("@userId", userId)
+        };
+
+                int rowsAffected = await ExecuteNonQueryAsync(query, parameters);
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error linking image: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Get File from DB
+        public async Task<byte[]> GetFileBytes(int fileId)
+        {
+            const string query = "SELECT file_data FROM files WHERE file_id = @fileId";
+            var parameters = new[] { new MySqlParameter("@fileId", fileId) };
+
+            // This fetches the LONGBLOB as a byte array
+            var results = await GetDataAsync<byte[]>(query, reader => (byte[])reader["file_data"], parameters);
+
+            return results.FirstOrDefault();
+        }
+
+        // Get user profile image
+        public async Task<(byte[] Data, string Type)> GetUserImageByUserId(int userId)
+        {
+            try
+            {
+                // Join users and files to get the data linked to a specific user
+                const string query = @"
+            SELECT f.file_data, f.file_type 
+            FROM files f
+            INNER JOIN users u ON u.profile_image = f.file_id
+            WHERE u.user_id = @userId AND f.isDeleted = 0;";
+
+                var parameters = new[] { new MySqlParameter("@userId", userId) };
+
+                // We return a Tuple containing the bytes and the extension
+                var results = await GetDataAsync<(byte[] Data, string Type)>(query, reader => (
+                    (byte[])reader["file_data"],
+                    reader["file_type"].ToString()
+                ), parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching user image: {ex.Message}");
+                return (null, null);
+            }
+        }
 
 
     } // the end

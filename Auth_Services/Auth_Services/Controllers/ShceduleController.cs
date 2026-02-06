@@ -243,6 +243,18 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // * Update ALL Turma-Module Hours Completed!
+        [HttpPost("update-past-progress")]
+        public async Task<IActionResult> UpdatePastProgress()
+        {
+            var result = await _dbServices.UpdateProgressToPresent();
+
+            if (result.StartsWith("Success"))
+                return Ok(new { message = result });
+
+            return StatusCode(500, new { error = result });
+        }
+
 
 
     } // the end
