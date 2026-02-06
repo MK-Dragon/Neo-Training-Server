@@ -2,12 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Card, Table, Form, Row, Col, Button, Badge, Spinner, Alert, Modal, ListGroup } from 'react-bootstrap';
 import { format, startOfWeek, addDays, addHours, isSameHour, parseISO } from 'date-fns';
-import { FaDesktop, FaTools, FaCheckCircle, FaCalendarPlus, FaTrash } from 'react-icons/fa';
+import { FaDesktop, FaTools, FaCalendarPlus, FaTrash, FaEdit, FaClock, FaChalkboardTeacher, FaBookOpen, FaDoorOpen } from 'react-icons/fa';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
 const TurmaScheduleAdmin = () => {
-  // --- State ---
   const [activeTurmas, setActiveTurmas] = useState([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState('');
   const [scheduleData, setScheduleData] = useState([]);
@@ -17,10 +16,17 @@ const TurmaScheduleAdmin = () => {
   const [selectedSlots, setSelectedSlots] = useState([]); 
   const [availableRooms, setAvailableRooms] = useState([]);
   
-  const [showBookingModal, setShowBookingModal] = useState(false);
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
   
+  // The specific current details from the DB
+  const [currentSessionDetails, setCurrentSessionDetails] = useState(null);
+
+  // Form states (These will hold either the "old" values or the "new" selections)
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState('');
 
@@ -32,7 +38,7 @@ const TurmaScheduleAdmin = () => {
       try {
         const res = await fetch(`${ServerIP}/api/Turma/all-active-turmas`);
         if (res.ok) setActiveTurmas(await res.json());
-      } catch (err) { setError("Failed to load active Turmas."); }
+      } catch (err) { setError("Failed to load Turmas."); }
     };
     fetchTurmas();
   }, []);
@@ -53,13 +59,12 @@ const TurmaScheduleAdmin = () => {
 
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
-  // 3. Fetch Available Rooms (Strict Slot Range)
+  // 3. Fetch Available Rooms
   useEffect(() => {
     const fetchRooms = async () => {
       if (selectedSlots.length === 0) { setAvailableRooms([]); return; }
       const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
       const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
-      
       const start = `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`;
       const end = `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`;
 
@@ -74,94 +79,159 @@ const TurmaScheduleAdmin = () => {
     fetchRooms();
   }, [selectedSlots]);
 
-  // --- Grid Handlers ---
-  const handleSlotClick = (day, hour, hasExistingSession) => {
-    if (hasExistingSession) return; 
-    const isSelected = selectedSlots.some(s => format(s.day, 'yyyyMMdd') === format(day, 'yyyyMMdd') && s.hour === hour);
+  // --- Grid Interaction ---
+  const handleSlotClick = (day, hour, session) => {
+    if (session) {
+      setSelectedSlots([{ day, hour, isExisting: true, sessionData: session }]);
+      return;
+    }
     
+    const isSelected = selectedSlots.some(s => !s.isExisting && format(s.day, 'yyyyMMdd') === format(day, 'yyyyMMdd') && s.hour === hour);
     if (isSelected) {
       setSelectedSlots(selectedSlots.filter(s => !(format(s.day, 'yyyyMMdd') === format(day, 'yyyyMMdd') && s.hour === hour)));
       return;
     }
 
-    if (selectedSlots.length > 0) {
+    if (selectedSlots.length > 0 && !selectedSlots[0].isExisting) {
       const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
       const sameDay = format(day, 'yyyyMMdd') === format(sorted[0].day, 'yyyyMMdd');
       const isAdjacent = hour === sorted[0].hour - 1 || hour === sorted[sorted.length - 1].hour + 1;
-      
-      if (sameDay && isAdjacent) {
-        setSelectedSlots([...selectedSlots, { day, hour }]);
-      } else {
-        setSelectedSlots([{ day, hour }]); 
-      }
+      if (sameDay && isAdjacent) setSelectedSlots([...selectedSlots, { day, hour }]);
+      else setSelectedSlots([{ day, hour }]); 
     } else {
       setSelectedSlots([{ day, hour }]);
     }
   };
 
-  // --- Modal Logic ---
-  const handleOpenBooking = async () => {
-    setBookingLoading(true);
+  // --- Modal Logic (Hydrates with existing data if Edit) ---
+  const handleOpenModal = async () => {
+    setModalLoading(true);
+    const isExisting = !!selectedSlots[0].isExisting;
+    setIsEditMode(isExisting);
+    
     const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
     const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
-    
-    // Strict Slot EndTime (e.g., 8h to 10h sends 08:00 and 10:00)
     const start = `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`;
     const end = `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`;
 
     try {
-      const url = `${ServerIP}/api/ModuleTurmaTeacher/suggest-teacher-module?TurmaId=${selectedTurmaId}&StartTime=${start}&EndTime=${end}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok) {
-        setSuggestions(Array.isArray(data) ? data : (data.data || []));
-        setShowBookingModal(true);
+      // 1. Suggestions are always loaded
+      const suggUrl = `${ServerIP}/api/ModuleTurmaTeacher/suggest-teacher-module?TurmaId=${selectedTurmaId}&StartTime=${start}&EndTime=${end}`;
+      const suggRes = await fetch(suggUrl);
+      const suggestionsList = await suggRes.json();
+      const finalSuggestions = Array.isArray(suggestionsList) ? suggestionsList : (suggestionsList.data || []);
+      setSuggestions(finalSuggestions);
+
+      if (isExisting) {
+        // 2. Fetch the specific details from the backend
+        const detailRes = await fetch(`${ServerIP}/api/Shcedule/details?turmaId=${selectedTurmaId}&dateTime=${start}`);
+        if (detailRes.ok) {
+          const details = await detailRes.json();
+          setCurrentSessionDetails(details);
+          setEditingScheduleId(details.scheduleId);
+          
+          // Pre-populate selections so they aren't null if the user just clicks "Update"
+          setSelectedRoomId(details.salaId.toString());
+          setSelectedSuggestion({
+            teacherId: details.teacherId,
+            teacherName: details.teacherName,
+            moduleId: details.moduleId,
+            moduleName: details.moduleName
+          });
+        }
+      } else {
+        // Clear for Create
+        setCurrentSessionDetails(null);
+        setSelectedSuggestion(null);
+        setSelectedRoomId('');
+        setEditingScheduleId(null);
       }
-    } catch (err) { 
-      alert("Error loading suggestions"); 
-    } finally { 
-      setBookingLoading(false); 
+
+      setShowModal(true);
+    } catch (err) {
+      alert("Error preparing data.");
+    } finally {
+      setModalLoading(false);
     }
   };
 
-  const handleConfirmBooking = async () => {
+  const handleSave = async () => {
     if (!selectedSuggestion || !selectedRoomId) return;
-    setBookingLoading(true);
+    setModalLoading(true);
+
+    const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
+    const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
+    const start = `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`;
+
+    // Find the Room Name based on the current selection
+    const roomObject = availableRooms.find(r => r.id.toString() === selectedRoomId.toString());
+    // Fallback to the current details if the room wasn't changed
+    const finalSalaNome = roomObject ? roomObject.nome : (currentSessionDetails?.salaNome || "");
+
+    const payload = {
+      ScheduleId: editingScheduleId || 0,
+      TurmaId: parseInt(selectedTurmaId),
+      TurmaName: activeTurmas.find(t => t.turmaId.toString() === selectedTurmaId.toString())?.turmaName || "",
+      ModuleId: selectedSuggestion.moduleId,
+      ModuleName: selectedSuggestion.moduleName,
+      TeacherId: selectedSuggestion.teacherId,
+      TeacherName: selectedSuggestion.teacherName,
+      SalaId: parseInt(selectedRoomId),
+      SalaNome: finalSalaNome, // Included here
+      DateTime: start
+    };
 
     try {
-      const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
-      const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
-      
-      const bulkBody = {
-        TurmaId: parseInt(selectedTurmaId),
-        ModuleId: selectedSuggestion.moduleId,
-        FormadorId: selectedSuggestion.teacherId,
-        SalaId: parseInt(selectedRoomId),
-        StartTime: `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`,
-        EndTime: `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`
-      };
+      let res;
+      if (isEditMode) {
+        res = await fetch(`${ServerIP}/api/Shcedule/update-schedule`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        const end = `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`;
+        res = await fetch(`${ServerIP}/api/Shcedule/add-schedule-bulk`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            ...payload, 
+            FormadorId: selectedSuggestion.teacherId, 
+            StartTime: start, 
+            EndTime: end 
+          })
+        });
+      }
 
-      const res = await fetch(`${ServerIP}/api/Shcedule/add-schedule-bulk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bulkBody)
-      });
-
-      const data = await res.json();
       if (res.ok) {
-        setShowBookingModal(false);
+        setShowModal(false);
         setSelectedSlots([]);
-        setSelectedSuggestion(null);
-        setSelectedRoomId('');
-        fetchSchedule(); 
-      } else { 
-        alert(`Booking Failed: ${data.message || "Slot conflict detected."}`); 
+        fetchSchedule();
+      } else {
+        const data = await res.json();
+        alert(`Error: ${data.message || "Operation failed"}`);
       }
     } catch (err) { 
-      alert("Error saving schedule."); 
+      alert("Network error."); 
     } finally { 
-      setBookingLoading(false); 
+      setModalLoading(false); 
     }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this class?")) return;
+    setModalLoading(true);
+    try {
+      const res = await fetch(`${ServerIP}/api/Shcedule/delete-schedule/${editingScheduleId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setSelectedSlots([]);
+        fetchSchedule();
+      }
+    } catch (err) { alert("Error deleting."); }
+    finally { setModalLoading(false); }
   };
 
   const days = [...Array(7)].map((_, i) => addDays(currentWeek, i));
@@ -169,7 +239,7 @@ const TurmaScheduleAdmin = () => {
 
   return (
     <Container fluid className="mt-5 pt-4 px-4">
-      {/* --- TOP CONTROLS --- */}
+      {/* Header Controls */}
       <Card className="shadow-sm border-0 mb-4 bg-light">
         <Card.Body>
           <Row className="align-items-center">
@@ -183,32 +253,28 @@ const TurmaScheduleAdmin = () => {
               <Button variant="outline-primary" size="sm" onClick={() => setCurrentWeek(addDays(currentWeek, -7))}>&larr;</Button>
               <Button variant="primary" size="sm" className="mx-2" onClick={() => setCurrentWeek(startOfWeek(new Date(), { weekStartsOn: 1 }))}>Today</Button>
               <Button variant="outline-primary" size="sm" onClick={() => setCurrentWeek(addDays(currentWeek, 7))}>&rarr;</Button>
-              <div className="mt-1 small fw-bold text-uppercase">{format(currentWeek, 'dd MMM')} - {format(addDays(currentWeek, 6), 'dd MMM yyyy')}</div>
             </Col>
             <Col md={6} className="text-end">
-              <Button 
-                variant="outline-danger" 
-                size="lg" 
-                className="me-2" 
-                disabled={selectedSlots.length === 0} 
-                onClick={() => setSelectedSlots([])}
-              >
-                <FaTrash className="me-2"/> Clear
-              </Button>
-              <Button 
-                variant="success" 
-                size="lg" 
-                disabled={selectedSlots.length === 0} 
-                onClick={handleOpenBooking}
-              >
-                {bookingLoading ? <Spinner size="sm" /> : <><FaCalendarPlus className="me-2"/> Book Slots ({selectedSlots.length})</>}
-              </Button>
+              {selectedSlots.length > 0 && selectedSlots[0].isExisting ? (
+                <Button variant="warning" size="lg" onClick={handleOpenModal}>
+                   <FaEdit className="me-2"/> Edit Session
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline-danger" size="lg" className="me-2" disabled={selectedSlots.length === 0} onClick={() => setSelectedSlots([])}>
+                    <FaTrash className="me-2"/> Clear
+                  </Button>
+                  <Button variant="success" size="lg" disabled={selectedSlots.length === 0} onClick={handleOpenModal}>
+                    {modalLoading ? <Spinner size="sm" /> : <><FaCalendarPlus className="me-2"/> Book Block ({selectedSlots.length})</>}
+                  </Button>
+                </>
+              )}
             </Col>
           </Row>
         </Card.Body>
       </Card>
 
-      {/* --- GRID --- */}
+      {/* Schedule Grid */}
       <Card className="shadow-sm border-0">
         <Card.Body className="p-0">
           {!selectedTurmaId ? (
@@ -234,15 +300,19 @@ const TurmaScheduleAdmin = () => {
                         const slotTime = addHours(day, hour);
                         const session = scheduleData.find(s => isSameHour(parseISO(s.dateTime), slotTime));
                         const isSelected = selectedSlots.some(s => format(s.day, 'yyyyMMdd') === format(day, 'yyyyMMdd') && s.hour === hour);
+                        const isExistingSelect = isSelected && selectedSlots[0].isExisting;
+
                         return (
                           <td 
                             key={day.toString()} 
-                            onClick={() => handleSlotClick(day, hour, !!session)}
-                            className={session ? "p-1" : "bg-light pointer-cursor"}
-                            style={{ backgroundColor: isSelected ? '#cfe2ff' : '', cursor: session ? 'default' : 'pointer' }}
+                            onClick={() => handleSlotClick(day, hour, session)}
+                            style={{ 
+                                backgroundColor: isExistingSelect ? '#fff3cd' : (isSelected ? '#cfe2ff' : ''), 
+                                cursor: 'pointer' 
+                            }}
                           >
                             {session ? (
-                              <div className="h-100 border-start border-4 border-primary bg-white shadow-sm p-2 rounded text-start" style={{ fontSize: '0.8rem' }}>
+                              <div className={`h-100 border-start border-4 ${isExistingSelect ? 'border-warning' : 'border-primary'} bg-white shadow-sm p-2 rounded text-start`} style={{ fontSize: '0.8rem' }}>
                                 <div className="fw-bold text-primary text-truncate">{session.moduleName}</div>
                                 <div className="small text-dark"><strong>P:</strong> {session.teacherName}</div>
                                 <Badge bg="secondary" className="fw-normal">Sala: {session.salaNome}</Badge>
@@ -265,66 +335,84 @@ const TurmaScheduleAdmin = () => {
         </Card.Body>
       </Card>
 
-      {/* --- MODAL --- */}
-      <Modal show={showBookingModal} onHide={() => setShowBookingModal(false)} size="lg" centered>
-        <Modal.Header closeButton className="bg-success text-white">
-          <Modal.Title>Finalize Schedule</Modal.Title>
+      {/* --- MODAL (CREATE/EDIT) --- */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
+        <Modal.Header closeButton className={isEditMode ? "bg-warning text-dark" : "bg-success text-white"}>
+          <Modal.Title>
+            {isEditMode ? <><FaEdit className="me-2"/> Edit Session</> : <><FaCalendarPlus className="me-2"/> Finalize Schedule</>}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light">
+          
+          {/* Current Info Summary (Very helpful for users) */}
+          {isEditMode && currentSessionDetails && (
+            <div className="mb-4 p-3 border rounded bg-white shadow-sm border-warning">
+              <h6 className="text-warning fw-bold mb-2 small text-uppercase">Current Session Details</h6>
+              <Row className="g-3">
+                <Col sm={6}><small className="text-muted"><FaClock className="me-1"/> Time:</small> <div className="fw-bold">{format(parseISO(currentSessionDetails.dateTime), 'PPPPp')}</div></Col>
+                <Col sm={6}><small className="text-muted"><FaBookOpen className="me-1"/> Module:</small> <div className="fw-bold">{currentSessionDetails.moduleName}</div></Col>
+                <Col sm={6}><small className="text-muted"><FaChalkboardTeacher className="me-1"/> Teacher:</small> <div className="fw-bold">{currentSessionDetails.teacherName}</div></Col>
+                <Col sm={6}><small className="text-muted"><FaDoorOpen className="me-1"/> Room:</small> <div className="fw-bold">{currentSessionDetails.salaNome}</div></Col>
+              </Row>
+            </div>
+          )}
+
           <h5 className="mb-3">1. Select Teacher & Module</h5>
-          {suggestions.length === 0 ? (
-            <Alert variant="warning" className="shadow-sm border-start border-4 border-warning">
-              <Alert.Heading className="h6 fw-bold">No Teachers Available</Alert.Heading>
-              <p className="small mb-0">No assigned teachers are available for the entire selected slot range ({selectedSlots.length} slots).</p>
-            </Alert>
+          {suggestions.length === 0 && !isEditMode ? (
+            <Alert variant="warning">No suggestions available for this range.</Alert>
           ) : (
-            <ListGroup className="shadow-sm mb-4">
+            <ListGroup className="shadow-sm mb-4" style={{maxHeight: '200px', overflowY: 'auto'}}>
               {suggestions.map((s, idx) => (
                 <ListGroup.Item 
                   key={idx} 
                   action 
-                  active={selectedSuggestion === s}
+                  active={selectedSuggestion?.teacherId === s.teacherId && selectedSuggestion?.moduleId === s.moduleId}
                   onClick={() => setSelectedSuggestion(s)}
-                  className="d-flex justify-content-between align-items-center"
                 >
-                  <div>
-                    <div className="fw-bold">{s.moduleName}</div>
-                    <div className="small opacity-75">{s.teacherName}</div>
-                  </div>
-                  <div className="text-end">
-                     <Badge bg="success" className="me-1">{s.hoursCompleted}h Done</Badge>
-                     <Badge bg="warning" text="dark">{(s.totalDuration - s.hoursCompleted)}h Left</Badge>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="fw-bold">{s.moduleName}</span>
+                    <span className="small">P: {s.teacherName}</span>
                   </div>
                 </ListGroup.Item>
               ))}
             </ListGroup>
           )}
 
-          {selectedSuggestion && suggestions.length > 0 && (
-            <div className="bg-white p-3 rounded border shadow-sm animate__animated animate__fadeIn">
-              <h5 className="mb-3">2. Choose Room & Confirm</h5>
-              <Row className="align-items-end">
-                <Col md={8}>
-                  <Form.Group>
-                    <Form.Label className="small fw-bold">Available Rooms (Slot-Safe)</Form.Label>
-                    <Form.Select value={selectedRoomId} onChange={(e) => setSelectedRoomId(e.target.value)}>
-                      <option value="">-- Select a Room --</option>
-                      {availableRooms.map(room => (
-                        <option key={room.id} value={room.id}>
-                          {room.nome} {room.temPcs ? '💻' : ''} {room.temOficina ? '🛠️' : ''}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Button variant="success" className="w-100 py-2" disabled={!selectedRoomId || bookingLoading} onClick={handleConfirmBooking}>
-                    {bookingLoading ? <Spinner size="sm" /> : <><FaCheckCircle className="me-2"/> Confirm Bulk</>}
+          <div className="bg-white p-3 rounded border shadow-sm">
+            <h5 className="mb-3">2. Choose Room & Confirm</h5>
+            <Row>
+              <Col xs={12} className="mb-3">
+                <Form.Label className="small fw-bold text-muted text-uppercase">Room Selection</Form.Label>
+                <Form.Select 
+                  value={selectedRoomId} 
+                  onChange={(e) => setSelectedRoomId(e.target.value)}
+                >
+                  <option value="">-- Select a Room --</option>
+                  {availableRooms.map(room => (
+                    <option key={room.id} value={room.id}>{room.nome}</option>
+                  ))}
+                </Form.Select>
+              </Col>
+            </Row>
+            
+            <Row>
+              <Col className="d-flex justify-content-end gap-2">
+                {isEditMode && (
+                  <Button variant="danger" onClick={handleDelete} disabled={modalLoading}>
+                    <FaTrash className="me-2" /> Delete
                   </Button>
-                </Col>
-              </Row>
-            </div>
-          )}
+                )}
+                <Button 
+                  variant={isEditMode ? "warning" : "success"} 
+                  onClick={handleSave} 
+                  disabled={!selectedRoomId || !selectedSuggestion || modalLoading}
+                  className={isEditMode ? "text-dark fw-bold" : ""}
+                >
+                  {modalLoading ? <Spinner size="sm" /> : isEditMode ? 'Update Session' : 'Confirm Booking'}
+                </Button>
+              </Col>
+            </Row>
+          </div>
         </Modal.Body>
       </Modal>
     </Container>

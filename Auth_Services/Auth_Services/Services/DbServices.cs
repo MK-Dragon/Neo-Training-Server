@@ -3482,6 +3482,60 @@ namespace Auth_Services.Services
             }
         }
 
+        // Get SINGLE Schedule Entry
+        public async Task<ScheduleDetailsDTO> GetScheduleDetails(int turmaId, DateTime dateTime)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                s.schedule_id,
+                s.turma_id,
+                t.turma_name,
+                s.module_id,
+                m.name AS module_name,
+                s.formador_id AS teacher_id,
+                u.username AS teacher_name,
+                s.sala_id,
+                sl.sala_nome,
+                s.date_time
+            FROM schedules s
+            INNER JOIN turmas t ON s.turma_id = t.turma_id
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN users u ON s.formador_id = u.user_id
+            INNER JOIN salas sl ON s.sala_id = sl.sala_id
+            WHERE s.turma_id = @turmaId 
+              AND s.date_time = @dateTime 
+            LIMIT 1;";
+
+                var parameters = new[] {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@dateTime", dateTime)
+        };
+
+                var results = await GetDataAsync<ScheduleDetailsDTO>(query, reader => new ScheduleDetailsDTO
+                {
+                    ScheduleId = reader.GetInt32("schedule_id"),
+                    TurmaId = reader.GetInt32("turma_id"),
+                    TurmaName = reader.GetString("turma_name"),
+                    ModuleId = reader.GetInt32("module_id"),
+                    ModuleName = reader.GetString("module_name"),
+                    TeacherId = reader.GetInt32("teacher_id"),
+                    TeacherName = reader.GetString("teacher_name"),
+                    SalaId = reader.GetInt32("sala_id"),
+                    SalaNome = reader.GetString("sala_nome"),
+                    DateTime = reader.GetDateTime("date_time")
+                }, parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving schedule details: {ex.Message}");
+                return null;
+            }
+        }
+
         // Update
         public async Task<string> UpdateSchedule(ScheduleDetailsDTO request)
         {

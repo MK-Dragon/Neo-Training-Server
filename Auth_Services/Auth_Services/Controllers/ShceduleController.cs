@@ -103,6 +103,28 @@ namespace Auth_Services.Controllers
             }
         }
 
+        [HttpGet("details")]
+        public async Task<IActionResult> GetDetails([FromQuery] int turmaId, [FromQuery] DateTime dateTime)
+        {
+            if (turmaId <= 0) return BadRequest("Invalid Turma ID.");
+
+            try
+            {
+                var details = await _dbServices.GetScheduleDetails(turmaId, dateTime);
+
+                if (details == null)
+                {
+                    return NotFound(new { message = "No schedule entry found for this turma at the specified time." });
+                }
+
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error.", details = ex.Message });
+            }
+        }
+
         // Update Entry
         [HttpPut("update-schedule")]
         public async Task<IActionResult> UpdateSchedule([FromBody] ScheduleDetailsDTO request)
