@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 
+const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+
 function NavBar() {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
@@ -19,7 +21,7 @@ function NavBar() {
     closeNav();
     const token = localStorage.getItem('token');
     try {
-      await fetch('https://localhost:7089/api/Api/logout', {
+      await fetch(`https://${ServerIP}/api/Api/logout`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
@@ -66,6 +68,9 @@ function NavBar() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="me-auto">
               <Nav.Link as={Link} to="/" onClick={closeNav}>Dashboard</Nav.Link>
+
+              {/* Note: Pages for all Users */}
+              <Nav.Link as={Link} to="/UpcomingCourses" onClick={closeNav}>Upcoming Courses</Nav.Link>
               
               {userRole === 'Admin' && (
                 <NavDropdown 

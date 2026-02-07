@@ -46,6 +46,7 @@ import StudentReport from './pages/StudentReport.jsx'; // for Students
 
 // Enroll Students
 import EnrollmentManagement from './pages/EnrollmentManagement.jsx';
+import UpcomingCourses from './pages/UpcomingCourses.jsx';
 
 
 
@@ -100,6 +101,8 @@ function NavigationWrapper() {
 
           {/* Enroll Students */}
           <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />
+          <Route path="/UpcomingCourses" element={<ProtectedRoute><UpcomingCourses /></ProtectedRoute>} />
+
 
           {/* Catch-all: Redirect to Home or 404 */}
           <Route path="*" element={<ProtectedRoute><Home /></ProtectedRoute>} />

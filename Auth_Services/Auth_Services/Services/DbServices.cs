@@ -1645,6 +1645,33 @@ namespace Auth_Services.Services
             }
         }
 
+        // * Courses Starting in 60 days! GetUpcomingCourses
+        public async Task<List<CoursesStarting>> GetUpcomingCourses()
+        {
+            const string query = @"
+        SELECT 
+            c.id_cursos AS Id, 
+            c.nome_curso AS Name, 
+            c.duration AS durationInHours, 
+            c.level AS Level, 
+            t.date_start AS DateStart
+        FROM courses c
+        INNER JOIN turmas t ON c.id_cursos = t.course_id
+        WHERE c.isDeleted = 0 
+          AND t.isDeleted = 0
+          AND t.date_start BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 60 DAY)
+        ORDER BY t.date_start ASC;";
+
+            return await GetDataAsync<CoursesStarting>(query, reader => new CoursesStarting
+            {
+                Id = Convert.ToInt32(reader["Id"]),
+                Name = reader["Name"].ToString(),
+                durationInHours = Convert.ToInt32(reader["durationInHours"]),
+                Level = reader["Level"] != DBNull.Value ? reader["Level"].ToString() : null,
+                DateStart = reader["DateStart"] != DBNull.Value ? Convert.ToDateTime(reader["DateStart"]) : null
+            });
+        }
+
 
 
 

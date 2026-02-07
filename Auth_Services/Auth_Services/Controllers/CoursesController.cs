@@ -169,7 +169,26 @@ namespace Auth_Services.Controllers
         }
 
 
+        // * Courses Starting in 60 days!
+        [HttpGet("upcoming")]
+        public async Task<IActionResult> GetUpcomingCourses()
+        {
+            try
+            {
+                var courses = await _dbServices.GetUpcomingCourses();
 
+                if (courses == null || courses.Count == 0)
+                {
+                    return Ok(new List<Course>()); // Return empty list instead of 404
+                }
+
+                return Ok(courses);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
 

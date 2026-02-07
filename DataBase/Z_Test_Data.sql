@@ -150,6 +150,9 @@ INSERT INTO `disponibilidades` (`formador_id`, `disponivel`, `data_hora`) VALUES
 (3, 1, '2026-02-01 09:00:00'),
 (4, 1, '2026-02-01 09:00:00');
 
+INSERT INTO `turma_modules` (`turma_id`,`module_id`, `teacher_id`) VALUES
+(6,4,11);
+
 -- 13. Schedules (NEW: The updated schedule table)
 INSERT INTO `schedules` (`turma_id`, `module_id`, `formador_id`, `sala_id`, `date_time`) VALUES 
 (1, 1, 3, 1, '2026-02-01 09:00:00'), -- Class A, Backend, Bob, Lab 1
