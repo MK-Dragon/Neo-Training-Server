@@ -103,7 +103,7 @@ builder.Services.AddSwaggerGen();
 
 
 
-/*/ cors policy
+// cors policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -111,14 +111,14 @@ builder.Services.AddCors(options =>
             .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod());
-});*/
+});
 
-builder.Services.AddCors(options => {
+/*builder.Services.AddCors(options => {
     options.AddPolicy("AllowVite",
         policy => policy.WithOrigins("http://localhost:5173") // Vite URL
                         .AllowAnyMethod()
                         .AllowAnyHeader());
-});
+});*/
 
 
 
@@ -129,7 +129,8 @@ app.UseHttpsRedirection();
 
 app.UseRouting();
 
-app.UseCors("AllowVite");
+app.UseCors("AllowFrontend");
+//app.UseCors("AllowVite");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
