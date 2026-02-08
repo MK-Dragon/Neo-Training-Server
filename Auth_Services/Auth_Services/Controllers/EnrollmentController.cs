@@ -112,6 +112,20 @@ namespace Auth_Services.Controllers
             }
         }
 
+        // * Turmas Reciving Students:
+        [HttpGet("GetTurmaToEnrollStudents")]
+        public async Task<IActionResult> GetActiveTurmasReport()
+        {
+            try
+            {
+                var turmas = await _dbServices.GetTurmaToEnrollStudents();
+                return Ok(turmas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
     } // The End

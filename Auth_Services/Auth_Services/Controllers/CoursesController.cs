@@ -179,7 +179,7 @@ namespace Auth_Services.Controllers
 
                 if (courses == null || courses.Count == 0)
                 {
-                    return Ok(new List<Course>()); // Return empty list instead of 404
+                    return Ok(new List<CoursesStarting>()); // Return empty list instead of 404
                 }
 
                 return Ok(courses);

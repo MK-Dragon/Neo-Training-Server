@@ -15,10 +15,10 @@ Google;
 
     ✅h. Pesquisa de formador
     i. Lista cursos a decorrer
-    j. Lista de cursos a iniciar nos próximos 60 dias
-    k. Consulta rápida de um horário de determinada turma, podendo
+    ✅j. Lista de cursos a iniciar nos próximos 60 dias
+    ✅k. Consulta rápida de um horário de determinada turma, podendo
     filtrar por intervalos de tempo;
-    l. Consulta rápida do horário de determinado formador, podendo
+    ✅l. Consulta rápida do horário de determinado formador, podendo
     filtrar por intervalos de tempo;
     m. Consulta rápida da alocação de determinada sala, para um
     determinado dia selecionado.

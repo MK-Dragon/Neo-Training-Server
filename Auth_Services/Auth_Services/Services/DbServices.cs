@@ -1650,25 +1650,27 @@ namespace Auth_Services.Services
         {
             const string query = @"
         SELECT 
-            c.id_cursos AS Id, 
-            c.nome_curso AS Name, 
+            t.turma_id AS TurmaId,
+            c.id_cursos AS CourseId, 
+            c.nome_curso AS CourseName, 
             c.duration AS durationInHours, 
             c.level AS Level, 
             t.date_start AS DateStart
         FROM courses c
         INNER JOIN turmas t ON c.id_cursos = t.course_id
         WHERE c.isDeleted = 0 
-          AND t.isDeleted = 0
+          AND t.isDeleted = 0 
           AND t.date_start BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 60 DAY)
         ORDER BY t.date_start ASC;";
 
             return await GetDataAsync<CoursesStarting>(query, reader => new CoursesStarting
             {
-                Id = Convert.ToInt32(reader["Id"]),
-                Name = reader["Name"].ToString(),
+                TurmaId = Convert.ToInt32(reader["TurmaId"]),
+                CourseId = Convert.ToInt32(reader["CourseId"]),
+                CourseName = reader["CourseName"].ToString(),
                 durationInHours = Convert.ToInt32(reader["durationInHours"]),
                 Level = reader["Level"] != DBNull.Value ? reader["Level"].ToString() : null,
-                DateStart = reader["DateStart"] != DBNull.Value ? Convert.ToDateTime(reader["DateStart"]) : null
+                DateStart = reader["DateStart"] != DBNull.Value ? Convert.ToDateTime(reader["DateStart"]) : (DateTime?)null
             });
         }
 
@@ -2219,6 +2221,48 @@ namespace Auth_Services.Services
                 return false;
             }
         }
+
+        // * turmas ready to recive students
+        public async Task<List<TurmaToEnrollStudents>> GetTurmaToEnrollStudents()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                t.turma_id AS Id,
+                t.turma_name AS Name,
+                t.date_start AS StartDate,
+                t.date_end AS EndDate,
+                c.id_cursos AS CourseId,
+                c.nome_curso AS CourseName,
+                COUNT(e.id_enrollment) AS StudentCount
+            FROM turmas t
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            LEFT JOIN enrollments e ON t.turma_id = e.turma_id AND e.isDeleted = 0
+            WHERE t.isDeleted = 0
+              AND t.date_start >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+              AND t.date_end > DATE_ADD(NOW(), INTERVAL 60 DAY)
+            GROUP BY t.turma_id, c.id_cursos
+            ORDER BY t.date_start ASC;";
+
+                return await GetDataAsync<TurmaToEnrollStudents>(query, reader => new TurmaToEnrollStudents
+                {
+                    TurmaId = Convert.ToInt32(reader["Id"]),
+                    TurmaName = reader["Name"].ToString(),
+                    StartDate = reader["StartDate"] != DBNull.Value ? Convert.ToDateTime(reader["StartDate"]) : null,
+                    EndDate = reader["EndDate"] != DBNull.Value ? Convert.ToDateTime(reader["EndDate"]) : null,
+                    CourseId = Convert.ToInt32(reader["CourseId"]),
+                    CourseName = reader["CourseName"].ToString(),
+                    StudentCount = Convert.ToInt32(reader["StudentCount"])
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching Turma report: {ex.Message}");
+                return new List<TurmaToEnrollStudents>();
+            }
+        }
+
 
 
 
@@ -4177,6 +4221,111 @@ namespace Auth_Services.Services
             {
                 Console.WriteLine($"Error fetching user image: {ex.Message}");
                 return (null, null);
+            }
+        }
+
+
+
+
+        // ** Pre Enrollment **
+
+        // Pre Enroll Student
+        public async Task<bool> PreEnrollStudent(int userId, int turmaId)
+        {
+            try
+            {
+                const string query = @"
+            INSERT INTO pre_enrollment (student_id, turma_id)
+            SELECT u.user_id, @turmaId
+            FROM users u
+            INNER JOIN user_roles r ON u.role_id = r.role_id
+            WHERE u.user_id = @userId 
+              AND r.title = 'student' 
+              AND u.isDeleted = 0 
+              AND u.activeted = 1
+            LIMIT 1;";
+
+                var parameters = new[] {
+            new MySqlParameter("@userId", userId),
+            new MySqlParameter("@turmaId", turmaId)
+        };
+
+                int rowsAffected = await ExecuteNonQueryAsync(query, parameters);
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Pre-enrollment error: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Get Pending Studnets ^_^
+        public async Task<List<PendingEnrollmentDTO>> GetPendingEnrollments()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                p.pre_enroll_id AS PreEnrollId,
+                u.user_id AS StudentId,
+                u.username AS StudentName,
+                u.email AS StudentEmail,
+                t.turma_id AS TurmaId,
+                t.turma_name AS TurmaName,
+                c.nome_curso AS CourseName,
+                t.date_start AS StartDate
+            FROM pre_enrollment p
+            INNER JOIN users u ON p.student_id = u.user_id
+            INNER JOIN turmas t ON p.turma_id = t.turma_id
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            WHERE p.isDeleted = 0 
+              AND u.isDeleted = 0
+            ORDER BY t.date_start ASC;";
+
+                return await GetDataAsync<PendingEnrollmentDTO>(query, reader => new PendingEnrollmentDTO
+                {
+                    PreEnrollId = Convert.ToInt32(reader["PreEnrollId"]),
+                    StudentId = Convert.ToInt32(reader["StudentId"]),
+                    StudentName = reader["StudentName"].ToString(),
+                    StudentEmail = reader["StudentEmail"].ToString(),
+                    TurmaId = Convert.ToInt32(reader["TurmaId"]),
+                    TurmaName = reader["TurmaName"].ToString(),
+                    CourseName = reader["CourseName"].ToString(),
+                    StartDate = reader["StartDate"] != DBNull.Value ? Convert.ToDateTime(reader["StartDate"]) : (DateTime?)null
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching pending enrollments: {ex.Message}");
+                return new List<PendingEnrollmentDTO>();
+            }
+        }
+
+        // clean up pre-enrollments for a student
+        public async Task<bool> ClearUserPreEnrollments(int userId)
+        {
+            try
+            {
+                // We set isDeleted = 1 for all entries belonging to this student
+                const string query = @"
+            UPDATE pre_enrollment 
+            SET isDeleted = 1 
+            WHERE student_id = @userId AND isDeleted = 0;";
+
+                var parameters = new[] {
+            new MySqlParameter("@userId", userId)
+        };
+
+                int rowsAffected = await ExecuteNonQueryAsync(query, parameters);
+
+                // We return true if at least one record was cleaned up
+                return rowsAffected >= 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cleaning up pre-enrollments: {ex.Message}");
+                return false;
             }
         }
 

@@ -352,6 +352,31 @@ CREATE TABLE IF NOT EXISTS `mydb`.`summaries` (
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- Table `mydb`.`pre_enrollment`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`pre_enrollment` (
+  `pre_enroll_id` INT NOT NULL AUTO_INCREMENT,
+  `student_id` INT NOT NULL,
+  `turma_id` INT NOT NULL,
+  `isDeleted` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`pre_enroll_id`),
+  INDEX `student_id_pre_enroll_idx` (`student_id` ASC) VISIBLE,
+  INDEX `course_turma_choosen_idx` (`turma_id` ASC) VISIBLE,
+  UNIQUE INDEX `user_turma_only_once` (`student_id` ASC, `turma_id` ASC) VISIBLE,
+  CONSTRAINT `student_id_pre_enroll`
+    FOREIGN KEY (`student_id`)
+    REFERENCES `mydb`.`users` (`user_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `course_turma_choosen`
+    FOREIGN KEY (`turma_id`)
+    REFERENCES `mydb`.`turmas` (`turma_id`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

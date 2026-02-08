@@ -25,7 +25,15 @@ INSERT INTO `users` (`username`, `email`, `pass_hash`, `role_id`, `activeted`, `
 ('Pacheco', 'v.doe@example.com', 'hash', 2, 1, '2002-01-25'), -- 11
 ('Vitor_teacher', 'v_teacher.doe@example.com', 'hash', 2, 1, '2002-01-25'),
 ('Maria', 'ma.doe@example.com', 'hash', 2, 1, '2002-01-25'),
-('Dario', 'dario.teacher@example.com', 'hash', 2, 1, '2001-11-30'); -- 14
+('Dario', 'dario.teacher@example.com', 'hash', 2, 1, '2001-11-30'), -- 14
+-- More Students for enrolment
+('Zé da Esquina', 'z1.doe@example.com', 'hash', 3, 1, '2002-01-25'), -- 15
+('Maria da Esquina', 'm1.doe@example.com', 'hash', 3, 1, '2002-01-25'),
+('Ricardo da Esquina', 'r1.doe@example.com', 'hash', 3, 1, '2002-01-25'), -- 17
+('Carlos da Esquina', 'c1.doe@example.com', 'hash', 3, 1, '2002-01-25'),
+('Zelia da Esquina', 'ze1.doe@example.com', 'hash', 3, 1, '2002-01-25') -- 19
+;
+
 
 -- 3. Audit Log
 INSERT INTO `audit` (`user_id`, `token`, `created_at`, `expires_at`, `platform`, `ip_address`) VALUES  
@@ -35,7 +43,8 @@ INSERT INTO `audit` (`user_id`, `token`, `created_at`, `expires_at`, `platform`,
 INSERT INTO `courses` (`nome_curso`, `duration`, `level`) VALUES  
 ('Full Stack Development', 1200, 'Advanced'),
 ('Digital Marketing 101', 600, 'Beginner'),
-('TPSI', 2000, 'Advanced');
+('TPSI', 2000, 'Advanced'),
+('FSD', 2000, 'Advanced');
 
 -- 5. Turmas (Classes)
 INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUES  
@@ -44,8 +53,13 @@ INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUE
 ('FS-2026-B-LIVE', 1, '2026-01-01', '2026-05-30'),
 ('DM-WORKSHOP-OPEN', 2, '2026-02-01', NULL),
 ('FS-2026-CRASH', 1, '2026-01-10', '2026-02-05'),
-('TPS 05 25', 3, '2026-01-10', '2026-05-05'); -- 6
+('TPS 05 25', 3, '2026-01-10', '2026-05-05'), -- 6
 
+-- Upcoming Turmas/Courses 60 days:
+('TPS 02 26', 3, '2026-02-20', '2027-05-05'), -- 7
+('TPS 03 26', 3, '2026-03-10', '2027-05-25'), -- 8
+('FSD 02 26', 4, '2026-02-15', '2027-06-16') -- 9
+;
 -- 6. Modules
 INSERT INTO `modules` (`name`, `duration_h`) VALUES  
 ('Backend Logic', 45),
@@ -67,6 +81,7 @@ INSERT INTO `course_modules` (`course_id`, `module_id`, `order_index`) VALUES
 (1, 1, 1), 
 (1, 2, 2), 
 (2, 3, 1),
+-- TPSI
 -- tiar 1
 (3, 5, 1), -- c/c++ (4)
 (3, 7, 1), -- python
@@ -81,7 +96,24 @@ INSERT INTO `course_modules` (`course_id`, `module_id`, `order_index`) VALUES
 (3, 13, 4), -- kali
 -- tiar 5
 (3, 8, 5), -- Java (12)
-(3, 10, 5) -- Android
+(3, 10, 5), -- Android
+
+-- FSD
+-- tiar 1
+(4, 5, 1), -- c/c++ (4)
+(4, 7, 1), -- python
+-- tiar 2
+(4, 9, 2), -- JavaScript (6)
+(4, 11, 2), -- HTML
+-- tiar 3
+(4, 4, 3), -- c# (8)
+(4, 6, 3), -- react
+-- tiar 4
+(4, 2, 4), -- UI/UX (10)
+(4, 3, 4), -- social media
+-- tiar 5
+(4, 1, 5), -- Backend (12)
+(4, 10, 5) -- Android
 ; 
 
 -- 8. Formador Teaches Module (NEW: Certifying teachers for specific subjects)
@@ -122,10 +154,27 @@ INSERT INTO `enrollments` (`student_id`, `turma_id`, `enrollment_date`) VALUES
 (5, 1, '2026-01-02'),
 (6, 1, '2026-01-03'),
 -- TPSI
-(7, 1, '2026-01-03'),
-(8, 1, '2026-01-03'),
-(9, 1, '2026-01-03'),
-(10, 1, '2026-01-03');
+(7, 6, '2026-01-03'),
+(8, 6, '2026-01-03');
+-- (9, 6, '2026-01-03'),
+-- (10, 6, '2026-01-03');
+
+INSERT INTO `pre_enrollment` (`student_id`, `turma_id`) VALUES  
+(9, 6), -- TPSI 1st
+(10, 9), -- FSD 1st
+(9, 7), -- TPSI_2 2nd 
+(10, 7), -- TPSI_2 2nd
+-- extra TPSI_2 1st choice
+(15, 7), -- Ze
+(16, 7), -- Maria
+-- FSD 1st
+(17, 9), -- Ricardo
+(18, 9), -- Carlos
+-- FSD 2nd
+(15, 9), -- ze 
+(16, 9), -- Maria
+-- only 1st TPSI 3
+(19, 8); -- Zelia
 
 -- 10. Student Grades (NEW: Assigning grades per module for enrolled students)
 INSERT INTO `student_grades` (`id_enrollment`, `module_id`, `grade`) VALUES 
