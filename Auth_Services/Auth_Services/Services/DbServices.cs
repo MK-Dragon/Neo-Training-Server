@@ -2240,7 +2240,7 @@ namespace Auth_Services.Services
             INNER JOIN courses c ON t.course_id = c.id_cursos
             LEFT JOIN enrollments e ON t.turma_id = e.turma_id AND e.isDeleted = 0
             WHERE t.isDeleted = 0
-              AND t.date_start >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+              AND t.date_start >= DATE_SUB(NOW(), INTERVAL 40 DAY)
               AND t.date_end > DATE_ADD(NOW(), INTERVAL 60 DAY)
             GROUP BY t.turma_id, c.id_cursos
             ORDER BY t.date_start ASC;";

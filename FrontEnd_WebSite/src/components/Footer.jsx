@@ -1,6 +1,12 @@
 // /src/components/Footer.jsx
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
+const USER_GitHub = import.meta.env.VITE_USER_GITHUB;
+const USER_LinkedIn = import.meta.env.VITE_USER_LINKEDIN;
+
+// "https://linkedin.com/in/my-username"
+// "https://github.com/my-username" 
+
 function Footer() {
   return (
     <>
@@ -23,7 +29,7 @@ function Footer() {
             <div className="col-md-6 text-center text-md-end">
               <div className="social-icons fs-3">
                 <a 
-                  href="https://github.com/my-username" 
+                  href={USER_GitHub}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-dark me-4" 
@@ -32,7 +38,7 @@ function Footer() {
                   <i className="bi bi-github"></i>
                 </a>
                 <a 
-                  href="https://linkedin.com/in/my-username" 
+                  href={USER_LinkedIn} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-dark" 
