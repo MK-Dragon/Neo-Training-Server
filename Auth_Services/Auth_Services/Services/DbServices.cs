@@ -1,6 +1,5 @@
 ﻿// DbServices.cs
 
-using Auth_Services.Controllers;
 using Auth_Services.DTOs;
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
@@ -2867,6 +2866,8 @@ namespace Auth_Services.Services
             }
         }
 
+
+
         // ** Teacher to Turma Module **
 
         public async Task<bool> AssignTeacherToModule(AssignTeacherToTurmaModule assignment)
@@ -3360,6 +3361,7 @@ namespace Auth_Services.Services
                 return new List<TurmaDTO>();
             }
         }
+
 
 
         // ** Shedule **
@@ -3972,6 +3974,7 @@ namespace Auth_Services.Services
                 return new List<TurmaScheduleDetailDTO>();
             }
         }
+
 
 
         // ** Additional Teacher-Module-Turma **
@@ -4620,6 +4623,74 @@ namespace Auth_Services.Services
         }
 
 
+        // Teacher CV Modules
+        public async Task<List<Module>> GetModulesTaughtByTeacher(int teacherId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT DISTINCT
+                m.module_id AS Id,
+                m.name AS Name,
+                m.duration_h AS DurationInHours,
+                m.isDeleted AS isDeleted
+            FROM modules m
+            INNER JOIN schedules s ON m.module_id = s.module_id
+            WHERE s.formador_id = @teacherId 
+              AND s.date_time <= NOW()
+              AND m.isDeleted = 0;";
+
+                var parameters = new[] {
+            new MySqlParameter("@teacherId", teacherId)
+        };
+
+                return await GetDataAsync<Module>(query, reader => new Module
+                {
+                    Id = Convert.ToInt32(reader["Id"]),
+                    Name = reader["Name"].ToString(),
+                    DurationInHours = Convert.ToInt32(reader["DurationInHours"]),
+                    isDeleted = Convert.ToInt32(reader["isDeleted"])
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving teacher modules: {ex.Message}");
+                return new List<Module>();
+            }
+        }
+
+        // Teacher CV Courses
+        public async Task<List<CourseBasicDTO>> GetCoursesTaughtByTeacher(int teacherId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT DISTINCT
+                c.id_cursos AS Id,
+                c.nome_curso AS Name
+            FROM courses c
+            INNER JOIN turmas t ON c.id_cursos = t.course_id
+            INNER JOIN schedules s ON t.turma_id = s.turma_id
+            WHERE s.formador_id = @teacherId 
+              AND s.date_time <= NOW()
+              AND c.isDeleted = 0;";
+
+                var parameters = new[] {
+            new MySqlParameter("@teacherId", teacherId)
+        };
+
+                return await GetDataAsync<CourseBasicDTO>(query, reader => new CourseBasicDTO
+                {
+                    CourseId = Convert.ToInt32(reader["Id"]),
+                    CourseName = reader["Name"].ToString()
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving teacher's courses: {ex.Message}");
+                return new List<CourseBasicDTO>();
+            }
+        }
 
 
 

@@ -1,4 +1,4 @@
-﻿namespace Auth_Services.Controllers
+﻿namespace Auth_Services.DTOs
 {
     public class TeacherProfileDTO
     {

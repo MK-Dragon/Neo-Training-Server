@@ -73,7 +73,7 @@ const DashboardStats = () => {
             <Row className="g-4 mb-5">
                 <Col md={3}>
                     <StatCard 
-                        title="Active Students (ok)" 
+                        title="Active Students" 
                         value={ongoingStats?.totalActiveStudents} 
                         iconClass="bi-people-fill text-primary" 
                         subtitle="Current student headcount"
@@ -89,7 +89,7 @@ const DashboardStats = () => {
                 </Col>
                 <Col md={3}>
                     <StatCard 
-                        title="Finished Courses/Turmas (ok)" 
+                        title="Finished Courses/Turmas" 
                         value={statusSummary?.finishedTurmas} 
                         iconClass="bi-check2-circle text-secondary" 
                         subtitle="Archive history"

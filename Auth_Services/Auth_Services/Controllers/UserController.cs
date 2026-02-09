@@ -168,7 +168,7 @@ namespace Auth_Services.Controllers
         [HttpGet("student-profile/{userId}")]
         public async Task<IActionResult> GetStudentProfile(int userId)
         {
-            var profile = await _dbServices.GetStudentProfile(userId);
+            var profile = await _dbServices.GetStudentProfile(userId); // StudentProfileDTO
 
             if (profile == null)
             {
@@ -181,7 +181,7 @@ namespace Auth_Services.Controllers
         [HttpGet("teacher-profile/{userId}")]
         public async Task<IActionResult> GetTeacherProfile(int userId)
         {
-            var profile = await _dbServices.GetTeacherProfile(userId);
+            var profile = await _dbServices.GetTeacherProfile(userId); // TeacherProfileDTO
 
             if (profile == null)
             {

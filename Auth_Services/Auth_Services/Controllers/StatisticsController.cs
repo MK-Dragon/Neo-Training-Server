@@ -120,5 +120,45 @@ namespace Auth_Services.Controllers
             }
         }
 
+
+        // Modules a Teacher Taught
+        [HttpGet("modules-history/{teacherId}")]
+        public async Task<IActionResult> GetTeacherModules(int teacherId)
+        {
+            if (teacherId <= 0) return BadRequest("Invalid Teacher ID.");
+
+            try
+            {
+                var modules = await _dbServices.GetModulesTaughtByTeacher(teacherId); // List<Module>
+                return Ok(modules);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // Courses Teacher Taught in
+        [HttpGet("courses-history/{teacherId}")]
+        public async Task<IActionResult> GetTeacherCourses(int teacherId)
+        {
+            if (teacherId <= 0) return BadRequest("Invalid Teacher ID.");
+
+            try
+            {
+                var courses = await _dbServices.GetCoursesTaughtByTeacher(teacherId);
+
+                if (courses == null || courses.Count == 0)
+                    return Ok(new List<CourseBasicDTO>());
+
+                return Ok(courses);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+
     } // the end
 }

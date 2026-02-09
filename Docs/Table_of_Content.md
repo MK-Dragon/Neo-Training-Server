@@ -14,13 +14,13 @@ Google;
     ✅g. Pesquisa de formando
 
     ✅h. Pesquisa de formador
-    i. Lista cursos a decorrer
+    ✅i. Lista cursos a decorrer
     ✅j. Lista de cursos a iniciar nos próximos 60 dias
     ✅k. Consulta rápida de um horário de determinada turma, podendo
     filtrar por intervalos de tempo;
     ✅l. Consulta rápida do horário de determinado formador, podendo
     filtrar por intervalos de tempo;
-    m. Consulta rápida da alocação de determinada sala, para um
+    ✅m. Consulta rápida da alocação de determinada sala, para um
     determinado dia selecionado.
 ```
 
@@ -31,20 +31,20 @@ Google;
     ✅c. Gestão de cursos (Inserir, alterar, eliminar e consultar):
         ✅i. Distribuição dos módulos, por curso, por formador e por
     sala;
-    d. Gestão formandos (Inserir, alterar, eliminar e consultar):
+    ✅d. Gestão formandos (Inserir, alterar, eliminar e consultar):
         i. Deverá ser possível anexar ficheiros à ficha do formando;
-    e. Gestão formadores (Inserir, alterar, eliminar e consultar):
+    ✅e. Gestão formadores (Inserir, alterar, eliminar e consultar):
         i. Deverá ser possível anexar ficheiros à ficha do formador;
     ✅f. Criação de horários, garantindo a não sobreposição de aulas na
     mesma sala à mesma hora, a não alocação do mesmo formador
     em duas aulas ao mesmo tempo e garantindo que não se
     ultrapassa o nº máximo de horas do módulo, utilizando um
     mecanismo gráfico intuitivo, de preferência um calendário.
-    g. Exportação da ficha do formando para PDF, com fotografia, e com
+    ✅g. Exportação da ficha do formando para PDF, com fotografia, e com
     todos os cursos realizados e respetiva avaliação;
-    h. Exportação da ficha do formador para PDF, com fotografia, e lista
+    ✅h. Exportação da ficha do formador para PDF, com fotografia, e lista
     de todos os cursos/módulos lecionados até ao momento;
-    i. Apresentação de dados estatísticos:
+    ✅i. Apresentação de dados estatísticos:
         ✅i. Total de cursos terminados;
         ✅ii. Total de cursos a decorrer;
         ✅iii. Total de formandos a frequentar cursos no atual
