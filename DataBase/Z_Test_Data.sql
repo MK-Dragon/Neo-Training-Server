@@ -55,11 +55,11 @@ INSERT INTO `courses` (`nome_curso`, `duration`, `level`, `id_area`) VALUES
 
 -- 5. Turmas (Classes)
 INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUES  
-('FS-2025-CLOSED', 1, '2025-09-01', '2026-01-15'),
+('FS-2025-CLOSED-lastYear', 1, '2025-09-01', '2025-11-15'), -- more the 30 days ago
 ('DM-2026-SUMMER', 2, '2026-06-01', '2026-08-30'),
 ('FS-2026-B-LIVE', 1, '2026-01-01', '2026-05-30'),
-('DM-WORKSHOP-OPEN', 2, '2026-02-01', NULL),
-('FS-2026-CRASH', 1, '2026-01-10', '2026-02-05'),
+('DM-WORKSHOP-OPEN', 2, '2026-02-01', '2026-05-30'),
+('FS-2026-CRASH-endedLAST30Days', 1, '2026-01-10', '2026-02-05'),
 ('TPS 05 25', 3, '2026-01-10', '2026-05-05'), -- 6
 
 -- Upcoming Turmas/Courses 60 days:
