@@ -45,13 +45,13 @@ Google;
     h. Exportação da ficha do formador para PDF, com fotografia, e lista
     de todos os cursos/módulos lecionados até ao momento;
     i. Apresentação de dados estatísticos:
-        i. Total de cursos terminados;
-        ii. Total de cursos a decorrer;
-        iii. Total de formandos a frequentar cursos no atual
+        ✅i. Total de cursos terminados;
+        ✅ii. Total de cursos a decorrer;
+        ✅iii. Total de formandos a frequentar cursos no atual
     momento;
-        iv. Nº de cursos por área (Informática, Robótica, Electrónica,
+        ✅iv. Nº de cursos por área (Informática, Robótica, Electrónica,
     etc);
-        v. Top 10 de formadores com maior nº de horas lecionadas.
+        ✅v. Top 10 de formadores com maior nº de horas lecionadas.
 ```
 
 ## 3. Aplicação Mobile - 3 Valores

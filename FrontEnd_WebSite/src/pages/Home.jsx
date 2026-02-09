@@ -166,39 +166,43 @@ const Home = () => {
             <DashboardCard title="Course Management" text="Organize and edit course curriculum." link="/CourseManagement" icon="🎓" variant="dark" />
             <DashboardCard title="Module Management" text="Define and update academic modules." link="/ModuleManagement" icon="📚" variant="dark" />
 
-            <DashboardCard title="Enrollment Management" text="Register and track student enrollments." link="/EnrollmentManagement" icon="📋" variant="success" />
             <DashboardCard title="Teacher Assignments" text="Assign modules to specific teachers." link="/TeacherModuleManager" icon="🤝" variant="success" />
             <DashboardCard title="Turma Management" text="Manage class groups and scheduling." link="/TurmaManagement" icon="🏫" variant="success" />
+            <DashboardCard title="Teacher Availabilaty" text="Manage and override teacher availability and assignments." link="/AdminTeacherSchedule" icon="📅" variant="primary" />
+            
+            <DashboardCard title="Sala Management" text="Manage physical and virtual classrooms." link="/SalaManagement" icon="🏢" variant="primary" />
+          </Row>
+        </section>
+      )}
+
+      {/* --- Administration SECTION (ADMIN ONLY) --- */}
+      {isAdmin && (
+        <section className="mb-5">
+          <h3 className="mb-4 border-bottom pb-2">Administrative Management</h3>
+          <Row>
+
+            <DashboardCard title="Enrollment Management" text="Register and track student enrollments." link="/EnrollmentManagement" icon="📋" variant="success" />
 
             <DashboardCard 
               title="Turma Dashboard" 
-              text="Overview of all active classes and statistics." 
+              text="Control teacher curriculum assignments and Student Grades." 
               link="/turmadashboard" 
               icon="📊" 
               variant="primary" 
             />
-
-            <DashboardCard 
-              title="Sala Management" 
-              text="Manage physical and virtual classrooms." 
-              link="/SalaManagement" 
-              icon="🏢" 
-              variant="primary" 
-            />
-            <DashboardCard 
-              title="Teacher Availabilaty" 
-              text="Manage and override teacher availability and assignments." 
-              link="/AdminTeacherSchedule" 
-              icon="📅" 
-              variant="primary" 
-            />
-
             <DashboardCard 
               title="Turma Schedules" 
               text="Monitor weekly classroom and teacher distributions." 
               link="/TurmaScheduleAdmin" 
               icon="🗓️" 
               variant="success" 
+            />
+            <DashboardCard 
+              title="Turma Grade Report" 
+              text="View the academic performance of a Turma." 
+              icon="🏆" 
+              variant="info" 
+              link="/AdminReportDashboard" 
             />
           </Row>
         </section>

@@ -30,6 +30,7 @@ import TurmaManagement from './pages/TurmaManagement.jsx';
 import TeacherModuleManager from './pages/TeacherModuleManager.jsx';
 import AdminTeacherSchedule from './pages/AdminTeacherSchedule.jsx';
 import TurmaScheduleAdmin from './pages/TurmaScheduleAdmin.jsx';
+import DashboardStats from './pages/DashboardStats.jsx';
 
 // Teacher Management
 import TeacherAvailability from './pages/TeacherAvailability.jsx';
@@ -40,8 +41,9 @@ import StudentSchedule from './pages/StudentSchedule.jsx';
 import TeacherSchedule from './pages/TeacherSchedule.jsx';
 
 // Grades 
-import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins
+import ModuleGrades from './pages/ModuleGrades.jsx'; // for Teachers and Admins ??
 import StudentReport from './pages/StudentReport.jsx'; // for Students
+import AdminReportDashboard from './pages/AdminReportDashboard.jsx'; // for Admins only
 
 
 // Enroll Students
@@ -86,6 +88,7 @@ function NavigationWrapper() {
           <Route path="/TeacherModuleManager" element={<ProtectedRoute><TeacherModuleManager /></ProtectedRoute>} />
           <Route path="/AdminTeacherSchedule" element={<ProtectedRoute><AdminTeacherSchedule /></ProtectedRoute>} />
           <Route path="/TurmaScheduleAdmin" element={<ProtectedRoute><TurmaScheduleAdmin /></ProtectedRoute>} />
+          <Route path="/DashboardStats" element={<ProtectedRoute><DashboardStats /></ProtectedRoute>} />
 
           {/* Teacher Mangement */}
           <Route path="/TeacherAvailability" element={<ProtectedRoute><TeacherAvailability /></ProtectedRoute>} />
@@ -98,6 +101,7 @@ function NavigationWrapper() {
           {/* Grades */}
           <Route path="/turma/:turmaId/module/:moduleId/grades" element={<ProtectedRoute><ModuleGrades /></ProtectedRoute>} />
           <Route path="/student-report/:turmaId" element={<ProtectedRoute><StudentReport /></ProtectedRoute>} />
+          <Route path="/AdminReportDashboard" element={<ProtectedRoute><AdminReportDashboard /></ProtectedRoute>} />
 
           {/* Enroll Students */}
           <Route path="/EnrollmentManagement" element={<ProtectedRoute><EnrollmentManagement /></ProtectedRoute>} />

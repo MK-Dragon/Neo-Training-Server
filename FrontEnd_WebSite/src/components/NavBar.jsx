@@ -74,21 +74,34 @@ function NavBar() {
               
               {userRole === 'Admin' && (
                 <NavDropdown 
-                  title="Administration" 
+                  title="Management" 
                   id="admin-nav-dropdown" 
                   className="custom-nav-dropdown" // Applied the custom class
                 >
                   <NavDropdown.Item as={Link} to="/UserManagement" onClick={closeNav}>Edit Users</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/SalaManagement" onClick={closeNav}>Manage Salas</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/ModuleManagement" onClick={closeNav}>Manage Modules</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/CourseManagement" onClick={closeNav}>Manage Courses</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/TurmaManagement" onClick={closeNav}>Manage Turmas</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/TeacherModuleManager" onClick={closeNav}>Manage Teacher/Module</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/AdminTeacherSchedule" onClick={closeNav}>Teacher Availabilaty</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/TurmaScheduleAdmin" onClick={closeNav}>Admin: Turma Schedule</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/ModuleManagement" onClick={closeNav}>Manage Modules</NavDropdown.Item>
                   <NavDropdown.Divider />
+                  <NavDropdown.Item as={Link} to="/TurmaManagement" onClick={closeNav}>Manage Turmas</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/TeacherModuleManager" onClick={closeNav}>Teacher Assignments</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/AdminTeacherSchedule" onClick={closeNav}>Teacher Availabilaty</NavDropdown.Item>
+                  <NavDropdown.Divider />
+                  <NavDropdown.Item as={Link} to="/SalaManagement" onClick={closeNav}>Manage Salas</NavDropdown.Item>
+                  
+                </NavDropdown>
+              )}
+
+              {userRole === 'Admin' && (
+                <NavDropdown 
+                  title="Administration" 
+                  id="admin-nav-dropdown" 
+                  className="custom-nav-dropdown" // Applied the custom class
+                >
+                  <NavDropdown.Item as={Link} to="/TurmaScheduleAdmin" onClick={closeNav}>Admin: Turma Schedule</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/EnrollmentManagement" onClick={closeNav}>Enrollment Management</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/TurmaDashboard" onClick={closeNav}>Turma Dashboard</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/DashboardStats" onClick={closeNav}>Stats Dashboard</NavDropdown.Item>
+                  <NavDropdown.Item as={Link} to="/AdminReportDashboard" onClick={closeNav}>Turma Grade Report</NavDropdown.Item>
                 </NavDropdown>
               )}
 

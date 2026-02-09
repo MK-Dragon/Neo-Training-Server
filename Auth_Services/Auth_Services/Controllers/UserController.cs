@@ -4,6 +4,7 @@ using Auth_Services.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MySqlConnector;
 
 namespace Auth_Services.Controllers
 {
@@ -162,9 +163,33 @@ namespace Auth_Services.Controllers
         }
 
 
+        // ** GET User Profiles **
 
+        [HttpGet("student-profile/{userId}")]
+        public async Task<IActionResult> GetStudentProfile(int userId)
+        {
+            var profile = await _dbServices.GetStudentProfile(userId);
 
+            if (profile == null)
+            {
+                return NotFound(new { message = "Student not found or inactive." });
+            }
 
+            return Ok(profile);
+        }
+
+        [HttpGet("teacher-profile/{userId}")]
+        public async Task<IActionResult> GetTeacherProfile(int userId)
+        {
+            var profile = await _dbServices.GetTeacherProfile(userId);
+
+            if (profile == null)
+            {
+                return NotFound(new { message = "Teacher not found or unauthorized access." });
+            }
+
+            return Ok(profile);
+        }
 
 
 

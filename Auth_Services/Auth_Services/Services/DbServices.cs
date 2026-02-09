@@ -1,5 +1,6 @@
 ﻿// DbServices.cs
 
+using Auth_Services.Controllers;
 using Auth_Services.DTOs;
 using Auth_Services.ModelRequests;
 using Auth_Services.Models;
@@ -1205,6 +1206,99 @@ namespace Auth_Services.Services
             }
         }
 
+
+
+        // ** User Profiles **
+
+        // Student
+        public async Task<StudentProfileDTO> GetStudentProfile(int userId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.username AS Username,
+                u.email AS Email,
+                u.birth_date AS BirthDate,
+                t.turma_id AS TurmaId,
+                t.turma_name AS TurmaName,
+                t.date_start AS StartDate,
+                t.date_end AS EndDate,
+                c.nome_curso AS CourseName,
+                c.duration AS Duration,
+                c.level AS Level
+            FROM users u
+            LEFT JOIN enrollments e ON u.user_id = e.student_id AND e.isDeleted = 0
+            LEFT JOIN turmas t ON e.turma_id = t.turma_id AND t.isDeleted = 0
+            LEFT JOIN courses c ON t.course_id = c.id_cursos
+            WHERE u.user_id = @userId 
+              AND u.isDeleted = 0
+            ORDER BY t.date_start DESC
+            LIMIT 1;";
+
+                var parameters = new[] { new MySqlParameter("@userId", userId) };
+
+                var results = await GetDataAsync<StudentProfileDTO>(query, reader => new StudentProfileDTO
+                {
+                    Username = reader["Username"].ToString(),
+                    Email = reader["Email"].ToString(),
+                    BirthDate = reader["BirthDate"] != DBNull.Value ? Convert.ToDateTime(reader["BirthDate"]) : null,
+                    TurmaId = reader["TurmaId"] != DBNull.Value ? Convert.ToInt32(reader["TurmaId"]) : null,
+                    TurmaName = reader["TurmaName"]?.ToString(),
+                    StartDate = reader["StartDate"] != DBNull.Value ? Convert.ToDateTime(reader["StartDate"]) : null,
+                    EndDate = reader["EndDate"] != DBNull.Value ? Convert.ToDateTime(reader["EndDate"]) : null,
+                    CourseName = reader["CourseName"]?.ToString(),
+                    Duration = reader["Duration"] != DBNull.Value ? Convert.ToInt32(reader["Duration"]) : 0,
+                    Level = reader["Level"]?.ToString()
+                }, parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching student profile: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Teacher
+        public async Task<TeacherProfileDTO> GetTeacherProfile(int userId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.username AS Username,
+                u.email AS Email,
+                u.birth_date AS BirthDate,
+                (SELECT COUNT(*) 
+                 FROM schedules s 
+                 WHERE s.formador_id = u.user_id 
+                 AND s.date_time <= NOW()) AS ClassesTaughtCount
+            FROM users u
+            INNER JOIN user_roles r ON u.role_id = r.role_id
+            WHERE u.user_id = @userId 
+              AND r.title = 'teacher' 
+              AND u.isDeleted = 0;";
+
+                var parameters = new[] { new MySqlParameter("@userId", userId) };
+
+                var results = await GetDataAsync<TeacherProfileDTO>(query, reader => new TeacherProfileDTO
+                {
+                    Username = reader["Username"].ToString(),
+                    Email = reader["Email"].ToString(),
+                    BirthDate = reader["BirthDate"] != DBNull.Value ? Convert.ToDateTime(reader["BirthDate"]) : null,
+                    ClassesTaughtCount = Convert.ToInt32(reader["ClassesTaughtCount"])
+                }, parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teacher profile: {ex.Message}");
+                return null;
+            }
+        }
 
 
 
@@ -4328,6 +4422,205 @@ namespace Auth_Services.Services
                 return false;
             }
         }
+
+
+
+        // ** Statistics **
+
+        // Teacher History
+        public async Task<List<TeacherModuleHistoryDTO>> GetTeacherModuleHistory(int teacherId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                m.module_id AS ModuleId,
+                m.name AS ModuleName,
+                c.id_cursos AS CourseId,
+                c.nome_curso AS CourseName,
+                COUNT(s.schedule_id) AS HoursTaught
+            FROM schedules s
+            INNER JOIN modules m ON s.module_id = m.module_id
+            INNER JOIN turmas t ON s.turma_id = t.turma_id
+            INNER JOIN courses c ON t.course_id = c.id_cursos
+            WHERE s.formador_id = @teacherId 
+              AND s.date_time <= NOW()
+            GROUP BY m.module_id, c.id_cursos
+            ORDER BY HoursTaught DESC;";
+
+                var parameters = new[] { new MySqlParameter("@teacherId", teacherId) };
+
+                return await GetDataAsync<TeacherModuleHistoryDTO>(query, reader => new TeacherModuleHistoryDTO
+                {
+                    ModuleId = Convert.ToInt32(reader["ModuleId"]),
+                    ModuleName = reader["ModuleName"].ToString(),
+                    CourseId = Convert.ToInt32(reader["CourseId"]),
+                    CourseName = reader["CourseName"].ToString(),
+                    HoursTaught = Convert.ToInt32(reader["HoursTaught"])
+                }, parameters);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching teacher module history: {ex.Message}");
+                return new List<TeacherModuleHistoryDTO>();
+            }
+        }
+
+        // Courses & Modules
+        public async Task<List<CourseWorkloadDTO>> GetTotalHoursTaughtPerCourse()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                c.id_cursos AS CourseId,
+                c.nome_curso AS CourseName,
+                COUNT(s.schedule_id) AS TotalHoursTaught
+            FROM courses c
+            LEFT JOIN turmas t ON c.id_cursos = t.course_id
+            LEFT JOIN schedules s ON t.turma_id = s.turma_id AND s.date_time <= NOW()
+            WHERE c.isDeleted = 0
+            GROUP BY c.id_cursos, c.nome_curso
+            ORDER BY TotalHoursTaught DESC;";
+
+                return await GetDataAsync<CourseWorkloadDTO>(query, reader => new CourseWorkloadDTO
+                {
+                    CourseId = Convert.ToInt32(reader["CourseId"]),
+                    CourseName = reader["CourseName"].ToString(),
+                    TotalHoursTaught = Convert.ToInt32(reader["TotalHoursTaught"])
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching course workload: {ex.Message}");
+                return new List<CourseWorkloadDTO>();
+            }
+        }
+
+        // Total de formandos a frequentar cursos no atual momento;
+        public async Task<OngoingStatsDTO> GetOngoingStats_CoursesStudents()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                COUNT(DISTINCT t.turma_id) AS TotalOngoingCourses,
+                COUNT(DISTINCT e.student_id) AS TotalActiveStudents
+            FROM turmas t
+            LEFT JOIN enrollments e ON t.turma_id = e.turma_id AND e.isDeleted = 0
+            WHERE t.isDeleted = 0 
+              AND NOW() BETWEEN t.date_start AND t.date_end;";
+
+                var results = await GetDataAsync<OngoingStatsDTO>(query, reader => new OngoingStatsDTO
+                {
+                    TotalOngoingCourses = Convert.ToInt32(reader["TotalOngoingCourses"]),
+                    TotalActiveStudents = Convert.ToInt32(reader["TotalActiveStudents"])
+                });
+
+                return results.FirstOrDefault() ?? new OngoingStatsDTO();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching ongoing stats: {ex.Message}");
+                return new OngoingStatsDTO();
+            }
+        }
+
+        // Top 10 de formadores com maior nº de horas lecionadas.
+        public async Task<List<TeacherRankingDTO>> GetTopTeachers()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                u.user_id AS TeacherId,
+                u.username AS Name,
+                u.email AS Email,
+                COUNT(s.schedule_id) AS TotalClassesTaught
+            FROM users u
+            INNER JOIN user_roles r ON u.role_id = r.role_id
+            INNER JOIN schedules s ON u.user_id = s.formador_id
+            WHERE r.title = 'Teacher' 
+              AND u.isDeleted = 0 
+              AND s.date_time <= NOW()
+            GROUP BY u.user_id, u.username, u.email
+            ORDER BY TotalClassesTaught DESC
+            LIMIT 10;";
+
+                return await GetDataAsync<TeacherRankingDTO>(query, reader => new TeacherRankingDTO
+                {
+                    TeacherId = Convert.ToInt32(reader["TeacherId"]),
+                    Name = reader["Name"].ToString(),
+                    Email = reader["Email"].ToString(),
+                    TotalClassesTaught = Convert.ToInt32(reader["TotalClassesTaught"])
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching top teachers: {ex.Message}");
+                return new List<TeacherRankingDTO>();
+            }
+        }
+
+        // Nº de cursos por área (Informática, Robótica, Electrónica, etc);
+        public async Task<List<AreaCourseCountDTO>> GetCourseCountByArea()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                a.id_area AS AreaId,
+                a.area AS AreaName,
+                COUNT(c.id_cursos) AS CourseCount
+            FROM area_curso a
+            LEFT JOIN courses c ON a.id_area = c.id_area AND c.isDeleted = 0
+            GROUP BY a.id_area, a.area
+            ORDER BY CourseCount DESC;";
+
+                return await GetDataAsync<AreaCourseCountDTO>(query, reader => new AreaCourseCountDTO
+                {
+                    AreaId = Convert.ToInt32(reader["AreaId"]),
+                    AreaName = reader["AreaName"].ToString(),
+                    CourseCount = Convert.ToInt32(reader["CourseCount"])
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching area course counts: {ex.Message}");
+                return new List<AreaCourseCountDTO>();
+            }
+        }
+
+        // i. Total de cursos terminados & ii. Total de cursos a decorrer;
+        public async Task<CoursesStatusSummaryDTO> GetTurmaStatusSummary()
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                SUM(CASE WHEN date_end < NOW() THEN 1 ELSE 0 END) AS FinishedTurmas,
+                SUM(CASE WHEN (date_end >= NOW() OR date_end IS NULL) THEN 1 ELSE 0 END) AS OngoingTurmas
+            FROM turmas
+            WHERE isDeleted = 0;";
+
+                var results = await GetDataAsync<CoursesStatusSummaryDTO>(query, reader => new CoursesStatusSummaryDTO
+                {
+                    FinishedTurmas = reader["FinishedTurmas"] != DBNull.Value ? Convert.ToInt32(reader["FinishedTurmas"]) : 0,
+                    OngoingTurmas = reader["OngoingTurmas"] != DBNull.Value ? Convert.ToInt32(reader["OngoingTurmas"]) : 0
+                });
+
+                return results.FirstOrDefault() ?? new CoursesStatusSummaryDTO();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching turma status summary: {ex.Message}");
+                return new CoursesStatusSummaryDTO();
+            }
+        }
+
+
+
+
 
 
     } // the end

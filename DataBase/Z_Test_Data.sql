@@ -39,12 +39,19 @@ INSERT INTO `users` (`username`, `email`, `pass_hash`, `role_id`, `activeted`, `
 INSERT INTO `audit` (`user_id`, `token`, `created_at`, `expires_at`, `platform`, `ip_address`) VALUES  
 (1, 'session_token_a1b2c3', NOW(), DATE_ADD(NOW(), INTERVAL 8 HOUR), 'Chrome/Windows', '192.168.1.10');
 
+-- Areas dos Cursos
+INSERT INTO `area_curso` (`area`) VALUES
+('Programming'),
+('Marketing'),
+('Robotics'),
+('Electronics');
+
 -- 4. Courses
-INSERT INTO `courses` (`nome_curso`, `duration`, `level`) VALUES  
-('Full Stack Development', 1200, 'Advanced'),
-('Digital Marketing 101', 600, 'Beginner'),
-('TPSI', 2000, 'Advanced'),
-('FSD', 2000, 'Advanced');
+INSERT INTO `courses` (`nome_curso`, `duration`, `level`, `id_area`) VALUES  
+('Full Stack Development', 1200, 'Advanced', 1),
+('Digital Marketing 101', 600, 'Beginner', 2),
+('TPSI', 2000, 'Advanced', 1),
+('FSD', 2000, 'Advanced', 1);
 
 -- 5. Turmas (Classes)
 INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUES  
@@ -199,15 +206,21 @@ INSERT INTO `disponibilidades` (`formador_id`, `disponivel`, `data_hora`) VALUES
 (3, 1, '2026-02-01 09:00:00'),
 (4, 1, '2026-02-01 09:00:00');
 
+-- Turma Modules Teacher
 INSERT INTO `turma_modules` (`turma_id`,`module_id`, `teacher_id`) VALUES
-(6,4,11);
+(1, 1, 3), -- closed bob
+(1, 2, 4), -- closed alice
+(6,4,11); -- pacheco TPSI 05 26
 
 -- 13. Schedules (NEW: The updated schedule table)
 INSERT INTO `schedules` (`turma_id`, `module_id`, `formador_id`, `sala_id`, `date_time`) VALUES 
-(1, 1, 3, 1, '2026-02-01 09:00:00'), -- Class A, Backend, Bob, Lab 1
-(1, 2, 4, 1, '2026-02-01 14:00:00'), -- Class A, Frontend, Alice, Lab 1
+(1, 1, 3, 1, '2026-01-01 09:00:00'), -- Class A, Backend, Bob, Lab 1
+(1, 2, 4, 1, '2026-01-01 14:00:00'), -- Class A, Frontend, Alice, Lab 1
 
 (6, 4, 11, 1, '2026-02-04 09:00:00'), -- TPSI pacheco C/C++ Lab 1
 (6, 4, 11, 1, '2026-02-04 10:00:00'), -- TPSI pacheco C/C++ Lab 1
-(6, 4, 11, 1, '2026-02-04 11:00:00') -- TPSI pacheco C/C++ Lab 1
+(6, 4, 11, 1, '2026-02-04 11:00:00'), -- TPSI pacheco C/C++ Lab 1
+-- classes in the future:
+(6, 4, 11, 1, '2026-03-04 10:00:00'), -- TPSI pacheco C/C++ Lab 1
+(6, 4, 11, 1, '2026-03-04 11:00:00') -- TPSI pacheco C/C++ Lab 1
 ;

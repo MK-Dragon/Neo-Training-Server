@@ -95,6 +95,16 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
+-- Table `mydb`.`area_curso`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mydb`.`area_curso` (
+  `id_area` INT NOT NULL AUTO_INCREMENT,
+  `area` VARCHAR(100) NOT NULL,
+  PRIMARY KEY (`id_area`))
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
 -- Table `mydb`.`courses`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `mydb`.`courses` (
@@ -103,8 +113,15 @@ CREATE TABLE IF NOT EXISTS `mydb`.`courses` (
   `duration` INT NOT NULL,
   `level` VARCHAR(45) NULL,
   `isDeleted` INT NOT NULL DEFAULT 0,
+  `id_area` INT NULL,
   PRIMARY KEY (`id_cursos`),
-  UNIQUE INDEX `nome_curso_UNIQUE` (`nome_curso` ASC) VISIBLE)
+  UNIQUE INDEX `nome_curso_UNIQUE` (`nome_curso` ASC) VISIBLE,
+  INDEX `area_do_curso_idx` (`id_area` ASC) VISIBLE,
+  CONSTRAINT `area_do_curso`
+    FOREIGN KEY (`id_area`)
+    REFERENCES `mydb`.`area_curso` (`id_area`)
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
