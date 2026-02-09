@@ -17,44 +17,55 @@ const AdminReportDashboard = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState(['ongoing']); // Default
-  const [sortConfig, setSortConfig] = useState({ key: 'startDate', direction: 'asc' });
+  const [studentSearch, setStudentSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState(['ongoing']); 
+  const [sortConfig, setSortConfig] = useState({ key: 'dateStart', direction: 'asc' });
   
   const reportRef = useRef();
-  const token = localStorage.getItem('token');
 
-  useEffect(() => { fetchTurmas(); }, []);
+  useEffect(() => { 
+    fetchActiveTurmas(); 
+  }, []);
 
-  // --- Data Fetching ---
-  const fetchTurmas = async () => {
+  // --- API FETCHING ---
+
+  const fetchActiveTurmas = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${ServerIP}/api/Enrollment/GetTurmaToEnrollStudents`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setTurmas(await res.json());
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      // Endpoint: [HttpGet("all-active-turmas")]
+      const res = await fetch(`${ServerIP}/api/Turma/all-active-turmas`);
+      if (res.ok) {
+        const data = await res.json();
+        setTurmas(data);
+      }
+    } catch (err) {
+      console.error("Error fetching turmas:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchStudents = async (turmaId) => {
     try {
-      const res = await fetch(`${ServerIP}/api/Enrollment/students-by-turma/${turmaId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      // Endpoint: [HttpGet("list-students/{turmaId}")]
+      const res = await fetch(`${ServerIP}/api/Turma/list-students/${turmaId}`);
       if (res.ok) setStudents(await res.json());
-    } catch (err) { console.error(err); }
+      else setStudents([]);
+    } catch (err) { console.error("Error fetching students:", err); }
   };
 
   const fetchGrades = async (studentId, turmaId) => {
     try {
+      // Endpoint: [HttpGet("student-report")]
       const res = await fetch(`${ServerIP}/api/StudentGrades/student-report?studentId=${studentId}&turmaId=${turmaId}`);
       if (res.ok) setGrades(await res.json());
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Error fetching grades:", err); }
   };
 
-  // --- Helpers ---
+  // --- LOGIC HELPERS ---
+
   const getTurmaStatus = (start, end) => {
+    if (!start || !end) return 'ongoing';
     const now = new Date();
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -67,80 +78,105 @@ const AdminReportDashboard = () => {
     setSelectedTurma(turma);
     setSelectedStudent(null);
     setGrades([]);
-    fetchStudents(turma.turmaId || turma.TurmaId);
+    fetchStudents(turma.turmaId);
   };
 
   const handleStudentSelect = (student) => {
     setSelectedStudent(student);
-    fetchGrades(student.studentId || student.StudentId, selectedTurma.turmaId || selectedTurma.TurmaId);
+    // student.userId is from StudentInTurmaDTO
+    fetchGrades(student.userId, selectedTurma.turmaId);
   };
 
-  // --- Table Logic ---
   const sortedAndFilteredTurmas = useMemo(() => {
     return turmas
-      .filter(t => statusFilter.includes(getTurmaStatus(t.startDate, t.endDate)))
+      .filter(t => statusFilter.includes(getTurmaStatus(t.dateStart, t.dateEnd)))
       .sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        const aVal = a[sortConfig.key] || '';
+        const bVal = b[sortConfig.key] || '';
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
   }, [turmas, statusFilter, sortConfig]);
+
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => 
+      s.username.toLowerCase().includes(studentSearch.toLowerCase()) || 
+      s.email.toLowerCase().includes(studentSearch.toLowerCase())
+    );
+  }, [students, studentSearch]);
 
   const downloadPDF = () => {
     const element = reportRef.current;
     const opt = {
       margin: [10, 10, 10, 10],
-      filename: `Report_${selectedStudent?.name}_${selectedTurma?.turmaName}.pdf`,
+      filename: `Report_${selectedStudent?.username}_${selectedTurma?.turmaName}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     html2pdf().set(opt).from(element).save();
   };
 
-  if (loading) return <Container className="text-center mt-5"><Spinner animation="border" variant="primary" /></Container>;
+  if (loading) return (
+    <Container className="text-center mt-5 py-5">
+      <Spinner animation="grow" variant="primary" />
+      <p className="mt-3 text-muted">Loading Academic Data...</p>
+    </Container>
+  );
 
   return (
     <Container className="mt-5 pt-4 pb-5">
-      <h2 className="fw-bold mb-4">Academic Records Management</h2>
+      <div className="mb-4">
+        <h2 className="fw-bold text-dark">Administrative Reports</h2>
+        <p className="text-muted small text-uppercase fw-bold" style={{ letterSpacing: '1px' }}>
+          Turma Management & Student Performance
+        </p>
+      </div>
 
-      <Accordion defaultActiveKey="0">
-        {/* STEP 1: TURMA SELECTION */}
+      <Accordion defaultActiveKey="0" className="shadow-sm border rounded overflow-hidden">
+        
+        {/* SECTION 1: TURMA SELECTION */}
         <Accordion.Item eventKey="0">
           <Accordion.Header>
-            <Stack direction="horizontal" gap={3}>
-              <i className="bi bi-collection-play text-primary"></i>
-              <span>1. Select Turma {selectedTurma && <Badge bg="primary" className="ms-2">{selectedTurma.turmaName}</Badge>}</span>
-            </Stack>
+            <i className="bi bi-calendar3 me-2 text-primary"></i>
+            <span className="fw-bold">1. Select Turma</span>
+            {selectedTurma && <Badge bg="primary" className="ms-3">{selectedTurma.turmaName}</Badge>}
           </Accordion.Header>
           <Accordion.Body>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <ToggleButtonGroup type="checkbox" value={statusFilter} onChange={setStatusFilter}>
+            <div className="mb-3">
+              <label className="small text-muted mb-2 d-block">Filter Status:</label>
+              <ToggleButtonGroup type="checkbox" value={statusFilter} onChange={setStatusFilter} className="mb-2">
                 <ToggleButton id="tgl-ongoing" variant="outline-success" value="ongoing" size="sm">Ongoing</ToggleButton>
                 <ToggleButton id="tgl-upcoming" variant="outline-primary" value="upcoming" size="sm">Upcoming</ToggleButton>
                 <ToggleButton id="tgl-finished" variant="outline-secondary" value="finished" size="sm">Finished</ToggleButton>
               </ToggleButtonGroup>
             </div>
 
-            <Table hover responsive size="sm" className="align-middle">
+            <Table hover responsive className="align-middle">
               <thead className="table-light">
                 <tr style={{ cursor: 'pointer' }}>
-                  <th onClick={() => setSortConfig({ key: 'turmaName', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>Turma</th>
-                  <th onClick={() => setSortConfig({ key: 'courseName', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>Course</th>
-                  <th onClick={() => setSortConfig({ key: 'startDate', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>Start</th>
-                  <th>End</th>
+                  <th onClick={() => setSortConfig({ key: 'turmaName', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>
+                    Turma <i className="bi bi-arrow-down-up small ms-1"></i>
+                  </th>
+                  <th onClick={() => setSortConfig({ key: 'courseName', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' })}>
+                    Course <i className="bi bi-arrow-down-up small ms-1"></i>
+                  </th>
+                  <th>Timeline</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedAndFilteredTurmas.map((t, idx) => {
-                  const status = getTurmaStatus(t.startDate, t.endDate);
+                {sortedAndFilteredTurmas.map((t) => {
+                  const status = getTurmaStatus(t.dateStart, t.dateEnd);
+                  const isSelected = selectedTurma?.turmaId === t.turmaId;
                   return (
-                    <tr key={idx} onClick={() => handleTurmaSelect(t)} className={selectedTurma?.turmaId === t.turmaId ? "table-primary" : ""}>
+                    <tr key={t.turmaId} onClick={() => handleTurmaSelect(t)} className={isSelected ? "table-primary" : ""}>
                       <td className="fw-bold">{t.turmaName}</td>
                       <td>{t.courseName}</td>
-                      <td>{new Date(t.startDate).toLocaleDateString()}</td>
-                      <td>{new Date(t.endDate).toLocaleDateString()}</td>
+                      <td className="small text-muted">
+                        {t.dateStart ? new Date(t.dateStart).toLocaleDateString() : '—'} ➔ {t.dateEnd ? new Date(t.dateEnd).toLocaleDateString() : '—'}
+                      </td>
                       <td>
                         <Badge bg={status === 'ongoing' ? 'success' : status === 'upcoming' ? 'primary' : 'secondary'}>
                           {status.toUpperCase()}
@@ -154,25 +190,32 @@ const AdminReportDashboard = () => {
           </Accordion.Body>
         </Accordion.Item>
 
-        {/* STEP 2: STUDENT SELECTION */}
+        {/* SECTION 2: STUDENT SELECTION */}
         <Accordion.Item eventKey="1" disabled={!selectedTurma}>
           <Accordion.Header>
-            <Stack direction="horizontal" gap={3}>
-              <i className="bi bi-people text-primary"></i>
-              <span>2. Select Student {selectedStudent && <Badge bg="primary" className="ms-2">{selectedStudent.name}</Badge>}</span>
-            </Stack>
+            <i className="bi bi-people me-2 text-primary"></i>
+            <span className="fw-bold">2. Enrolled Students</span>
+            {selectedStudent && <Badge bg="primary" className="ms-3">{selectedStudent.username}</Badge>}
           </Accordion.Header>
           <Accordion.Body>
+            <Form.Control 
+              type="text" 
+              placeholder="Search by name or email..." 
+              className="mb-4"
+              onChange={(e) => setStudentSearch(e.target.value)} 
+            />
             <Row className="g-3">
-              {students.map((s, idx) => (
-                <Col md={4} key={idx}>
+              {filteredStudents.map((s) => (
+                <Col md={4} key={s.userId}>
                   <Card 
-                    className={`p-3 cursor-pointer border-2 ${selectedStudent?.studentId === s.studentId ? 'border-primary bg-primary-subtle' : ''}`}
+                    className={`h-100 shadow-sm border-2 ${selectedStudent?.userId === s.userId ? 'border-primary bg-primary-subtle' : ''}`}
                     onClick={() => handleStudentSelect(s)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div className="fw-bold">{s.name}</div>
-                    <div className="small text-muted">{s.email}</div>
+                    <Card.Body className="py-3">
+                      <div className="fw-bold">{s.username}</div>
+                      <div className="text-muted small">{s.email}</div>
+                    </Card.Body>
                   </Card>
                 </Col>
               ))}
@@ -180,65 +223,85 @@ const AdminReportDashboard = () => {
           </Accordion.Body>
         </Accordion.Item>
 
-        {/* STEP 3: REPORT CARD & PDF */}
+        {/* SECTION 3: THE REPORT CARD */}
         <Accordion.Item eventKey="2" disabled={!selectedStudent}>
           <Accordion.Header>
-            <Stack direction="horizontal" gap={3}>
-              <i className="bi bi-file-earmark-bar-graph text-primary"></i>
-              <span>3. Report Card View</span>
-            </Stack>
+            <i className="bi bi-file-earmark-check me-2 text-primary"></i>
+            <span className="fw-bold">3. Student Report Card</span>
           </Accordion.Header>
           <Accordion.Body>
-            <div className="text-end mb-3">
-              <Button variant="success" onClick={downloadPDF} size="sm">
-                <i className="bi bi-file-earmark-pdf me-2"></i>Export Student PDF
+            <div className="d-flex justify-content-end mb-4">
+              <Button variant="outline-danger" onClick={downloadPDF}>
+                <i className="bi bi-file-earmark-pdf me-2"></i>Download Official PDF
               </Button>
             </div>
 
-            <div ref={reportRef} className="p-2">
+            <div ref={reportRef} className="p-1">
               <Card className="border-0 shadow-sm">
                 <Card.Header className="bg-dark text-white p-4">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h4 className="mb-0">Academic Performance Report</h4>
-                      <small className="opacity-75">{selectedTurma?.courseName} ({selectedTurma?.turmaName})</small>
-                    </div>
-                    <div className="text-end">
-                      <div className="fw-bold">{selectedStudent?.name}</div>
-                      <div className="small opacity-50">Generated: {new Date().toLocaleDateString()}</div>
-                    </div>
-                  </div>
+                  <Row className="align-items-center">
+                    <Col>
+                      <h4 className="mb-1">Academic Performance Record</h4>
+                      <p className="mb-0 opacity-75 fw-light">{selectedTurma?.courseName} ({selectedTurma?.turmaName})</p>
+                    </Col>
+                    <Col className="text-end">
+                      <div className="fw-bold fs-5">{selectedStudent?.username}</div>
+                      <div className="small opacity-50">Student ID: {selectedStudent?.userId}</div>
+                    </Col>
+                  </Row>
                 </Card.Header>
-                <Card.Body>
-                  <Table striped bordered className="mt-3">
+                <Card.Body className="p-4">
+                  <Table hover responsive className="align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Module</th>
-                        <th className="text-center">Grade</th>
-                        <th className="text-center">Result</th>
+                        <th className="py-3">Module Description</th>
+                        <th className="py-3 text-center">Grade (0-20)</th>
+                        <th className="py-3 text-center">Outcome</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {grades.map((g, i) => (
-                        <tr key={i}>
-                          <td>{g.moduleName || g.ModuleName}</td>
-                          <td className="text-center fw-bold">{g.grade ?? '-'}</td>
-                          <td className="text-center">
-                            {(g.grade ?? 0) >= 10 ? 
-                              <span className="text-success fw-bold">PASS</span> : 
-                              <span className="text-danger fw-bold">FAIL</span>
-                            }
-                          </td>
-                        </tr>
-                      ))}
+                      {grades.map((item, index) => {
+                        const gradeVal = item.grade ?? item.Grade;
+                        return (
+                          <tr key={index}>
+                            <td className="fw-semibold text-secondary">{item.moduleName ?? item.ModuleName}</td>
+                            <td className="text-center fs-5">
+                              {gradeVal !== null && gradeVal !== undefined ? (
+                                <span className={gradeVal >= 10 ? "text-success fw-bold" : "text-danger fw-bold"}>
+                                  {gradeVal}
+                                </span>
+                              ) : (
+                                <span className="text-muted opacity-50 small italic">Pending</span>
+                              )}
+                            </td>
+                            <td className="text-center">
+                              {gradeVal === null || gradeVal === undefined ? (
+                                <Badge pill bg="secondary" className="px-3 py-2 fw-normal opacity-75">Not Graded</Badge>
+                              ) : gradeVal >= 10 ? (
+                                <Badge pill bg="success" className="px-3 py-2 fw-normal">Passed</Badge>
+                              ) : (
+                                <Badge pill bg="danger" className="px-3 py-2 fw-normal">Failed</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </Table>
                 </Card.Body>
+                <Card.Footer className="bg-light text-muted small py-3 d-flex justify-content-between">
+                   <span>Authenticated Academic Document</span>
+                   <span>Date: {new Date().toLocaleDateString()}</span>
+                </Card.Footer>
               </Card>
             </div>
           </Accordion.Body>
         </Accordion.Item>
       </Accordion>
+
+      <footer className="text-center mt-5 py-4 border-top text-muted small">
+        © 2026 Marco Candeias Management System | All rights reserved. 🎓
+      </footer>
     </Container>
   );
 };
