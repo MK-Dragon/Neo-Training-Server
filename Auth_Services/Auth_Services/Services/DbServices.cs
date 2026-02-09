@@ -4497,6 +4497,7 @@ namespace Auth_Services.Services
             }
         }
 
+
         // Total de formandos a frequentar cursos no atual momento;
         public async Task<OngoingStatsDTO> GetOngoingStats_CoursesStudents()
         {
