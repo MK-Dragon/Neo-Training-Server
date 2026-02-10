@@ -1,6 +1,6 @@
 // /src/pages/EnrollmentManagement.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, ListGroup, Button, Badge, Form, Alert, Stack } from 'react-bootstrap';
+import { Container, Row, Col, Card, ListGroup, Button, Badge, Form, Alert, Stack, Spinner } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -57,8 +57,16 @@ const EnrollmentManagement = () => {
     return acc;
   }, {});
 
+  // FILTER LOGIC: Show only students matching selected Turma OR all students if none selected
   const studentList = Object.values(groupedStudents)
-    .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!selectedTurma) return matchesSearch;
+      
+      const tId = selectedTurma.turmaId ?? selectedTurma.TurmaId;
+      const isChoice = s.options.some(opt => (opt.turmaId ?? opt.TurmaId) === tId);
+      return matchesSearch && isChoice;
+    })
     .sort((a, b) => {
       if (studentSortMode === '1st') return (a.options[0]?.turmaName || '').localeCompare(b.options[0]?.turmaName || '');
       if (studentSortMode === '2nd') return (a.options[1]?.turmaName || '').localeCompare(b.options[1]?.turmaName || '');
@@ -107,8 +115,17 @@ const EnrollmentManagement = () => {
     } catch (err) { setError("Network error."); }
   };
 
+  // FILTER LOGIC: Show only choices of selected student OR all turmas if none selected
   const processedTurmas = turmas
-    .filter(t => !hideOngoing || !(new Date() >= new Date(t.startDate) && new Date() <= new Date(t.endDate)))
+    .filter(t => {
+      const ongoing = (new Date() >= new Date(t.startDate) && new Date() <= new Date(t.endDate));
+      if (hideOngoing && ongoing) return false;
+      
+      if (!selectedStudent) return true;
+      
+      const tId = t.turmaId ?? t.TurmaId;
+      return selectedStudent.options.some(opt => (opt.turmaId ?? opt.TurmaId) === tId);
+    })
     .sort((a, b) => {
       const field = turmaSort === 'startDate' ? 'startDate' : 'endDate';
       return new Date(a[field]) - new Date(b[field]);
@@ -118,6 +135,7 @@ const EnrollmentManagement = () => {
     <Container className="mt-5 pt-4">
       <h2 className="fw-bold mb-4 text-dark">Enrollment Management</h2>
       {success && <Alert variant="success" dismissible onClose={() => setSuccess('')}>{success}</Alert>}
+      {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
 
       <Row className="g-4">
         {/* Left: Student List */}
@@ -125,7 +143,7 @@ const EnrollmentManagement = () => {
           <Card className="shadow-sm border-0 h-100">
             <Card.Header className="bg-primary text-white py-3">
               <Stack direction="horizontal" gap={2}>
-                <h5 className="mb-0 me-auto">Students</h5>
+                <h5 className="mb-0 me-auto">Students {selectedTurma && <Badge bg="light" text="primary">Filtered</Badge>}</h5>
                 <Form.Select size="sm" className="w-auto" onChange={(e) => setStudentSortMode(e.target.value)}>
                   <option value="default">Default</option>
                   <option value="1st">Sort 1st Choice</option>
@@ -134,16 +152,17 @@ const EnrollmentManagement = () => {
               </Stack>
             </Card.Header>
             <Card.Body>
-              <Form.Control className="mb-3" placeholder="Filter by name..." onChange={(e) => setSearchTerm(e.target.value)} />
+              <Form.Control className="mb-3" placeholder="Filter by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               <ListGroup variant="flush" style={{ maxHeight: '650px', overflowY: 'auto' }}>
-                {studentList.map(s => {
+                {loading ? <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div> : 
+                 studentList.map(s => {
                   const isSSelected = selectedStudent?.id === s.id;
                   const highlightClass = getStudentHighlight(s);
                   return (
                     <ListGroup.Item 
                       key={s.id} 
                       action 
-                      onClick={() => setSelectedStudent(s)}
+                      onClick={() => setSelectedStudent(isSSelected ? null : s)}
                       className={`rounded mb-2 border p-3 ${highlightClass}`}
                       style={{ 
                         borderWidth: isSSelected ? '4px' : (highlightClass ? '2px' : '1px'),
@@ -161,6 +180,7 @@ const EnrollmentManagement = () => {
                     </ListGroup.Item>
                   );
                 })}
+                {!loading && studentList.length === 0 && <div className="text-center text-muted py-4">No students found.</div>}
               </ListGroup>
             </Card.Body>
           </Card>
@@ -189,7 +209,11 @@ const EnrollmentManagement = () => {
           >
             Confirm Placement
           </Button>
-          {selectedStudent && <Button variant="link" size="sm" className="text-muted mt-2" onClick={() => {setSelectedStudent(null); setSelectedTurma(null);}}>Reset Selection</Button>}
+          {(selectedStudent || selectedTurma) && (
+            <Button variant="link" size="sm" className="text-muted mt-2" onClick={() => {setSelectedStudent(null); setSelectedTurma(null);}}>
+              Clear Filters / Reset
+            </Button>
+          )}
         </Col>
 
         {/* Right: Turma List */}
@@ -197,7 +221,7 @@ const EnrollmentManagement = () => {
           <Card className="shadow-sm border-0 h-100">
             <Card.Header className="bg-dark text-white py-3">
               <Stack direction="horizontal" gap={2}>
-                <h5 className="mb-0 me-auto">Turmas</h5>
+                <h5 className="mb-0 me-auto">Turmas {selectedStudent && <Badge bg="primary">Choices Only</Badge>}</h5>
                 <Form.Check type="switch" label="Hide Ongoing" className="small" onChange={(e) => setHideOngoing(e.target.checked)} />
                 <Form.Select size="sm" className="w-auto bg-dark text-white border-secondary" onChange={(e) => setTurmaSort(e.target.value)}>
                   <option value="startDate">Sort: Start</option>
@@ -207,7 +231,8 @@ const EnrollmentManagement = () => {
             </Card.Header>
             <Card.Body>
               <ListGroup variant="flush" style={{ maxHeight: '650px', overflowY: 'auto' }}>
-                {processedTurmas.map(t => {
+                {loading ? <div className="text-center py-5"><Spinner animation="border" variant="dark" /></div> : 
+                 processedTurmas.map(t => {
                   const id = t.turmaId ?? t.TurmaId;
                   const isTSelected = (selectedTurma?.turmaId ?? selectedTurma?.TurmaId) === id;
                   const highlight = getTurmaHighlight(id);
@@ -217,7 +242,7 @@ const EnrollmentManagement = () => {
                     <ListGroup.Item 
                       key={id} 
                       action 
-                      onClick={() => setSelectedTurma(t)}
+                      onClick={() => setSelectedTurma(isTSelected ? null : t)}
                       className={`rounded mb-2 border ${highlight}`}
                       style={{ 
                         borderWidth: isTSelected ? '4px' : (highlight ? '2px' : '1px'),
@@ -242,6 +267,7 @@ const EnrollmentManagement = () => {
                     </ListGroup.Item>
                   );
                 })}
+                {!loading && processedTurmas.length === 0 && <div className="text-center text-muted py-4">No matching turmas found.</div>}
               </ListGroup>
             </Card.Body>
           </Card>

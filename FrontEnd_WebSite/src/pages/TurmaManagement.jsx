@@ -149,7 +149,7 @@ const TurmaManagement = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this Turma?")) return;
+    if (!window.confirm("Cancel this Turma?")) return;
     try {
       const res = await fetch(`${ServerIP}/api/Turma/delete-turma/${id}`, {
         method: 'DELETE',
@@ -210,7 +210,7 @@ const TurmaManagement = () => {
             </Col>
             <Col md={3} className="d-flex justify-content-end">
               <Form.Check 
-                type="switch" id="del-switch" label="Show Deleted"
+                type="switch" id="del-switch" label="Show Canceled"
                 checked={showDeleted} onChange={(e) => { setShowDeleted(e.target.checked); setCurrentPage(1); }}
               />
             </Col>
@@ -251,11 +251,11 @@ const TurmaManagement = () => {
                 <td>{t.courseName ?? t.CourseName}</td>
                 <td>{formatDateForInput(t.dateStart ?? t.DateStart) || '---'}</td>
                 <td>{formatDateForInput(t.dateEnd ?? t.DateEnd) || '---'}</td>
-                <td><Badge bg={isDel === 1 ? "danger" : timing.bg}>{isDel === 1 ? "Deleted" : timing.label}</Badge></td>
+                <td><Badge bg={isDel === 1 ? "danger" : timing.bg}>{isDel === 1 ? "Canceled" : timing.label}</Badge></td>
                 <td className="text-nowrap">
                   <Button variant="warning" size="sm" onClick={() => handleOpenEditModal(t)} className="me-2">Edit</Button>
                   {isDel === 0 ? (
-                    <Button variant="danger" size="sm" onClick={() => handleDelete(id)}>Delete</Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(id)}>Cancel</Button>
                   ) : (
                     <Button variant="success" size="sm" onClick={() => handleRecover(id)}>Recover</Button>
                   )}
@@ -282,7 +282,7 @@ const TurmaManagement = () => {
           <Modal.Title>
             {viewingTurma?.turmaName ?? viewingTurma?.TurmaName}
             {(viewingTurma?.isDeleted || viewingTurma?.IsDeleted) && (
-              <Badge bg="danger" className="ms-2" style={{ fontSize: '0.5em' }}>DELETED</Badge>
+              <Badge bg="danger" className="ms-2" style={{ fontSize: '0.5em' }}>CANCELED</Badge>
             )}
           </Modal.Title>
         </Modal.Header>

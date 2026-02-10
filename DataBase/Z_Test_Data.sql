@@ -63,8 +63,8 @@ INSERT INTO `turmas` (`turma_name`, `course_id`, `date_start`, `date_end`) VALUE
 ('TPS 05 25', 3, '2026-01-10', '2026-05-05'), -- 6
 
 -- Upcoming Turmas/Courses 60 days:
-('TPS 02 26', 3, '2026-02-20', '2027-05-05'), -- 7
-('TPS 03 26', 3, '2026-03-10', '2027-05-25'), -- 8
+('TPSI 02 26', 3, '2026-02-20', '2027-05-05'), -- 7
+('TPSI 03 26', 3, '2026-03-10', '2027-05-25'), -- 8
 ('FSD 02 26', 4, '2026-02-15', '2027-06-16') -- 9
 ;
 -- 6. Modules
@@ -171,6 +171,8 @@ INSERT INTO `pre_enrollment` (`student_id`, `turma_id`) VALUES
 (10, 9), -- FSD 1st
 (9, 7), -- TPSI_2 2nd 
 (10, 7), -- TPSI_2 2nd
+
+(18, 7), -- TPSI_2 Carlos
 -- extra TPSI_2 1st choice
 (15, 7), -- Ze
 (16, 7), -- Maria
