@@ -23,6 +23,7 @@ namespace Auth_Services.Controllers
         private readonly DbServices _dbServices;
         private readonly TokenService _tokenService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly string _websiteIP = "localhost";
 
 
         public ApiController(TokenService tokenService, IHttpContextAccessor httpContextAccessor, ConnectionSettings connectionSettings)  // Settings INJECTED HERE
@@ -41,6 +42,8 @@ namespace Auth_Services.Controllers
 
             _tokenService = tokenService;
             _httpContextAccessor = httpContextAccessor;
+            
+            _websiteIP = Environment.GetEnvironmentVariable("VITE_IP_PORT_WEBSITE");
         }
 
 
@@ -77,7 +80,7 @@ namespace Auth_Services.Controllers
                 // Create and send 2FA token
                 //string tfaToken = TFA_Services.Generate2FAToken(loginData.Username, user.Role);
                 string tfaToken = TFA_Services.Generate2FAToken(loginData.Username);
-                string tfaLink = $"http://localhost:5173/verify-2fa?request={requestId}&code={tfaToken}";
+                string tfaLink = $"{_websiteIP}/verify-2fa?request={requestId}&code={tfaToken}";
                 // send 2FA code via email
                 MailServices mailServices = new MailServices();
                 await mailServices.SendMail(user.Email, "Your 2FA Code", $"Hello {user.Username},\n\nYour 2FA verification code is: {tfaLink}\n\nThis code is valid for 5 minutes.");
@@ -278,7 +281,7 @@ namespace Auth_Services.Controllers
 
             // send mail
             string encryptedId = DEncript.EncryptString(newUser.Username);
-            string activationLink = $"http://localhost:5173/activate?code={Uri.EscapeDataString(encryptedId)}";
+            string activationLink = $"{_websiteIP}/activate?code={Uri.EscapeDataString(encryptedId)}";
 
             MailServices mailServices = new MailServices();
             await mailServices.SendMail(newUser.Email, "Welcome to Neo Training Server", $"Hello {newUser.Username}, your account has been created successfully.\nNo folow this Link to activate your account: {activationLink}");
@@ -420,7 +423,7 @@ namespace Auth_Services.Controllers
                 return Ok("If an account exists with that email, a reset link has been sent.");
 
             string resetToken = Guid.NewGuid().ToString();
-            string resetLink = $"http://localhost:5173/ResetPassword?token={resetToken}&email={userInDb.Email}";
+            string resetLink = $"{_websiteIP}/ResetPassword?token={resetToken}&email={userInDb.Email}";
 
             MailServices mailServices = new MailServices();
             await mailServices.SendMail(userInDb.Email, "Neo Training Server - Password Reset",
