@@ -255,7 +255,19 @@ namespace Auth_Services.Controllers
             return StatusCode(500, new { error = result });
         }
 
+        // * Get Turma-Module Progress:
+        [HttpGet("module-progress/{turmaId}/{moduleId}")]
+        public async Task<IActionResult> GetProgress(int turmaId, int moduleId)
+        {
+            var progress = await _dbServices.GetModuleProgress(turmaId, moduleId);
 
+            if (progress == null)
+            {
+                return NotFound(new { message = "Module or Turma data not found." }); // ModuleProgressDTO
+            }
+
+            return Ok(progress);
+        }
 
     } // the end
 }

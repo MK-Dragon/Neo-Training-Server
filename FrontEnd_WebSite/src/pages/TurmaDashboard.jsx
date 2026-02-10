@@ -11,11 +11,9 @@ const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 const TurmaDashboard = () => {
   const navigate = useNavigate();
 
-  // Selection State
+  // Selection & Filtering State
   const [allTurmas, setAllTurmas] = useState([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState('');
-  
-  // Filtering State (Default: Ongoing and Recent 30 days)
   const [statusFilter, setStatusFilter] = useState(['ongoing', 'recent']); 
   
   // Data State
@@ -52,7 +50,6 @@ const TurmaDashboard = () => {
     } catch (err) { setError("Failed to load turmas."); }
   };
 
-  // Helper to determine status based on your requirements
   const getTurmaStatus = (start, end) => {
     const now = new Date();
     const startDate = new Date(start);
@@ -66,7 +63,6 @@ const TurmaDashboard = () => {
     return 'finished';
   };
 
-  // Logic to filter the dropdown list
   const filteredTurmas = useMemo(() => {
     return allTurmas.filter(t => {
       const status = getTurmaStatus(t.dateStart, t.dateEnd);
@@ -78,29 +74,43 @@ const TurmaDashboard = () => {
     setLoading(true);
     setError('');
     try {
+      // 1. Fetch Students
       const studentRes = await fetch(`${ServerIP}/api/Turma/list-students/${turmaId}`);
       const studentData = studentRes.ok ? await studentRes.json() : [];
       setStudents(studentData);
 
+      // 2. Fetch Curriculum Plan
       const planRes = await fetch(`${ServerIP}/api/Teacher/turma/${turmaId}/curriculum-plan`);
       const planData = planRes.ok ? await planRes.json() : [];
 
+      // 3. Fetch Teacher/Module Details
       const detailsRes = await fetch(`${ServerIP}/api/Teacher/turma/${turmaId}/modules-details`);
       const detailsData = detailsRes.ok ? await detailsRes.json() : [];
 
-      const merged = planData.map(planItem => {
-        const detail = detailsData.find(d => (d.moduleId ?? d.ModuleId) === (planItem.moduleId ?? planItem.ModuleId));
+      // 4. Fetch Progress from Schedule Controller for each module
+      const merged = await Promise.all(planData.map(async (planItem) => {
+        const mId = planItem.moduleId ?? planItem.ModuleId;
+        
+        // Calling your new endpoint: api/Shcedule/module-progress/{turmaId}/{moduleId}
+        const progressRes = await fetch(`${ServerIP}/api/Shcedule/module-progress/${turmaId}/${mId}`);
+        const prog = progressRes.ok ? await progressRes.json() : null;
+
+        const teacherDetail = detailsData.find(d => (d.moduleId ?? d.ModuleId) === mId);
+
         return {
-          moduleId: planItem.moduleId ?? planItem.ModuleId,
+          moduleId: mId,
           moduleName: planItem.moduleName ?? planItem.ModuleName,
-          totalDuration: planItem.durationH ?? planItem.DurationH ?? 0,
+          // Using targetDuration from DTO or falling back to plan duration
+          totalDuration: prog?.targetDuration ?? planItem.durationH ?? 0,
           orderIndex: planItem.orderIndex ?? planItem.OrderIndex ?? 0,
-          teacherId: detail?.teacherId ?? detail?.TeacherId ?? null,
-          teacherName: detail?.teacherName ?? detail?.TeacherName ?? null,
-          hoursCompleted: detail?.hoursCompleted ?? detail?.HoursCompleted ?? 0,
-          isCompleted: detail?.isCompleted ?? detail?.IsCompleted ?? 0
+          teacherId: teacherDetail?.teacherId ?? null,
+          teacherName: teacherDetail?.teacherName ?? null,
+          // New Schedule Progress Fields
+          hoursTaught: prog?.hoursTaught ?? 0,
+          totalScheduled: prog?.totalScheduled ?? 0,
+          remainingToSchedule: prog?.remainingToSchedule ?? 0
         };
-      });
+      }));
 
       setModuleDetails(merged.sort((a, b) => a.orderIndex - b.orderIndex));
     } catch (err) {
@@ -146,13 +156,13 @@ const TurmaDashboard = () => {
 
   return (
     <Container className="mt-5 pt-4">
-      {/* HEADER SECTION WITH DROPDOWN AND FILTERS */}
+      {/* HEADER & FILTERS */}
       <Card className="mb-4 shadow-sm border-0 bg-dark text-white">
         <Card.Body>
           <Row className="align-items-center">
             <Col md={6}>
               <h3 className="mb-1">Turma Management Dashboard</h3>
-              <p className="opacity-75 mb-0 small">Manage curriculum, teachers, and enrollments.</p>
+              <p className="opacity-75 mb-0 small">Curriculum, Schedules, and Progress Tracking.</p>
             </Col>
             <Col md={6}>
               <div className="d-flex flex-column align-items-md-end gap-2">
@@ -170,9 +180,7 @@ const TurmaDashboard = () => {
                 >
                   <option value="">Select Turma ({filteredTurmas.length} available)...</option>
                   {filteredTurmas.map(t => (
-                    <option key={t.turmaId} value={t.turmaId}>
-                      {t.turmaName}
-                    </option>
+                    <option key={t.turmaId} value={t.turmaId}>{t.turmaName}</option>
                   ))}
                 </Form.Select>
               </div>
@@ -188,7 +196,7 @@ const TurmaDashboard = () => {
         </Alert>
       ) : (
         <>
-          {/* NEW SECTION: SELECTED TURMA PROFILE DETAILS */}
+          {/* TURMA PROFILE DETAILS */}
           <Card className="mb-4 shadow-sm border-0 border-start border-4 border-primary bg-light">
             <Card.Body className="py-3">
               {allTurmas.filter(t => t.turmaId.toString() === selectedTurmaId).map(t => {
@@ -203,24 +211,31 @@ const TurmaDashboard = () => {
                     <Col md={5} className="px-md-4">
                       <div className="d-flex align-items-center justify-content-between">
                         <div>
-                          <div className="text-muted small fw-bold text-uppercase">Start Date</div>
-                          <div className="fw-bold"><i className="bi bi-calendar-event me-2"></i>{t.dateStart ? new Date(t.dateStart).toLocaleDateString() : '—'}</div>
+                          <div className="text-muted small fw-bold text-uppercase">Start</div>
+                          <div className="fw-bold">{t.dateStart ? new Date(t.dateStart).toLocaleDateString() : '—'}</div>
                         </div>
-                        <div className="text-muted fs-4 px-2">→</div>
+                        <div className="text-muted fs-4">→</div>
                         <div>
-                          <div className="text-muted small fw-bold text-uppercase">End Date</div>
-                          <div className="fw-bold"><i className="bi bi-calendar-check me-2"></i>{t.dateEnd ? new Date(t.dateEnd).toLocaleDateString() : '—'}</div>
+                          <div className="text-muted small fw-bold text-uppercase">End</div>
+                          <div className="fw-bold">{t.dateEnd ? new Date(t.dateEnd).toLocaleDateString() : '—'}</div>
                         </div>
                       </div>
                     </Col>
                     <Col md={3} className="text-md-end">
-                      <div className="text-muted small fw-bold text-uppercase mb-1">Life-Cycle Status</div>
                       <Badge 
-                        bg={status === 'ongoing' ? 'success' : status === 'upcoming' ? 'primary' : status === 'recent' ? 'info' : 'secondary'} 
-                        className="px-3 py-2"
+                        bg={status === 'ongoing' ? 'success' : status === 'upcoming' ? 'primary' : 'secondary'} 
+                        className="px-3 py-2 mb-2"
                       >
-                        {status === 'recent' ? 'FINISHED (RECENT)' : status.toUpperCase()}
+                        {status.toUpperCase()}
                       </Badge>
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        className="w-100 fw-bold shadow-sm"
+                        onClick={() => navigate(`/turma-report/${selectedTurmaId}`)}
+                      >
+                        <i className="bi bi-file-earmark-bar-graph me-2"></i>Export Class Report
+                      </Button>
                     </Col>
                   </Row>
                 );
@@ -232,11 +247,10 @@ const TurmaDashboard = () => {
             <div className="text-center py-5"><Spinner animation="grow" variant="primary" /></div>
           ) : (
             <Row className="g-4">
-              {/* CURRICULUM TABLE */}
-              <Col lg={8}>
+              <Col lg={9}>
                 <Card className="shadow-sm border-0">
                   <Card.Header className="bg-white py-3">
-                    <h5 className="mb-0 fw-bold">Curriculum & Teaching Staff</h5>
+                    <h5 className="mb-0 fw-bold">Curriculum & Scheduling Progress</h5>
                   </Card.Header>
                   <Card.Body className="p-0">
                     <Table hover responsive className="mb-0 align-middle">
@@ -245,84 +259,86 @@ const TurmaDashboard = () => {
                           <th className="text-center">#</th>
                           <th>Module</th>
                           <th>Instructor</th>
-                          <th>Hours Progress</th>
+                          <th>Schedule coverage</th>
+                          <th>Taught Progress</th>
                           <th className="text-end px-3">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {moduleDetails.map((mod) => (
-                          <tr key={mod.moduleId}>
-                            <td className="text-center text-muted fw-bold">{mod.orderIndex}</td>
-                            <td>
-                              <div className="fw-bold">{mod.moduleName}</div>
-                              <small className="text-muted">{mod.totalDuration}h Total</small>
-                            </td>
-                            <td>
-                              {mod.teacherName ? (
-                                <Badge bg="primary" className="fw-normal">{mod.teacherName}</Badge>
-                              ) : (
-                                <Badge bg="light" text="dark" className="border fw-normal text-uppercase small">Vacant</Badge>
-                              )}
-                            </td>
-                            <td style={{ minWidth: '160px' }}>
-                              <div className="d-flex justify-content-between small mb-1">
-                                <span className="fw-bold">{mod.hoursCompleted}h</span>
-                                <span>{Math.round((mod.hoursCompleted / mod.totalDuration) * 100)}%</span>
-                              </div>
-                              <ProgressBar 
-                                variant={mod.isCompleted ? "success" : "primary"} 
-                                now={(mod.hoursCompleted / mod.totalDuration) * 100} 
-                                style={{ height: '6px' }}
-                              />
-                            </td>
-                            <td className="text-end px-3">
-                              <Stack direction="horizontal" gap={2} className="justify-content-end">
-                                <Button 
-                                  variant="outline-dark" 
-                                  size="sm" 
-                                  onClick={() => handleOpenAssignModal(mod)}
-                                >
-                                  {mod.teacherId ? "Reassign" : "Assign"}
-                                </Button>
-                                <Button 
-                                  variant="outline-success" 
-                                  size="sm" 
-                                  onClick={() => navigate(`/turma/${selectedTurmaId}/module/${mod.moduleId}/grades`)}
-                                >
-                                  Grades
-                                </Button>
-                              </Stack>
-                            </td>
-                          </tr>
-                        ))}
+                        {moduleDetails.map((mod) => {
+                          const schedPct = Math.min(100, Math.round((mod.totalScheduled / mod.totalDuration) * 100));
+                          const taughtPct = Math.min(100, Math.round((mod.hoursTaught / mod.totalDuration) * 100));
+
+                          return (
+                            <tr key={mod.moduleId}>
+                              <td className="text-center text-muted fw-bold">{mod.orderIndex}</td>
+                              <td>
+                                <div className="fw-bold">{mod.moduleName}</div>
+                                <small className="text-muted">{mod.totalDuration}h Total</small>
+                              </td>
+                              <td>
+                                {mod.teacherName ? (
+                                  <Badge bg="info" className="fw-normal text-dark">{mod.teacherName}</Badge>
+                                ) : (
+                                  <Badge bg="light" text="dark" className="border fw-normal">Vacant</Badge>
+                                )}
+                              </td>
+                              {/* New Column: Schedule Coverage */}
+                              <td>
+                                <div className="d-flex justify-content-between small mb-1">
+                                  <span>{mod.totalScheduled} / {mod.totalDuration}h</span>
+                                  <span className="text-muted">{schedPct}%</span>
+                                </div>
+                                <ProgressBar now={schedPct} variant="warning" style={{ height: '4px' }} />
+                              </td>
+                              {/* New Column: Taught Progress */}
+                              <td style={{ minWidth: '150px' }}>
+                                <div className="d-flex justify-content-between small mb-1">
+                                  <span className="fw-bold">{mod.hoursTaught}h Taught</span>
+                                  <span>{taughtPct}%</span>
+                                </div>
+                                <ProgressBar 
+                                  variant={taughtPct >= 100 ? "success" : "primary"} 
+                                  now={taughtPct} 
+                                  style={{ height: '8px' }}
+                                />
+                              </td>
+                              <td className="text-end px-3">
+                                <Stack direction="horizontal" gap={2} className="justify-content-end">
+                                  <Button variant="outline-dark" size="sm" onClick={() => handleOpenAssignModal(mod)}>
+                                    {mod.teacherId ? "Reassign" : "Assign"}
+                                  </Button>
+                                  <Button 
+                                    variant="outline-success" 
+                                    size="sm" 
+                                    onClick={() => navigate(`/turma/${selectedTurmaId}/module/${mod.moduleId}/grades`)}
+                                  >
+                                    Grades
+                                  </Button>
+                                </Stack>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </Table>
                   </Card.Body>
                 </Card>
               </Col>
 
-              {/* STUDENT SIDEBAR */}
-              <Col lg={4}>
+              <Col lg={3}>
                 <Card className="shadow-sm border-0">
                   <Card.Header className="bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0 fw-bold">Enrollments</h5>
+                    <h5 className="mb-0 fw-bold">Students</h5>
                     <Badge pill bg="dark">{students.length}</Badge>
                   </Card.Header>
                   <ListGroup variant="flush">
                     {students.map(s => (
-                      <ListGroup.Item key={s.userId} className="py-3 border-bottom">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div>
-                            <div className="fw-bold">{s.username}</div>
-                            <div className="text-muted small">{s.email}</div>
-                          </div>
-                          {s.enrollmentIsDeleted === 1 && <Badge bg="danger">Inactive</Badge>}
-                        </div>
+                      <ListGroup.Item key={s.userId} className="py-2 border-bottom">
+                        <div className="fw-bold small">{s.username}</div>
+                        <div className="text-muted" style={{fontSize: '0.75rem'}}>{s.email}</div>
                       </ListGroup.Item>
                     ))}
-                    {students.length === 0 && (
-                      <div className="p-5 text-center text-muted italic small">No students enrolled yet.</div>
-                    )}
                   </ListGroup>
                 </Card>
               </Col>
@@ -333,41 +349,30 @@ const TurmaDashboard = () => {
 
       {/* ASSIGNMENT MODAL */}
       <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)} centered>
-        <Modal.Header closeButton className="bg-light">
-          <Modal.Title>Instructor Assignment</Modal.Title>
+        <Modal.Header closeButton>
+          <Modal.Title>Assign Instructor</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <div className="mb-3">
-            <label className="text-muted small text-uppercase fw-bold">Target Module</label>
+            <label className="text-muted small text-uppercase fw-bold">Module</label>
             <h5 className="text-primary">{selectedModule?.moduleName}</h5>
           </div>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">Select Qualified Teacher</Form.Label>
+          <Form.Group>
+            <Form.Label className="fw-bold">Instructor</Form.Label>
             <Form.Select 
               value={teacherToAssign} 
               onChange={(e) => setTeacherToAssign(e.target.value)}
-              className="form-select-lg"
             >
-              <option value="">-- Choose Instructor --</option>
+              <option value="">-- Select --</option>
               {qualifiedTeachers.map(t => (
-                <option key={t.userId} value={t.userId}>
-                  {t.username}
-                </option>
+                <option key={t.userId} value={t.userId}>{t.username}</option>
               ))}
             </Form.Select>
-            {qualifiedTeachers.length === 0 && (
-               <Form.Text className="text-danger">No teachers are qualified for this module in the database.</Form.Text>
-            )}
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer className="bg-light border-0">
-          <Button variant="link" className="text-muted" onClick={() => setShowAssignModal(false)}>Cancel</Button>
-          <Button 
-            variant="primary" 
-            onClick={handleAssignTeacher} 
-            disabled={!teacherToAssign}
-            className="px-4 shadow-sm"
-          >
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAssignModal(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleAssignTeacher} disabled={!teacherToAssign}>
             Confirm Assignment
           </Button>
         </Modal.Footer>

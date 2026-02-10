@@ -1,6 +1,5 @@
-// src/pages/TurmaScheduleAdmin.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Card, Table, Form, Row, Col, Button, Badge, Spinner, Alert, Modal, ListGroup } from 'react-bootstrap';
+import { Container, Card, Table, Form, Row, Col, Button, Badge, Spinner, Alert, Modal, ListGroup, ProgressBar } from 'react-bootstrap';
 import { format, startOfWeek, addDays, addHours, isSameHour, parseISO } from 'date-fns';
 import { FaDesktop, FaTools, FaCalendarPlus, FaTrash, FaEdit, FaClock, FaChalkboardTeacher, FaBookOpen, FaDoorOpen } from 'react-icons/fa';
 
@@ -21,18 +20,14 @@ const TurmaScheduleAdmin = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingScheduleId, setEditingScheduleId] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [progressData, setProgressData] = useState({}); // Stores { moduleId: progressDTO }
   const [modalLoading, setModalLoading] = useState(false);
   
-  // The specific current details from the DB
   const [currentSessionDetails, setCurrentSessionDetails] = useState(null);
-
-  // Form states (These will hold either the "old" values or the "new" selections)
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState('');
-
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  // 1. Initial Load: Turmas
   useEffect(() => {
     const fetchTurmas = async () => {
       try {
@@ -43,7 +38,6 @@ const TurmaScheduleAdmin = () => {
     fetchTurmas();
   }, []);
 
-  // 2. Fetch Grid Data
   const fetchSchedule = useCallback(async () => {
     if (!selectedTurmaId) { setScheduleData([]); return; }
     setLoading(true);
@@ -59,7 +53,6 @@ const TurmaScheduleAdmin = () => {
 
   useEffect(() => { fetchSchedule(); }, [fetchSchedule]);
 
-  // 3. Fetch Available Rooms
   useEffect(() => {
     const fetchRooms = async () => {
       if (selectedSlots.length === 0) { setAvailableRooms([]); return; }
@@ -79,7 +72,6 @@ const TurmaScheduleAdmin = () => {
     fetchRooms();
   }, [selectedSlots]);
 
-  // --- Grid Interaction ---
   const handleSlotClick = (day, hour, session) => {
     if (session) {
       setSelectedSlots([{ day, hour, isExisting: true, sessionData: session }]);
@@ -103,7 +95,6 @@ const TurmaScheduleAdmin = () => {
     }
   };
 
-  // --- Modal Logic (Hydrates with existing data if Edit) ---
   const handleOpenModal = async () => {
     setModalLoading(true);
     const isExisting = !!selectedSlots[0].isExisting;
@@ -115,22 +106,29 @@ const TurmaScheduleAdmin = () => {
     const end = `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`;
 
     try {
-      // 1. Suggestions are always loaded
       const suggUrl = `${ServerIP}/api/ModuleTurmaTeacher/suggest-teacher-module?TurmaId=${selectedTurmaId}&StartTime=${start}&EndTime=${end}`;
       const suggRes = await fetch(suggUrl);
       const suggestionsList = await suggRes.json();
       const finalSuggestions = Array.isArray(suggestionsList) ? suggestionsList : (suggestionsList.data || []);
       setSuggestions(finalSuggestions);
 
+      const uniqueModuleIds = [...new Set(finalSuggestions.map(s => s.moduleId))];
+      const progressMap = {};
+      
+      await Promise.all(uniqueModuleIds.map(async (mId) => {
+        try {
+          const pRes = await fetch(`${ServerIP}/api/Shcedule/module-progress/${selectedTurmaId}/${mId}`);
+          if (pRes.ok) progressMap[mId] = await pRes.json();
+        } catch (e) { console.error("Progress fetch error", e); }
+      }));
+      setProgressData(progressMap);
+
       if (isExisting) {
-        // 2. Fetch the specific details from the backend
         const detailRes = await fetch(`${ServerIP}/api/Shcedule/details?turmaId=${selectedTurmaId}&dateTime=${start}`);
         if (detailRes.ok) {
           const details = await detailRes.json();
           setCurrentSessionDetails(details);
           setEditingScheduleId(details.scheduleId);
-          
-          // Pre-populate selections so they aren't null if the user just clicks "Update"
           setSelectedRoomId(details.salaId.toString());
           setSelectedSuggestion({
             teacherId: details.teacherId,
@@ -140,7 +138,6 @@ const TurmaScheduleAdmin = () => {
           });
         }
       } else {
-        // Clear for Create
         setCurrentSessionDetails(null);
         setSelectedSuggestion(null);
         setSelectedRoomId('');
@@ -163,9 +160,7 @@ const TurmaScheduleAdmin = () => {
     const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
     const start = `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`;
 
-    // Find the Room Name based on the current selection
     const roomObject = availableRooms.find(r => r.id.toString() === selectedRoomId.toString());
-    // Fallback to the current details if the room wasn't changed
     const finalSalaNome = roomObject ? roomObject.nome : (currentSessionDetails?.salaNome || "");
 
     const payload = {
@@ -177,7 +172,7 @@ const TurmaScheduleAdmin = () => {
       TeacherId: selectedSuggestion.teacherId,
       TeacherName: selectedSuggestion.teacherName,
       SalaId: parseInt(selectedRoomId),
-      SalaNome: finalSalaNome, // Included here
+      SalaNome: finalSalaNome,
       DateTime: start
     };
 
@@ -239,7 +234,6 @@ const TurmaScheduleAdmin = () => {
 
   return (
     <Container fluid className="mt-5 pt-4 px-4">
-      {/* Header Controls */}
       <Card className="shadow-sm border-0 mb-4 bg-light">
         <Card.Body>
           <Row className="align-items-center">
@@ -257,7 +251,7 @@ const TurmaScheduleAdmin = () => {
             <Col md={6} className="text-end">
               {selectedSlots.length > 0 && selectedSlots[0].isExisting ? (
                 <Button variant="warning" size="lg" onClick={handleOpenModal}>
-                   <FaEdit className="me-2"/> Edit Session
+                    <FaEdit className="me-2"/> Edit Session
                 </Button>
               ) : (
                 <>
@@ -274,7 +268,6 @@ const TurmaScheduleAdmin = () => {
         </Card.Body>
       </Card>
 
-      {/* Schedule Grid */}
       <Card className="shadow-sm border-0">
         <Card.Body className="p-0">
           {!selectedTurmaId ? (
@@ -335,7 +328,7 @@ const TurmaScheduleAdmin = () => {
         </Card.Body>
       </Card>
 
-      {/* --- MODAL (CREATE/EDIT) --- */}
+      {/* --- MODAL --- */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
         <Modal.Header closeButton className={isEditMode ? "bg-warning text-dark" : "bg-success text-white"}>
           <Modal.Title>
@@ -344,37 +337,53 @@ const TurmaScheduleAdmin = () => {
         </Modal.Header>
         <Modal.Body className="bg-light">
           
-          {/* Current Info Summary (Very helpful for users) */}
-          {isEditMode && currentSessionDetails && (
-            <div className="mb-4 p-3 border rounded bg-white shadow-sm border-warning">
-              <h6 className="text-warning fw-bold mb-2 small text-uppercase">Current Session Details</h6>
-              <Row className="g-3">
-                <Col sm={6}><small className="text-muted"><FaClock className="me-1"/> Time:</small> <div className="fw-bold">{format(parseISO(currentSessionDetails.dateTime), 'PPPPp')}</div></Col>
-                <Col sm={6}><small className="text-muted"><FaBookOpen className="me-1"/> Module:</small> <div className="fw-bold">{currentSessionDetails.moduleName}</div></Col>
-                <Col sm={6}><small className="text-muted"><FaChalkboardTeacher className="me-1"/> Teacher:</small> <div className="fw-bold">{currentSessionDetails.teacherName}</div></Col>
-                <Col sm={6}><small className="text-muted"><FaDoorOpen className="me-1"/> Room:</small> <div className="fw-bold">{currentSessionDetails.salaNome}</div></Col>
-              </Row>
-            </div>
-          )}
-
           <h5 className="mb-3">1. Select Teacher & Module</h5>
           {suggestions.length === 0 && !isEditMode ? (
             <Alert variant="warning">No suggestions available for this range.</Alert>
           ) : (
-            <ListGroup className="shadow-sm mb-4" style={{maxHeight: '200px', overflowY: 'auto'}}>
-              {suggestions.map((s, idx) => (
-                <ListGroup.Item 
-                  key={idx} 
-                  action 
-                  active={selectedSuggestion?.teacherId === s.teacherId && selectedSuggestion?.moduleId === s.moduleId}
-                  onClick={() => setSelectedSuggestion(s)}
-                >
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="fw-bold">{s.moduleName}</span>
-                    <span className="small">P: {s.teacherName}</span>
-                  </div>
-                </ListGroup.Item>
-              ))}
+            <ListGroup className="shadow-sm mb-4" style={{maxHeight: '400px', overflowY: 'auto'}}>
+              {suggestions.map((s, idx) => {
+                const prog = progressData[s.moduleId];
+                const isSelected = selectedSuggestion?.teacherId === s.teacherId && selectedSuggestion?.moduleId === s.moduleId;
+                
+                return (
+                  <ListGroup.Item 
+                    key={idx} 
+                    action 
+                    active={isSelected}
+                    onClick={() => setSelectedSuggestion(s)}
+                    className="py-3"
+                  >
+                    <Row className="align-items-center">
+                      <Col md={5}>
+                        <div className="fw-bold fs-6">{s.moduleName}</div>
+                        <div className="small text-muted"><FaChalkboardTeacher className="me-1"/>{s.teacherName}</div>
+                      </Col>
+                      <Col md={7}>
+                        {prog ? (
+                          <div className="progress-info">
+                            <div className="d-flex justify-content-between mb-1 small fw-bold">
+                              <span style={{fontSize: '0.7rem'}} className="text-muted">
+                                Taught: {prog.hoursTaught}h | Scheduled: <span className="text-warning">{prog.totalScheduled}h</span>
+                              </span>
+                              <span className="text-danger" style={{fontSize: '0.7rem'}}>
+                                {prog.remainingToSchedule}h Missing
+                              </span>
+                            </div>
+                            <ProgressBar style={{height: '8px'}} className="mb-1">
+                               <ProgressBar variant="success" now={(prog.hoursTaught / prog.targetDuration) * 100} key={1} />
+                               <ProgressBar variant="warning" now={((prog.totalScheduled - prog.hoursTaught) / prog.targetDuration) * 100} key={2} />
+                            </ProgressBar>
+                            <div className="text-end text-muted fw-bold" style={{fontSize: '0.65rem'}}>Goal: {prog.targetDuration}h</div>
+                          </div>
+                        ) : (
+                          <div className="text-center small text-muted italic">Loading progress...</div>
+                        )}
+                      </Col>
+                    </Row>
+                  </ListGroup.Item>
+                );
+              })}
             </ListGroup>
           )}
 

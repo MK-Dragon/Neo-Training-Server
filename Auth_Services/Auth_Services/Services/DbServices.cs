@@ -4225,6 +4225,45 @@ namespace Auth_Services.Services
             }
         }
 
+        // * Get Turma-Module Progress:
+        public async Task<ModuleProgressDTO> GetModuleProgress(int turmaId, int moduleId)
+        {
+            try
+            {
+                const string query = @"
+            SELECT 
+                m.name AS ModuleName,
+                m.duration_h AS TargetDuration,
+                COUNT(s.schedule_id) AS TotalScheduled,
+                SUM(CASE WHEN s.date_time <= NOW() THEN 1 ELSE 0 END) AS HoursTaught
+            FROM modules m
+            LEFT JOIN schedules s ON m.module_id = s.module_id AND s.turma_id = @turmaId
+            WHERE m.module_id = @moduleId
+            GROUP BY m.module_id, m.name, m.duration_h;";
+
+                var parameters = new[] {
+            new MySqlParameter("@turmaId", turmaId),
+            new MySqlParameter("@moduleId", moduleId)
+        };
+
+                var results = await GetDataAsync<ModuleProgressDTO>(query, reader => new ModuleProgressDTO
+                {
+                    ModuleName = reader["ModuleName"].ToString(),
+                    TargetDuration = Convert.ToInt32(reader["TargetDuration"]),
+                    TotalScheduled = Convert.ToInt32(reader["TotalScheduled"]),
+                    HoursTaught = reader["HoursTaught"] != DBNull.Value ? Convert.ToInt32(reader["HoursTaught"]) : 0
+                }, parameters);
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching module progress: {ex.Message}");
+                return null;
+            }
+        }
+
+
 
         // ** Download | Upload **
 

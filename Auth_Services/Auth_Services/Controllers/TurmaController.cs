@@ -72,7 +72,7 @@ namespace Auth_Services.Controllers
 
             try
             {
-                var turma = await _dbServices.GetTurmaById(turmaId);
+                var turma = await _dbServices.GetTurmaById(turmaId); // TurmaDTO
 
                 if (turma == null)
                 {
