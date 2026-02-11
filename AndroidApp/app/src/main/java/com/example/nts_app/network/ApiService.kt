@@ -48,4 +48,10 @@ interface ApiService {
 
     @GET("api/Courses/all-courses-summary")
     suspend fun getCourses(): List<Course>
+
+    @GET("api/Teacher/teachers-list")
+    suspend fun getTeachers(): List<UserSimple>
+
+    @GET("api/Statistics/teacher-module-history/{teacherId}")
+    suspend fun getTeacherHistory(@Path("teacherId") teacherId: Int): List<TeacherModuleHistoryDTO>
 }

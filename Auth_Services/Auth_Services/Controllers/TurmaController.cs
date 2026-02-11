@@ -207,6 +207,25 @@ namespace Auth_Services.Controllers
         }
 
 
+        [HttpGet("ongoing")]
+        public async Task<IActionResult> GetOngoing()
+        {
+            try
+            {
+                var turmas = await _dbServices.GetOngoingTurmas();
+                
+                if (turmas == null || turmas.Count == 0)
+                {
+                    return Ok(new List<TurmaDTO>());
+                }
+
+                return Ok(turmas);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
 

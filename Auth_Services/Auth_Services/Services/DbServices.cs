@@ -2138,6 +2138,47 @@ namespace Auth_Services.Services
             }
         }
 
+        public async Task<List<TurmaDTO>> GetOngoingTurmas()
+        {
+            try
+            {
+                // turmas where NOW() is between start and end.
+                // NOT Deleted on both the turma and the course.
+                const string query = @"
+                    SELECT 
+                        t.turma_id AS TurmaId,
+                        t.turma_name AS TurmaName,
+                        t.course_id AS CourseId,
+                        c.nome_curso AS CourseName,
+                        t.isDeleted AS isDeleted,
+                        t.date_start AS DateStart,
+                        t.date_end AS DateEnd
+                    FROM turmas t
+                    INNER JOIN courses c ON t.course_id = c.id_cursos
+                    WHERE t.isDeleted = 0 
+                    AND c.isDeleted = 0
+                    AND NOW() BETWEEN t.date_start AND t.date_end
+                    ORDER BY t.date_end ASC;";
+
+                return await GetDataAsync<TurmaDTO>(query, reader => new TurmaDTO
+                {
+                    TurmaId = Convert.ToInt32(reader["TurmaId"]),
+                    TurmaName = reader["TurmaName"].ToString(),
+                    CourseId = Convert.ToInt32(reader["CourseId"]),
+                    CourseName = reader["CourseName"].ToString(),
+                    isDeleted = Convert.ToInt32(reader["isDeleted"]),
+                    DateStart = reader["DateStart"] != DBNull.Value ? Convert.ToDateTime(reader["DateStart"]) : (DateTime?)null,
+                    DateEnd = reader["DateEnd"] != DBNull.Value ? Convert.ToDateTime(reader["DateEnd"]) : (DateTime?)null
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching ongoing turmas: {ex.Message}");
+                return new List<TurmaDTO>();
+            }
+        }
+
+
 
 
         // ** Turmas & Enrollments **
