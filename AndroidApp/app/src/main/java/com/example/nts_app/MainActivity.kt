@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.nts_app.network.RetrofitClient
 
 // Pages
 import com.example.nts_app.screens.HomeScreen
@@ -27,6 +28,7 @@ import com.example.nts_app.screens.CoursesScreen
 import com.example.nts_app.screens.TeachersScreen
 import com.example.nts_app.screens.StudentsScreen
 import com.example.nts_app.screens.RoomsScreen
+import com.example.nts_app.screens.ProfileScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,7 +95,13 @@ class MainActivity : ComponentActivity() {
                         RoomsScreen(onBack = { navController.popBackStack() })
                     }
 
-                    composable("profile") { /* We can build this next! */ }
+                    composable("profile") {
+                        ProfileScreen(
+                            viewModel = userViewModel,
+                            apiService = RetrofitClient.apiService, // Accessing it directly from your object
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
         }
