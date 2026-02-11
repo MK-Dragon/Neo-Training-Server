@@ -5,9 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,10 +19,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+
+// Pages
 import com.example.nts_app.screens.HomeScreen
 import com.example.nts_app.screens.LoginScreen
 import com.example.nts_app.screens.CoursesScreen
 import com.example.nts_app.screens.TeachersScreen
+import com.example.nts_app.screens.StudentsScreen
+import com.example.nts_app.screens.RoomsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,8 +85,14 @@ class MainActivity : ComponentActivity() {
                         TeachersScreen(onBack = { navController.popBackStack() })
                     }
 
-                    composable("view_students") { /* TODO: Create StudentScreen */ }
-                    composable("room_availability") { /* TODO: Create RoomScreen */ }
+                    composable("view_students") {
+                        StudentsScreen(onBack = { navController.popBackStack() })
+                    }
+
+                    composable("room_availability") {
+                        RoomsScreen(onBack = { navController.popBackStack() })
+                    }
+
                     composable("profile") { /* We can build this next! */ }
                 }
             }
@@ -95,8 +104,7 @@ class MainActivity : ComponentActivity() {
 fun BottomNavigationBar(navController: androidx.navigation.NavHostController) {
     val items = listOf(
         NavigationItem("home", "Home", Icons.Default.Home),
-        NavigationItem("view_courses", "Courses", Icons.Default.Book),
-        NavigationItem("view_teachers", "Teachers", Icons.Default.Person),
+        NavigationItem("room_availability", "Class Rooms", Icons.Default.MeetingRoom),
         NavigationItem("profile", "Profile", Icons.Default.Settings)
     )
 
