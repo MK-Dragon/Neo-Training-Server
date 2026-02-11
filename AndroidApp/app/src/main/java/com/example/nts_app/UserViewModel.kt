@@ -104,4 +104,15 @@ class UserViewModel : ViewModel() {
             }
         }
     }
+
+    fun logout() {
+        currentUser = null
+        isWaitingFor2FA = false
+        errorMessage = ""
+        // Clear the token in the network client too
+        com.example.nts_app.network.RetrofitClient.setToken("")
+    }
+
+
+
 }

@@ -21,7 +21,11 @@ object RetrofitClient {
         authToken = token
     }
 
-    private fun getUnsafeOkHttpClient(): OkHttpClient {
+    /**
+     * We make the OkHttpClient a public property.
+     * This allows MainActivity to use it for the Coil ImageLoader.
+     */
+    val okHttpClient: OkHttpClient by lazy {
         try {
             // 1. Create a trust manager that does not validate certificate chains
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
@@ -34,12 +38,12 @@ object RetrofitClient {
             val sslContext = SSLContext.getInstance("SSL")
             sslContext.init(null, trustAllCerts, SecureRandom())
 
-            // 3. Create a logging interceptor (The "Console/Network Tab")
+            // 3. Create a logging interceptor (The "Network Tab" for Android)
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             }
 
-            return OkHttpClient.Builder()
+            OkHttpClient.Builder()
                 .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
                 .hostnameVerifier { _, _ -> true }
                 // 4. Add the Authorization Header automatically to every request
@@ -53,7 +57,7 @@ object RetrofitClient {
 
                     chain.proceed(requestBuilder.build())
                 }
-                .addInterceptor(logging) // Logs all requests to Logcat
+                .addInterceptor(logging)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
@@ -62,10 +66,13 @@ object RetrofitClient {
         }
     }
 
+    /**
+     * Retrofit uses the shared okHttpClient above.
+     */
     val apiService: ApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(getUnsafeOkHttpClient())
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)

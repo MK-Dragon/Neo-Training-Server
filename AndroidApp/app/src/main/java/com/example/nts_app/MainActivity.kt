@@ -9,14 +9,26 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.nts_app.screens.HomeScreen
 import com.example.nts_app.screens.LoginScreen
+import com.example.nts_app.screens.CoursesScreen
+import com.example.nts_app.network.RetrofitClient
+import coil.ImageLoader
+import coil.Coil
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val imageLoader = coil.ImageLoader.Builder(this)
+            .okHttpClient { com.example.nts_app.network.RetrofitClient.okHttpClient }
+            .build()
+        coil.Coil.setImageLoader(imageLoader)
+
         setContent {
             val navController = rememberNavController()
             // Shared ViewModel instance for the whole app
             val userViewModel: UserViewModel = viewModel()
+
+
 
             NavHost(navController = navController, startDestination = "login") {
 
@@ -42,8 +54,12 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                composable("view_courses") {
+                    CoursesScreen(onBack = { navController.popBackStack() })
+                }
+
                 // Placeholder routes for your dashboard buttons
-                composable("view_courses") { /* TODO: Create CourseScreen */ }
+                //composable("view_courses") { /* TODO: Create CourseScreen */ }
                 composable("view_teachers") { /* TODO: Create TeacherScreen */ }
                 composable("view_students") { /* TODO: Create StudentScreen */ }
                 composable("room_availability") { /* TODO: Create RoomScreen */ }

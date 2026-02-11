@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,31 +20,28 @@ import coil.request.ImageRequest
 import com.example.nts_app.UserViewModel
 import androidx.compose.material3.HorizontalDivider as Divider
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook    // For View Courses
-import androidx.compose.material.icons.filled.Person      // For View Teachers
-import androidx.compose.material.icons.filled.Groups      // For View Students
-import androidx.compose.material.icons.filled.MeetingRoom  // For Room Availability
+import androidx.compose.material.icons.filled.*
 
 @Composable
 fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
     val user = viewModel.currentUser
+    val context = LocalContext.current
+
+    // Use a timestamp just like your React code: ?t=${Date.now()}
+    val imgTimestamp = remember { System.currentTimeMillis() }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- Header Section ---
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("https://192.168.0.214:7089/api/DownloadUpload/profile-image/${user?.userId}")
+                model = ImageRequest.Builder(context)
+                    .data("https://192.168.0.214:7089/api/DownloadUpload/profile-image/${user?.userId}?t=$imgTimestamp")
                     .crossfade(true)
                     .build(),
                 contentDescription = "Profile Picture",
@@ -57,30 +54,57 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = user?.username ?: "User",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // ROLE BADGE
+                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                        Text(user?.userRole ?: "Role", modifier = Modifier.padding(4.dp))
+                    }
+                }
                 Text("Welcome back,", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    text = user?.username ?: "User",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            }
+
+            IconButton(onClick = {
+                viewModel.logout()
+                onNavigate("login")
+            }) {
+                Icon(Icons.Default.ExitToApp, "Logout", tint = MaterialTheme.colorScheme.error)
             }
         }
 
         Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-        // --- Grid Buttons Section ---
+        // --- All 4 Dashboard Buttons ---
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.weight(1f)
         ) {
-            // Note: Changed Icons.Default.Book to Icons.Default.MenuBook
-            item { DashboardButton("View Courses", Icons.Default.MenuBook) { onNavigate("courses") } }
-            item { DashboardButton("View Teachers", Icons.Default.Person) { onNavigate("teachers") } }
-            item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("students") } }
-            item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("rooms") } }
+            item { DashboardButton("View Courses", Icons.Default.MenuBook) { onNavigate("view_courses") } }
+            item { DashboardButton("View Teachers", Icons.Default.Person) { onNavigate("view_teachers") } }
+            item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("view_students") } }
+            item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("room_availability") } }
+        }
+
+        // --- DEBUG INFO PANEL ---
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text("Developer Debug Info:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                Text("User ID: ${user?.userId}", style = MaterialTheme.typography.bodySmall)
+                Text("Email: ${user?.email}", style = MaterialTheme.typography.bodySmall)
+                Text("Role: ${user?.userRole}", style = MaterialTheme.typography.bodySmall)
+                Text("Token Length: ${user?.getToken()?.length ?: 0} chars", style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }
@@ -89,28 +113,17 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
 fun DashboardButton(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = Modifier.fillMaxWidth().height(110.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = title,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelLarge
-            )
+            Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(title, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

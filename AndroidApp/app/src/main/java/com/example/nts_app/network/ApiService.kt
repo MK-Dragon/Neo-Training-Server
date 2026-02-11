@@ -45,4 +45,7 @@ interface ApiService {
 
     fun getProfileImageUrl(userId: Int): String =
         "https://192.168.0.214:7089/api/DownloadUpload/profile-image/$userId"
+
+    @GET("api/Courses/all-courses-summary")
+    suspend fun getCourses(): List<Course>
 }
