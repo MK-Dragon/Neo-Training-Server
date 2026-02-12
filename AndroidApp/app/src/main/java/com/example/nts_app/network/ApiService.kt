@@ -101,4 +101,13 @@ interface ApiService {
         @Query("start") start: String,
         @Query("end") end: String
     ): List<Sala>
+
+
+    // Schedule
+    @GET("api/Shcedule/schedules-filter")
+    suspend fun getSchedulesFilter(
+        @Query("start") start: String,
+        @Query("end") end: String,
+        @Query("turmaId") turmaId: Int
+    ): List<ScheduleDTO>
 }

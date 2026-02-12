@@ -29,6 +29,7 @@ import com.example.nts_app.screens.TeachersScreen
 import com.example.nts_app.screens.StudentsScreen
 import com.example.nts_app.screens.RoomsScreen
 import com.example.nts_app.screens.ProfileScreen
+import com.example.nts_app.screens.ScheduleScreen
 
 // Theme
 import com.example.nts_app.ui.theme.NTS_APPTheme
@@ -103,6 +104,12 @@ class MainActivity : ComponentActivity() {
                             ProfileScreen(
                                 viewModel = userViewModel,
                                 apiService = RetrofitClient.apiService, // Accessing it directly from your object
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable("schedules") {
+                            ScheduleScreen(
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

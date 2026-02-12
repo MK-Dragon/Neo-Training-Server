@@ -104,6 +104,7 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
                 item { DashboardButton("View Teachers", Icons.Default.Person) { onNavigate("view_teachers") } }
                 item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("view_students") } }
                 item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("room_availability") } }
+                item { DashboardButton("Schedules", Icons.Default.CalendarMonth) { onNavigate("schedules") } }
             }
         }
     }

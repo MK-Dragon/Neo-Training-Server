@@ -33,6 +33,20 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+
+
+private fun bitmapToByteArray(bitmap: Bitmap): ByteArray {
+    val stream = ByteArrayOutputStream()
+    // Compress to JPEG at 90% quality to keep it small for the server
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+    return stream.toByteArray()
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBack: () -> Unit) {
@@ -50,16 +64,40 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
 
     // --- Image & Permission Launchers ---
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { uploadImage(it, user?.userId, apiService, context) { imgTimestamp = System.currentTimeMillis() } }
+        uri?.let {
+            // Pass 'scope' as the 5th argument
+            uploadImage(it, user?.userId, apiService, context, scope) {
+                imgTimestamp = System.currentTimeMillis()
+            }
+        }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        bitmap?.let { uploadBitmap(it, user?.userId, apiService, context) { imgTimestamp = System.currentTimeMillis() } }
+        if (bitmap != null) {
+            // We don't need scope.launch here because performUpload
+            // handles the coroutine internally now.
+            val byteArray = bitmapToByteArray(bitmap)
+            performUpload(byteArray, user?.userId, apiService, context, scope) {
+                imgTimestamp = System.currentTimeMillis()
+            }
+        }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) { cameraLauncher.launch() }
-        else { Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show() }
+    // In your ProfileScreen composable
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            try {
+                // Attempt to launch. If the device has no usable camera,
+                // TakePicturePreview can occasionally trigger the crash you saw.
+                cameraLauncher.launch()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Camera could not be started", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Fetch History Data logic
@@ -194,24 +232,43 @@ fun TeacherHistoryList(courses: List<TeacherCourseDTO>, modules: List<TeacherMod
 
 // --- Helper Functions for Image Processing ---
 
-private fun uploadImage(uri: Uri, userId: Int?, apiService: ApiService, context: android.content.Context, onSuccess: () -> Unit) {
+private fun uploadImage(
+    uri: Uri,
+    userId: Int?,
+    apiService: ApiService,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope, // Add this
+    onSuccess: () -> Unit
+) {
     val bytes = context.contentResolver.openInputStream(uri)?.readBytes() ?: return
-    performUpload(bytes, userId, apiService, context, onSuccess)
+    performUpload(bytes, userId, apiService, context, scope, onSuccess) // Pass scope here
 }
 
-private fun uploadBitmap(bitmap: Bitmap, userId: Int?, apiService: ApiService, context: android.content.Context, onSuccess: () -> Unit) {
+private fun uploadBitmap(
+    bitmap: Bitmap,
+    userId: Int?,
+    apiService: ApiService,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope, // Add this
+    onSuccess: () -> Unit
+) {
     val stream = ByteArrayOutputStream()
     bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
-    performUpload(stream.toByteArray(), userId, apiService, context, onSuccess)
+    performUpload(stream.toByteArray(), userId, apiService, context, scope, onSuccess) // Pass scope here
 }
 
-private fun performUpload(bytes: ByteArray, userId: Int?, apiService: ApiService, context: android.content.Context, onSuccess: () -> Unit) {
+private fun performUpload(
+    bytes: ByteArray,
+    userId: Int?,
+    apiService: ApiService,
+    context: android.content.Context,
+    scope: kotlinx.coroutines.CoroutineScope, // Add this
+    onSuccess: () -> Unit
+) {
     val requestFile = bytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
-    // The "file" name here must match your C# [FromForm] IFormFile parameter name
     val body = MultipartBody.Part.createFormData("file", "profile_${userId}.jpg", requestFile)
 
-    // We use a Coroutine to run the network request on a background thread
-    kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+    scope.launch(Dispatchers.IO) { // Use the passed scope
         try {
             val response = apiService.uploadProfileImage(userId ?: 0, body)
             withContext(Dispatchers.Main) {

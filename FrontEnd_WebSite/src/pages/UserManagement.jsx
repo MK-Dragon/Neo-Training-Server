@@ -187,7 +187,7 @@ const UserManagement = () => {
                 <thead className="table-dark text-nowrap">
                     <tr>
                         <th>Avatar</th>
-                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>ID {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
+                        
                         <th onClick={() => requestSort('username')} style={{ cursor: 'pointer' }}>Username {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
                         <th onClick={() => requestSort('email')} style={{ cursor: 'pointer' }}>Email {sortConfig.key === 'email' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕️'}</th>
                         <th>Role</th>
@@ -206,7 +206,7 @@ const UserManagement = () => {
                                     onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${u.username}&background=random&size=64`; }}
                                 />
                             </td>
-                            <td>{u.id}</td>
+                            
                             <td style={u.isDeleted === 1 ? { textDecoration: 'line-through' } : {}}>
                                 {u.username} {u.isDeleted === 1 && <Badge bg="danger" className="ms-2">DELETED</Badge>}
                             </td>
