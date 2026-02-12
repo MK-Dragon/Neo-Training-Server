@@ -16,13 +16,16 @@ import com.example.nts_app.network.Course
 import com.example.nts_app.network.RetrofitClient
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoursesScreen(onBack: () -> Unit) {
     var allCourses by remember { mutableStateOf<List<Course>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
-    var sortType by remember { mutableStateOf("Name") } // Default sort
+    var sortCategory by remember { mutableStateOf("Name") }
+    var isAscending by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(true) }
 
     // Logic for filtering and sorting
@@ -37,13 +40,13 @@ fun CoursesScreen(onBack: () -> Unit) {
         it.name.contains(searchQuery, ignoreCase = true) ||
                 it.level.contains(searchQuery, ignoreCase = true)
     }.let { list ->
-        when (sortType) {
-            "Name" -> list.sortedBy { it.name }
-            "Level" -> list.sortedBy {
-                // Get the priority based on lowercase level, default to 99 for unknown
-                levelPriority[it.level.lowercase()] ?: 99
+        when (sortCategory) {
+            "Name" -> if (isAscending) list.sortedBy { it.name } else list.sortedByDescending { it.name }
+            "Level" -> {
+                val sorted = list.sortedBy { levelPriority[it.level.lowercase()] ?: 99 }
+                if (isAscending) sorted else sorted.reversed()
             }
-            "Duration" -> list.sortedByDescending { it.durationInHours }
+            "Duration" -> if (isAscending) list.sortedBy { it.durationInHours } else list.sortedByDescending { it.durationInHours }
             else -> list
         }
     }
@@ -86,11 +89,28 @@ fun CoursesScreen(onBack: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf("Name", "Level", "Duration").forEach { tag ->
+                    val isSelected = sortCategory == tag
                     FilterChip(
-                        selected = sortType == tag,
-                        onClick = { sortType = tag },
+                        selected = isSelected,
+                        onClick = {
+                            if (isSelected) {
+                                isAscending = !isAscending // Toggle direction
+                            } else {
+                                sortCategory = tag
+                                isAscending = true // Reset to ascending when switching category
+                            }
+                        },
                         label = { Text(tag) },
-                        leadingIcon = if (sortType == tag) {
+                        trailingIcon = if (isSelected) {
+                            {
+                                Icon(
+                                    imageVector = if (isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null,
+                        leadingIcon = if (isSelected) {
                             { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
                         } else null
                     )
@@ -132,8 +152,9 @@ fun CourseItem(course: Course) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -160,24 +181,48 @@ fun CourseItem(course: Course) {
                     ) {
                         Text(
                             text = "${course.durationInHours}h",
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Level Badge
+
+                    // --- DYNAMIC LEVEL BADGE ---
                     Surface(
                         shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.tertiaryContainer
+                        color = getLevelContainerColor(course.level)
                     ) {
                         Text(
-                            text = course.level,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall
+                            text = course.level.uppercase(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = getLevelColor(course.level)
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun getLevelColor(level: String): Color {
+    return when (level.lowercase()) {
+        "beginner" -> Color(0xFF2E7D32)     // Green
+        "intermediate" -> Color(0xFFEF6C00) // Orange
+        "advanced" -> Color(0xFFC62828)     // Red
+        else -> MaterialTheme.colorScheme.secondary // Default
+    }
+}
+
+@Composable
+fun getLevelContainerColor(level: String): Color {
+    return when (level.lowercase()) {
+        "beginner" -> Color(0xFFE8F5E9)     // Light Green
+        "intermediate" -> Color(0xFFFFF3E0) // Light Orange
+        "advanced" -> Color(0xFFFFEBEE)     // Light Red
+        else -> MaterialTheme.colorScheme.secondaryContainer
     }
 }

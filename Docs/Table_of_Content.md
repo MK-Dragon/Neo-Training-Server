@@ -56,12 +56,12 @@ Google;
 
 ## 3. Aplicação Mobile - 3 Valores
 ```
-a. Login
-b. Consultas rápidas:
-    i. Cursos
-    ii. Formandos
-    iii. Formadores
-    iv. Disponibilidade de salas
+✅a. Login
+✅b. Consultas rápidas:
+    ✅i. Cursos
+    ✅ii. Formandos
+    ✅iii. Formadores
+    ✅iv. Disponibilidade de salas
 ```
 
 ## 4. Aplicação geração automática de horários (web, mobile ou forms) - 3 Valores
