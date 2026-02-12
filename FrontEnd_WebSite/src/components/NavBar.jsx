@@ -32,26 +32,6 @@ function NavBar() {
 
   return (
     <>
-      {/* Inline style to force the dropdown to match the primary theme */}
-      <style>
-        {`
-          .custom-nav-dropdown .dropdown-menu {
-            background-color: #0d6efd; /* Bootstrap Primary Blue */
-            border: none;
-            box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
-          }
-          .custom-nav-dropdown .dropdown-item {
-            color: rgba(255, 255, 255, 0.8);
-          }
-          .custom-nav-dropdown .dropdown-item:hover {
-            background-color: #0a58ca; /* Slightly darker blue on hover */
-            color: #fff;
-          }
-          .custom-nav-dropdown .dropdown-divider {
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-          }
-        `}
-      </style>
 
       <Navbar 
         expand="lg" 

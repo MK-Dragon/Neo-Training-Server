@@ -1,0 +1,93 @@
+// 1. Functions first
+@import "bootstrap/scss/functions";
+
+// 2. Google Font Import
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&display=swap');
+
+
+// Theme START
+
+$body-bg: #f43f5e; // Your Rose color
+
+.card, .container-main {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(10px); // This creates the "frosted glass" look
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 1rem;
+}
+
+$primary: #f43f5e;
+$secondary: #8b5cf6;
+$body-bg: #fffbfb;
+$border-radius: 1rem; // Very rounded "pill" look
+$border-radius-lg: 1.5rem;
+$link-decoration: none;
+
+// Make inputs look softer
+$input-bg: #f9fafb;
+$input-focus-width: 4px;
+
+// Dropdown Customization
+$dropdown-bg: darken($primary, 5%); // Slightly darker than your navbar
+$dropdown-link-color: rgba(255, 255, 255, 0.85);
+$dropdown-link-hover-bg: rgba(255, 255, 255, 0.1);
+$dropdown-link-hover-color: #fff;
+$dropdown-border-width: 0;
+$dropdown-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+$dropdown-border-radius: 0.5rem; // Match your global border-radius!
+
+.card {
+  transition: transform 0.2s ease-in-out;
+  &:hover {
+    transform: translateY(-5px);
+  }
+}
+
+footer {
+  background-color: #1e293b; // Deep Slate
+  color: #f8fafc;
+  padding: 3rem 0;
+  margin-top: 5rem;
+  
+  a {
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.2s;
+    
+    &:hover {
+      color: $primary; // Uses your Rose color!
+    }
+  }
+  
+  .footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+footer.custom-footer {
+  background-color: darken($body-bg, 7%) !important; 
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+
+  // This targets all text and icons within the footer
+  p, span, i, .social-icons a {
+    color: #1e293b !important; 
+  }
+
+  .social-icons a {
+    transition: transform 0.2s ease, color 0.2s ease;
+    
+    &:hover {
+      // Keep the hover color as your primary Rose for a pop of color
+      color: $primary !important; 
+      transform: translateY(-3px);
+    }
+  }
+}
+
+// Theme END
+
+// 4. Finally, Bootstrap
+@import "bootstrap/scss/bootstrap";
