@@ -10,37 +10,44 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = BrandPink,
+    secondary = DeepIndigo,
+    background = SoftGray,
+    // This controls the "White Box" (Card background)
+    surfaceVariant = LightIndigoGray,
+    // This controls the color of text inside that box
+    onSurfaceVariant = DeepIndigo,
+    // This controls the color of your Buttons
+    primaryContainer = BrandPink,
+    onPrimaryContainer = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = BrandPink,
+    secondary = DeepIndigo,
+    background = SoftGray,
+    // This controls the "White Box" (Card background)
+    surfaceVariant = LightIndigoGray,
+    // This controls the color of text inside that box
+    onSurfaceVariant = DeepIndigo,
+    // This controls the color of your Buttons
+    primaryContainer = LightBrandPink,
+    onPrimaryContainer = Color.White
 )
 
 @Composable
 fun NTS_APPTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // CHANGE THIS TO FALSE to stop Android from overriding your colors
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        // This block is what was making it look "Default/Purple"
+        // based on your phone settings.
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

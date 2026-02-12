@@ -97,7 +97,7 @@ fun StudentsScreen(onBack: () -> Unit) {
 fun StatCard(label: String, value: String, icon: ImageVector, modifier: Modifier) {
     Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, null, tint = MaterialTheme.colorScheme.secondary)
             Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(label, style = MaterialTheme.typography.labelSmall)
         }

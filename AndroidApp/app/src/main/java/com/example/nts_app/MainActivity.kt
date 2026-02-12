@@ -30,6 +30,9 @@ import com.example.nts_app.screens.StudentsScreen
 import com.example.nts_app.screens.RoomsScreen
 import com.example.nts_app.screens.ProfileScreen
 
+// Theme
+import com.example.nts_app.ui.theme.NTS_APPTheme
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,71 +43,73 @@ class MainActivity : ComponentActivity() {
         coil.Coil.setImageLoader(imageLoader)
 
         setContent {
-            val navController = rememberNavController()
-            val userViewModel: UserViewModel = viewModel()
+            NTS_APPTheme(dynamicColor = false) {
+                val navController = rememberNavController()
+                val userViewModel: UserViewModel = viewModel()
 
-            // Observe the current route to decide if we show the navbar
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentDestination = navBackStackEntry?.destination
+                // Observe the current route to decide if we show the navbar
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
 
-            Scaffold(
-                bottomBar = {
-                    // Only show Navbar if we are NOT on the login screen
-                    if (currentDestination?.route != "login") {
-                        BottomNavigationBar(navController)
+                Scaffold(
+                    bottomBar = {
+                        // Only show Navbar if we are NOT on the login screen
+                        if (currentDestination?.route != "login") {
+                            BottomNavigationBar(navController)
+                        }
                     }
-                }
-            ) { innerPadding ->
-                // The innerPadding is vital! It pushes the content above the navbar.
-                NavHost(
-                    navController = navController,
-                    startDestination = "login",
-                    modifier = Modifier.padding(innerPadding)
-                ) {
-                    composable("login") {
-                        LoginScreen(
-                            viewModel = userViewModel,
-                            onLoginSuccess = {
-                                navController.navigate("home") {
-                                    popUpTo("login") { inclusive = true }
+                ) { innerPadding ->
+                    // The innerPadding is vital! It pushes the content above the navbar.
+                    NavHost(
+                        navController = navController,
+                        startDestination = "login",
+                        modifier = Modifier.padding(innerPadding)
+                    ) {
+                        composable("login") {
+                            LoginScreen(
+                                viewModel = userViewModel,
+                                onLoginSuccess = {
+                                    navController.navigate("home") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
                                 }
-                            }
-                        )
-                    }
+                            )
+                        }
 
-                    composable("home") {
-                        HomeScreen(
-                            viewModel = userViewModel,
-                            onNavigate = { route -> navController.navigate(route) }
-                        )
-                    }
+                        composable("home") {
+                            HomeScreen(
+                                viewModel = userViewModel,
+                                onNavigate = { route -> navController.navigate(route) }
+                            )
+                        }
 
-                    composable("view_courses") {
-                        CoursesScreen(onBack = { navController.popBackStack() })
-                    }
+                        composable("view_courses") {
+                            CoursesScreen(onBack = { navController.popBackStack() })
+                        }
 
-                    composable("view_teachers") {
-                        TeachersScreen(onBack = { navController.popBackStack() })
-                    }
+                        composable("view_teachers") {
+                            TeachersScreen(onBack = { navController.popBackStack() })
+                        }
 
-                    composable("view_students") {
-                        StudentsScreen(onBack = { navController.popBackStack() })
-                    }
+                        composable("view_students") {
+                            StudentsScreen(onBack = { navController.popBackStack() })
+                        }
 
-                    composable("room_availability") {
-                        RoomsScreen(onBack = { navController.popBackStack() })
-                    }
+                        composable("room_availability") {
+                            RoomsScreen(onBack = { navController.popBackStack() })
+                        }
 
-                    composable("profile") {
-                        ProfileScreen(
-                            viewModel = userViewModel,
-                            apiService = RetrofitClient.apiService, // Accessing it directly from your object
-                            onNavigateBack = { navController.popBackStack() }
-                        )
+                        composable("profile") {
+                            ProfileScreen(
+                                viewModel = userViewModel,
+                                apiService = RetrofitClient.apiService, // Accessing it directly from your object
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
                     }
-                }
-            }
-        }
+                } // Scaffold
+            } // NTS_APPTheme
+        } // setContent
     }
 }
 
