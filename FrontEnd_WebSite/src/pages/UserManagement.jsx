@@ -212,7 +212,8 @@ const UserManagement = () => {
                             </td>
                             <td>{u.email}</td>
                             <td>
-                                <Badge bg={u.role === 'Admin' ? 'danger' : u.role === 'Teacher' ? 'primary' : 'secondary'}>{u.role}</Badge>
+                                <Badge bg={u.role === 'Admin' ? 'black' : u.role === 'Teacher' ? 'primary' : 'secondary'}>{u.role}</Badge>
+                                {/* <Badge bg={u.role === 'Admin' ? 'danger' : u.role === 'Teacher' ? 'primary' : 'secondary'}>{u.role}</Badge> */}
                             </td>
                             <td className="text-center">
                                 <Button variant={u.isDeleted === 1 ? "outline-dark" : "warning"} size="sm" onClick={() => handleEditClick(u)} className="px-3">

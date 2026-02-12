@@ -28,7 +28,7 @@ $input-bg: #f9fafb;
 $input-focus-width: 4px;
 
 // Dropdown Customization
-$dropdown-bg: darken($primary, 5%); // Slightly darker than your navbar
+$dropdown-bg: darken($secondary, 5%); // Slightly darker than your navbar
 $dropdown-link-color: rgba(255, 255, 255, 0.85);
 $dropdown-link-hover-bg: rgba(255, 255, 255, 0.1);
 $dropdown-link-hover-color: #fff;
@@ -85,6 +85,58 @@ footer.custom-footer {
       transform: translateY(-3px);
     }
   }
+}
+
+// main.scss
+.badge.bg-dark {
+  background-color: #000000 !important;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+}
+
+thead th {
+  user-select: none; // Prevents text highlighting on double click
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #2d3748 !important; // Slightly lighter than table-dark
+  }
+}
+
+th[style*="cursor: pointer"] {
+  white-space: nowrap; // Keeps "Duration ↕" on one line
+  min-width: 120px;    // Prevents the column from shrinking/growing when sorting
+  
+  &:active {
+    opacity: 0.7; // Visual feedback when clicked
+  }
+}
+
+
+// Course Management Table Container
+.table-responsive {
+  border-radius: 15px; // Matches your card's roundness
+  border: 1px solid #dee2e6; // A single, clean border
+  overflow: hidden; // Clips the table corners inside the roundness
+  
+  table {
+    margin-bottom: 0 !important; // Removes the bottom gap
+    border: none !important; // Removes the default outer table border
+    
+    // Removes the "peeking" borders from the top and bottom cells
+    tr:first-child th, tr:first-child td { border-top: none; }
+    tr:last-child td { border-bottom: none; }
+    th:first-child, td:first-child { border-left: none; }
+    th:last-child, td:last-child { border-right: none; }
+  }
+}
+
+// Optional: Make the Search Card look exactly like your image
+.filter-card {
+  background: #f8f9fa;
+  border-radius: 20px;
+  border: 1px solid #e9ecef;
+  padding: 1.5rem;
 }
 
 // Theme END

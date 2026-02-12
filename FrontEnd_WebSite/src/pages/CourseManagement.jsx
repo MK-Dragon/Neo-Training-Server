@@ -1,21 +1,24 @@
-// /src/pages/CourseManagement.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Container, Table, Button, Modal, Form, Alert, Row, Col, Badge, ListGroup, InputGroup } from 'react-bootstrap';
+import { Container, Table, Button, Modal, Form, Alert, Row, Col, Badge, ListGroup, InputGroup, Pagination } from 'react-bootstrap';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
+const LEVEL_ORDER = { 'beginner': 1, 'intermediate': 2, 'advanced': 3 };
 
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
-  const [allModulesList, setAllModulesList] = useState([]); // List for the dropdown
-  const [courseModules, setCourseModules] = useState([]); // Active modules for editing course
-  
+  const [allModulesList, setAllModulesList] = useState([]);
+  const [courseModules, setCourseModules] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [error, setError] = useState('');
-  
   const [formData, setFormData] = useState({ Name: '', Level: 'Beginner', DurationInHours: 0 });
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'Name', direction: 'asc' });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10); 
 
   const token = localStorage.getItem('token');
 
@@ -23,11 +26,6 @@ const CourseManagement = () => {
     fetchCourses();
     fetchAllAvailableModules();
   }, []);
-
-  // Sort by orderIndex automatically for the UI
-  const sortedModules = useMemo(() => {
-    return [...courseModules].sort((a, b) => a.orderIndex - b.orderIndex);
-  }, [courseModules]);
 
   const fetchCourses = async () => {
     try {
@@ -49,6 +47,57 @@ const CourseManagement = () => {
     } catch (err) { console.error("Could not load modules."); }
   };
 
+  const getLevelBadge = (level) => {
+    const lvl = level?.toLowerCase();
+    switch (lvl) {
+      case 'advanced': return 'dark';
+      case 'intermediate': return 'primary';
+      case 'beginner': return 'secondary';
+      default: return 'info';
+    }
+  };
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    setSortConfig({ key, direction });
+  };
+
+  const processedCourses = useMemo(() => {
+    let filtered = courses.filter(c => 
+      (c.name ?? c.Name).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return filtered.sort((a, b) => {
+      let aVal = a[sortConfig.key] ?? a[sortConfig.key.toLowerCase()];
+      let bVal = b[sortConfig.key] ?? b[sortConfig.key.toLowerCase()];
+
+      if (sortConfig.key === 'Level') {
+        aVal = LEVEL_ORDER[aVal?.toLowerCase()] || 0;
+        bVal = LEVEL_ORDER[bVal?.toLowerCase()] || 0;
+      }
+
+      // Duration Sort Fix (Removes 'h' and converts to number)
+      if (sortConfig.key === 'DurationInHours') {
+        aVal = parseFloat(String(aVal).replace(/[^0-9.]/g, '')) || 0;
+        bVal = parseFloat(String(bVal).replace(/[^0-9.]/g, '')) || 0;
+      }
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [courses, searchTerm, sortConfig]);
+
+  // Pagination Calculations
+  const totalPages = Math.ceil(processedCourses.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = processedCourses.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Modal Handlers
   const handleOpenModal = async (course = null) => {
     setError('');
     setSelectedModuleId('');
@@ -60,22 +109,16 @@ const CourseManagement = () => {
         Level: course.level ?? course.Level ?? 'Beginner', 
         DurationInHours: course.durationInHours ?? course.DurationInHours ?? 0 
       });
-      
       try {
         const res = await fetch(`${ServerIP}/api/CourseModule/course/${id}/modules`);
         if (res.ok) {
           const data = await res.json();
-          
-          // Map strictly to the names your React state expects
-          const normalized = data.map(m => ({
+          setCourseModules(data.map(m => ({
             moduleId: m.moduleId ?? m.ModuleId,
             moduleName: m.moduleName ?? m.ModuleName,
             durationH: m.durationH ?? m.DurationH,
-            // Fallback chain for the tier index
-            orderIndex: m.orderIndex !== undefined ? m.orderIndex : (m.OrderIndex !== undefined ? m.OrderIndex : 0)
-          }));
-          
-          setCourseModules(normalized);
+            orderIndex: m.orderIndex ?? m.OrderIndex ?? 0
+          })));
         }
       } catch (err) { setError("Could not load modules."); }
     } else {
@@ -89,62 +132,39 @@ const CourseManagement = () => {
   const handleTierChange = async (moduleId, newTier) => {
     const courseId = editingCourse.id ?? editingCourse.Id;
     const tierInt = parseInt(newTier) || 0;
-
-    // 1. Optimistic UI update
-    setCourseModules(prev => prev.map(m => 
-      m.moduleId === moduleId ? { ...m, orderIndex: tierInt } : m
-    ));
-
+    setCourseModules(prev => prev.map(m => m.moduleId === moduleId ? { ...m, orderIndex: tierInt } : m));
     try {
-      // 2. Call the HttpPatch("update-module-order") endpoint
       await fetch(`${ServerIP}/api/CourseModule/update-module-order`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          courseId: courseId,
-          moduleId: moduleId,
-          orderIndex: tierInt
-        })
+        body: JSON.stringify({ courseId, moduleId, orderIndex: tierInt })
       });
-    } catch (err) { console.error("Failed to update order on server."); }
+    } catch (err) { console.error("Failed to update order."); }
   };
 
   const addModuleToCourse = async () => {
     if (!selectedModuleId || !editingCourse) return;
     const courseId = editingCourse.id ?? editingCourse.Id;
-    const modIdInt = parseInt(selectedModuleId);
-
-    const payload = [{
-      courseId: courseId,
-      moduleId: modIdInt,
-      orderIndex: courseModules.length + 1
-    }];
-
+    const payload = [{ courseId, moduleId: parseInt(selectedModuleId), orderIndex: courseModules.length + 1 }];
     try {
       const res = await fetch(`${ServerIP}/api/CourseModule/add-modules-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
-      if (res.ok) {
-        // Reload modules list to ensure we have correct names/durations from DB
-        handleOpenModal(editingCourse);
-      }
+      if (res.ok) handleOpenModal(editingCourse);
     } catch (err) { setError("Failed to link module."); }
   };
 
   const removeModuleFromCourse = async (moduleId) => {
     if (!window.confirm("Remove module from this course?")) return;
     const courseId = editingCourse.id ?? editingCourse.Id;
-
     try {
       const res = await fetch(`${ServerIP}/api/CourseModule/delete-module-from-course/${courseId}/${moduleId}`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        setCourseModules(prev => prev.filter(m => m.moduleId !== moduleId));
-      }
+      if (res.ok) setCourseModules(prev => prev.filter(m => m.moduleId !== moduleId));
     } catch (err) { setError("Could not remove module."); }
   };
 
@@ -153,11 +173,8 @@ const CourseManagement = () => {
     const isEditing = !!editingCourse;
     const body = { 
       Id: isEditing ? (editingCourse.id ?? editingCourse.Id) : 0,
-      Name: formData.Name, 
-      Level: formData.Level, 
-      DurationInHours: formData.DurationInHours
+      ...formData
     };
-
     try {
       const res = await fetch(`${ServerIP}/api/Courses/${isEditing ? 'update-course' : 'create-course'}`, {
         method: isEditing ? 'PUT' : 'POST',
@@ -168,7 +185,7 @@ const CourseManagement = () => {
         setShowModal(false);
         fetchCourses();
       } else {
-        setError(await res.text() || "Failed to save course settings.");
+        setError(await res.text() || "Failed to save.");
       }
     } catch (err) { setError("Server error."); }
   };
@@ -176,102 +193,155 @@ const CourseManagement = () => {
   return (
     <Container className="mt-5 pt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Course Management</h2>
-        <Button variant="success" onClick={() => handleOpenModal()}>+ Create Course</Button>
+        <h2 className="fw-bold">Course Management</h2>
+        <Button variant="success" className="rounded-pill px-4" onClick={() => handleOpenModal()}>
+          + Add Course
+        </Button>
       </div>
 
-      <InputGroup className="mb-4">
-        <InputGroup.Text>🔍</InputGroup.Text>
-        <Form.Control 
-          placeholder="Search by name..." 
-          onChange={(e) => setSearchTerm(e.target.value)} 
-        />
-      </InputGroup>
+      {/* Filter Card */}
+      <div className="bg-white p-4 rounded-4 shadow-sm border mb-4">
+        <Row className="align-items-center">
+          <Col md={6}>
+            <Form.Label className="fw-bold small ms-1">Search Course</Form.Label>
+            <InputGroup className="bg-light rounded-pill border px-2">
+              <InputGroup.Text className="bg-transparent border-0">🔍</InputGroup.Text>
+              <Form.Control 
+                className="bg-transparent border-0 shadow-none"
+                placeholder="Search by name..." 
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
+              />
+            </InputGroup>
+          </Col>
+          <Col md={3}>
+            <Form.Label className="fw-bold small ms-1">Items Per Page</Form.Label>
+            <Form.Select 
+              className="rounded-pill bg-light border"
+              value={itemsPerPage} 
+              onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </Form.Select>
+          </Col>
+        </Row>
+      </div>
 
-      <Table striped bordered hover responsive>
+      {/* Standard Table (SCSS will handle the rounded corners) */}
+      <Table striped bordered hover responsive className="align-middle mb-0">
         <thead className="table-dark">
           <tr>
-            <th>ID</th><th>Name</th><th>Level</th><th>Duration</th><th>Actions</th>
+            <th onClick={() => requestSort('Name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              Name {sortConfig.key === 'Name' ? (sortConfig.direction === 'asc' ? '▴' : '▾') : '↕'}
+            </th>
+            <th onClick={() => requestSort('Level')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              Level {sortConfig.key === 'Level' ? (sortConfig.direction === 'asc' ? '▴' : '▾') : '↕'}
+            </th>
+            <th onClick={() => requestSort('DurationInHours')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+              Duration {sortConfig.key === 'DurationInHours' ? (sortConfig.direction === 'asc' ? '▴' : '▾') : '↕'}
+            </th>
+            <th className="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {courses.filter(c => (c.name ?? c.Name).toLowerCase().includes(searchTerm.toLowerCase())).map(c => (
+          {currentItems.map(c => (
             <tr key={c.id ?? c.Id}>
-              <td>{c.id ?? c.Id}</td>
-              <td>{c.name ?? c.Name}</td>
-              <td><Badge bg="info">{c.level ?? c.Level}</Badge></td>
-              <td>{c.durationInHours ?? c.DurationInHours}h</td>
+              <td className="fw-bold">{c.name ?? c.Name}</td>
               <td>
-                <Button variant="warning" size="sm" onClick={() => handleOpenModal(c)}>Edit / Modules</Button>
+                <Badge pill bg={getLevelBadge(c.level ?? c.Level)} className="px-3">
+                  {c.level ?? c.Level}
+                </Badge>
+              </td>
+              <td>{c.durationInHours ?? c.DurationInHours}h</td>
+              <td className="text-center">
+                <Button variant="warning" size="sm" onClick={() => handleOpenModal(c)}>Edit</Button>
               </td>
             </tr>
           ))}
         </tbody>
       </Table>
 
+      {/* Pagination Bar */}
+      <div className="d-flex justify-content-center mt-4">
+        <Pagination>
+          <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
+          {[...Array(totalPages)].map((_, i) => (
+            <Pagination.Item 
+              key={i + 1} 
+              active={i + 1 === currentPage}
+              onClick={() => handlePageChange(i + 1)}
+            >
+              {i + 1}
+            </Pagination.Item>
+          ))}
+          <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
+        </Pagination>
+      </div>
+
+      {/* Modal - Course Settings & Modules */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
         <Form onSubmit={handleSaveCourseSettings}>
           <Modal.Header closeButton>
-            <Modal.Title>{editingCourse ? 'Course Structure & Tiers' : 'New Course'}</Modal.Title>
+            <Modal.Title className="fw-bold">
+              {editingCourse ? 'Course Structure & Modules' : 'New Course'}
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
             {error && <Alert variant="danger" dismissible onClose={() => setError('')}>{error}</Alert>}
             <Row>
               <Col md={5}>
-                <h6 className="fw-bold mb-3">Course Info</h6>
-                <Form.Group className="mb-2">
-                  <Form.Label>Name</Form.Label>
+                <h6 className="fw-bold mb-3 border-bottom pb-2">General Info</h6>
+                <Form.Group className="mb-3">
+                  <Form.Label>Course Name</Form.Label>
                   <Form.Control value={formData.Name} onChange={e => setFormData({...formData, Name: e.target.value})} required />
                 </Form.Group>
-                <Form.Group className="mb-2">
-                  <Form.Label>Level</Form.Label>
+                <Form.Group className="mb-3">
+                  <Form.Label>Target Level</Form.Label>
                   <Form.Select value={formData.Level} onChange={e => setFormData({...formData, Level: e.target.value})}>
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                   </Form.Select>
                 </Form.Group>
-                <Form.Group className="mb-3">
+                <Form.Group className="mb-4">
                   <Form.Label>Base Duration (Hours)</Form.Label>
                   <Form.Control type="number" value={formData.DurationInHours} onChange={e => setFormData({...formData, DurationInHours: parseInt(e.target.value)})} />
                 </Form.Group>
-                <Button variant="primary" type="submit" className="w-100">Update Core Info</Button>
+                <Button variant="primary" type="submit" className="w-100 shadow-sm">Save Changes</Button>
               </Col>
               
               <Col md={7} className="border-start">
-                <h6 className="fw-bold mb-3">Module Tiers (Order)</h6>
+                <h6 className="fw-bold mb-3 border-bottom pb-2">Module Sequence</h6>
                 <ListGroup className="mb-3" style={{maxHeight: '300px', overflowY: 'auto'}}>
-                  {sortedModules.map(m => (
-                    <ListGroup.Item key={m.moduleId} className="p-2">
+                  {[...courseModules].sort((a,b) => a.orderIndex - b.orderIndex).map(m => (
+                    <ListGroup.Item key={m.moduleId}>
                       <Row className="align-items-center g-2">
-                        <Col xs={3}>
+                        <Col xs={2}>
                           <Form.Control 
-                            type="number" size="sm" 
+                            type="number" size="sm" className="text-center"
                             value={m.orderIndex} 
                             onChange={(e) => handleTierChange(m.moduleId, e.target.value)}
-                            title="Set Tier / Order"
                           />
                         </Col>
                         <Col xs={7}>
                           <div className="text-truncate fw-bold small">{m.moduleName}</div>
                           <small className="text-muted">{m.durationH}h</small>
                         </Col>
-                        <Col xs={2} className="text-end">
-                          <Button variant="link" className="text-danger p-0" onClick={() => removeModuleFromCourse(m.moduleId)}>
+                        <Col xs={3} className="text-end">
+                          <Button variant="link" className="text-danger p-0 text-decoration-none small" onClick={() => removeModuleFromCourse(m.moduleId)}>
                             Remove
                           </Button>
                         </Col>
                       </Row>
                     </ListGroup.Item>
                   ))}
-                  {courseModules.length === 0 && (
-                    <div className="text-center text-muted p-4">No modules linked yet.</div>
-                  )}
                 </ListGroup>
 
                 {editingCourse && (
-                  <div className="bg-light p-2 rounded border">
-                    <Form.Label className="small fw-bold">Link New Module</Form.Label>
+                  <div className="bg-light p-3 rounded border">
+                    <Form.Label className="small fw-bold mb-2">Link New Module</Form.Label>
                     <InputGroup size="sm">
                       <Form.Select value={selectedModuleId} onChange={e => setSelectedModuleId(e.target.value)}>
                         <option value="">Select a module...</option>
