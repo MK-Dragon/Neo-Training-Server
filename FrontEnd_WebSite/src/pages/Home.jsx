@@ -106,8 +106,8 @@ const Home = () => {
   };
 
   const isAdmin = userData.role === 'Admin';
-  const isTeacher = userData.role === 'Teacher' || isAdmin;
-  const isStudent = userData.role === 'Student' || isAdmin;
+  const isTeacher = userData.role === 'Teacher';
+  const isStudent = userData.role === 'Student';
 
   // Reusable Component for Dashboard Cards
   const DashboardCard = ({ title, text, link, icon, variant = "primary", onClick }) => (
@@ -245,7 +245,7 @@ const Home = () => {
               variant="info" 
               onClick={() => handleOpenStudentTurmas('grades')} 
             />
-            <DashboardCard title="Course Materials" text="Access files and resources." link="/materials" icon="📁" variant="info" />
+            {/*<DashboardCard title="Course Materials" text="Access files and resources." link="/materials" icon="📁" variant="info" />*/}
           </Row>
         </section>
       )}
