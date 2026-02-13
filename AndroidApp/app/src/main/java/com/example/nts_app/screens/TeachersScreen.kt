@@ -152,7 +152,10 @@ fun TeachersScreen(onBack: () -> Unit) {
                             leadingContent = {
                                 // In the LazyColumn items
                                 AsyncImage(
-                                    model = "https://192.168.0.214:7089/api/DownloadUpload/profile-image/${selectedTeacher?.userId}",
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(RetrofitClient.getProfileImageUrl(teacher.userId)) // NO HARDCODED IP!
+                                        .crossfade(true)
+                                        .build(),
                                     placeholder = painterResource(R.drawable.user),
                                     error = painterResource(R.drawable.user),
                                     contentDescription = null,
@@ -198,7 +201,10 @@ fun TeacherDetailContent(
         // --- Profile Header ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = "https://192.168.0.214:7089/api/DownloadUpload/profile-image/${selectedTeacher?.userId}",
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(RetrofitClient.getProfileImageUrl(selectedTeacher?.userId)) // NO HARDCODED IP!
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 modifier = Modifier
                     .size(85.dp)

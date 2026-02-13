@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.nts_app.UserViewModel
 import com.example.nts_app.network.*
 import kotlinx.coroutines.Dispatchers
@@ -140,7 +141,10 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
             // --- Profile Photo Section ---
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
-                    model = "https://192.168.0.214:7089/api/DownloadUpload/profile-image/${user?.userId}?t=$imgTimestamp",
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(RetrofitClient.getProfileImageUrl(user?.userId)) // NO HARDCODED IP!
+                        .crossfade(true)
+                        .build(),
                     contentDescription = "Profile Picture",
                     modifier = Modifier
                         .size(130.dp)

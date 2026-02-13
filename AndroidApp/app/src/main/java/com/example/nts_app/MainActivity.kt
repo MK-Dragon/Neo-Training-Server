@@ -30,6 +30,7 @@ import com.example.nts_app.screens.StudentsScreen
 import com.example.nts_app.screens.RoomsScreen
 import com.example.nts_app.screens.ProfileScreen
 import com.example.nts_app.screens.ScheduleScreen
+import com.example.nts_app.screens.SettingsScreen
 
 // Theme
 import com.example.nts_app.ui.theme.NTS_APPTheme
@@ -37,6 +38,14 @@ import com.example.nts_app.ui.theme.NTS_APPTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // READ SAVED IP ON BOOT
+        val settingsManager = SettingsManager(this)
+        val savedIp = settingsManager.getCurrentServerIp()
+
+        if (savedIp != null) {
+            RetrofitClient.updateBaseUrl(savedIp)
+        }
 
         val imageLoader = coil.ImageLoader.Builder(this)
             .okHttpClient { com.example.nts_app.network.RetrofitClient.okHttpClient }
@@ -110,6 +119,12 @@ class MainActivity : ComponentActivity() {
 
                         composable("schedules") {
                             ScheduleScreen(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable("settings") {
+                            SettingsScreen(
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

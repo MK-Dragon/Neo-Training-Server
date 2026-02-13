@@ -53,7 +53,7 @@ fun CoursesScreen(onBack: () -> Unit) {
 
     LaunchedEffect(Unit) {
         try {
-            allCourses = RetrofitClient.apiService.getCourses()
+            allCourses = RetrofitClient.apiService.getCourses() // ???
         } catch (e: Exception) { /* Handle error */ }
         finally { isLoading = false }
     }

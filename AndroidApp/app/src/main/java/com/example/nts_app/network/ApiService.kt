@@ -10,6 +10,8 @@ import retrofit2.http.Query
 import okhttp3.MultipartBody
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import okhttp3.ResponseBody
+import retrofit2.http.Streaming
 
 
 // --- 1. Data Models (Defined first so the Interface can see them) ---
@@ -50,8 +52,10 @@ interface ApiService {
     @GET("api/User/users/{username}")
     suspend fun getUserProfile(@Path("username") username: String): Response<AppUser>
 
-    fun getProfileImageUrl(userId: Int): String =
-        "https://192.168.0.214:7089/api/DownloadUpload/profile-image/$userId"
+
+    @Streaming
+    @GET("api/DownloadUpload/profile-image/{userId}")
+    suspend fun downloadProfileImage(@Path("userId") userId: Int): Response<ResponseBody>
 
     @Multipart
     @POST("api/DownloadUpload/upload-profile-image/{userId}")
@@ -60,7 +64,7 @@ interface ApiService {
         @Part file: MultipartBody.Part
     ): Response<Unit>
 
-    // Add these to your ApiService interface
+
     @GET("api/Student/student/{id}/enrolled-turmas")
     suspend fun getStudentEnrollments(@Path("id") userId: Int): Response<List<StudentEnrollmentDTO>>
 

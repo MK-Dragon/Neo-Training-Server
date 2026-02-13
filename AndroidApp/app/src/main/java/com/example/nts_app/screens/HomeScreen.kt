@@ -22,6 +22,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.Color
+import com.example.nts_app.network.RetrofitClient
 
 @Composable
 fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
@@ -44,8 +45,8 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data("https://192.168.0.214:7089/api/DownloadUpload/profile-image/${user?.userId}?t=$imgTimestamp")
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(RetrofitClient.getProfileImageUrl(user?.userId)) // NO HARDCODED IP!
                         .crossfade(true)
                         .build(),
                     contentDescription = "Profile Picture",
@@ -105,6 +106,7 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
                 item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("view_students") } }
                 item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("room_availability") } }
                 item { DashboardButton("Schedules", Icons.Default.CalendarMonth) { onNavigate("schedules") } }
+                item { DashboardButton("Settings", Icons.Default.Settings) { onNavigate("settings") } }
             }
         }
     }

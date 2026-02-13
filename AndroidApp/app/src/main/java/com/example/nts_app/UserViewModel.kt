@@ -20,7 +20,7 @@ class UserViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf("")
 
-    private val api = RetrofitClient.apiService
+    private val api get() = RetrofitClient.apiService
 
     fun setUserData(username: String, userId: Int = 0, email: String = "", role: String = "Student") {
         currentUser = User(

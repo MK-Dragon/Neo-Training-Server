@@ -12,9 +12,10 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 object RetrofitClient {
-    private const val BASE_URL = "https://192.168.0.214:7089/"
+    private var currentBaseUrl = "https://127.0.0.1:7089/"
+    fun getBaseUrl() = currentBaseUrl
 
-    // We store the token here after login
+
     private var authToken: String? = null
 
     fun setToken(token: String) {
@@ -22,23 +23,40 @@ object RetrofitClient {
     }
 
     /**
-     * We make the OkHttpClient a public property.
-     * This allows MainActivity to use it for the Coil ImageLoader.
+     * Function to update the IP from the Login Screen.
+     * It rebuilds the apiService with the new URL.
      */
+    fun updateBaseUrl(newIp: String) {
+        if (newIp.isBlank()) return
+
+        // CRITICAL FIX: Remove all spaces from the IP/Host string
+        val cleanIp = newIp.replace(" ", "").trim()
+
+        currentBaseUrl = when {
+            cleanIp.startsWith("http") -> if (cleanIp.endsWith("/")) cleanIp else "$cleanIp/"
+            else -> "https://$cleanIp:7089/"
+        }
+
+        try {
+            apiService = buildApiService()
+            println("RETROFIT_DEBUG: Successfully updated to $currentBaseUrl")
+        } catch (e: Exception) {
+            // This prevents a crash if the URL is still somehow malformed
+            e.printStackTrace()
+        }
+    }
+
     val okHttpClient: OkHttpClient by lazy {
         try {
-            // 1. Create a trust manager that does not validate certificate chains
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
                 override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
                 override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
             })
 
-            // 2. Install the all-trusting trust manager
             val sslContext = SSLContext.getInstance("SSL")
             sslContext.init(null, trustAllCerts, SecureRandom())
 
-            // 3. Create a logging interceptor (The "Network Tab" for Android)
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             }
@@ -46,35 +64,41 @@ object RetrofitClient {
             OkHttpClient.Builder()
                 .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
                 .hostnameVerifier { _, _ -> true }
-                // 4. Add the Authorization Header automatically to every request
                 .addInterceptor { chain ->
                     val original = chain.request()
                     val requestBuilder = original.newBuilder()
-
                     authToken?.let {
                         requestBuilder.header("Authorization", "Bearer $it")
                     }
-
                     chain.proceed(requestBuilder.build())
                 }
                 .addInterceptor(logging)
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(15, TimeUnit.SECONDS) // Slightly shorter for better feedback
                 .build()
         } catch (e: Exception) {
             throw RuntimeException(e)
         }
     }
 
-    /**
-     * Retrofit uses the shared okHttpClient above.
-     */
-    val apiService: ApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
+    // Change 1: apiService is no longer 'lazy'. It's a var that we can overwrite.
+    @Volatile
+    var apiService: ApiService = buildApiService()
+        private set
+
+    // Change 2: Helper function to build the service
+    private fun buildApiService(): ApiService {
+        return Retrofit.Builder()
+            .baseUrl(currentBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)
+    }
+
+    // Inside RetrofitClient.kt
+    fun getProfileImageUrl(userId: Int?): String {
+        if (userId == null) return ""
+        // It uses currentBaseUrl, which changes when you update settings!
+        return "${currentBaseUrl}api/DownloadUpload/profile-image/$userId"
     }
 }
