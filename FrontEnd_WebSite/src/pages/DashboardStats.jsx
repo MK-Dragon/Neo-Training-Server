@@ -63,7 +63,7 @@ const DashboardStats = () => {
     return (
         <Container className="mt-5 pt-4 pb-5">
             <div className="mb-4">
-                <h2 className="fw-bold">Management Dashboard</h2>
+                <h2 className="fw-bold">Stats Dashboard</h2>
                 <p className="text-muted small">Overview of academic activity and performance</p>
             </div>
 

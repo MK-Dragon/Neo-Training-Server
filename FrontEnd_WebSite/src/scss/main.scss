@@ -117,7 +117,8 @@ th[style*="cursor: pointer"] {
 .table-responsive {
   border-radius: 15px; // Matches your card's roundness
   border: 1px solid #dee2e6; // A single, clean border
-  overflow: hidden; // Clips the table corners inside the roundness
+  //overflow: hidden; // Clips the table corners inside the roundness
+  overflow: auto; // Clips the table corners inside the roundness
   
   table {
     margin-bottom: 0 !important; // Removes the bottom gap

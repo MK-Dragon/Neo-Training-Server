@@ -298,10 +298,6 @@ const AdminReportDashboard = () => {
           </Accordion.Body>
         </Accordion.Item>
       </Accordion>
-
-      <footer className="text-center mt-5 py-4 border-top text-muted small">
-        © 2026 Marco Candeias Management System | All rights reserved. 🎓
-      </footer>
     </Container>
   );
 };

@@ -6,14 +6,20 @@ const USER_LinkedIn = import.meta.env.VITE_USER_LINKEDIN;
 
 function Footer() {
   return (
+    <>
+    <br />
+    <br />
+    <br />
     <footer className="footer py-4 custom-footer mt-auto"> {/* mt-auto is a backup safety */}
+      
       <div className="container">
         <div className="row align-items-center">
           
           <div className="col-md-6 text-center text-md-start mb-3 mb-md-0">
             <p className="mb-0 d-flex align-items-center justify-content-center justify-content-md-start">
-              <span>&copy; 2026 My Myself and I. | All rights reserved.</span>
-              <i className="bi bi-emoji-laughing ms-2 text-dark" style={{ fontSize: '1.2rem' }}></i>
+              <span>&copy; 2026 Marco Candeias. | All rights reserved.</span>
+              🎓
+              {/*<i className="bi bi-emoji-laughing ms-2 text-dark" style={{ fontSize: '1.2rem' }}></i>*/}
             </p>
           </div>
 
@@ -31,6 +37,7 @@ function Footer() {
         </div>
       </div>
     </footer>
+    </>
   );
 }
 

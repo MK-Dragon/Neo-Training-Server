@@ -5,7 +5,7 @@ import {
   Container, Row, Col, Card, Button, Image, 
   Modal, ListGroup, Spinner, Badge as RBBadge 
 } from 'react-bootstrap';
-import profilePic from '../images/profile/user.jpg';
+// Keep the import if you want it as a secondary fallback, but we'll use a dynamic URL
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -28,6 +28,8 @@ const Home = () => {
   const [studentModalTarget, setStudentModalTarget] = useState('grades'); // 'grades' or 'schedule'
   
   const [loadingModalData, setLoadingModalData] = useState(false);
+  // Add timestamp for the image to prevent caching issues
+  const [imgTimestamp] = useState(Date.now());
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -142,11 +144,15 @@ const Home = () => {
         <Row className="g-0 align-items-center">
           <Col md={3} className="text-center p-4">
             <Image 
-              src={profilePic} 
+              src={`${ServerIP}/api/DownloadUpload/profile-image/${userData.id}?t=${imgTimestamp}`} 
               roundedCircle 
               fluid 
-              style={{ width: '150px', border: '5px solid rgba(255,255,255,0.2)' }}
+              style={{ width: '150px', height: '150px', border: '5px solid rgba(255,255,255,0.2)', objectFit: 'cover' }}
               alt="User Profile"
+              onError={(e) => { 
+                e.target.onerror = null; 
+                e.target.src = `https://ui-avatars.com/api/?name=${userData.username}&background=random&size=150`; 
+              }}
             />
           </Col>
           <Col md={9} className="p-4">
@@ -159,7 +165,7 @@ const Home = () => {
       {/* --- MANAGEMENT SECTION (ADMIN ONLY) --- */}
       {isAdmin && (
         <section className="mb-5">
-          <h3 className="mb-4 border-bottom pb-2">Administrative Management</h3>
+          <h3 className="mb-4 border-bottom pb-2">Management</h3>
           <Row>
             {/* Existing Links */}
             <DashboardCard title="User Management" text="Manage user accounts and roles." link="/UserManagement" icon="👥" variant="dark" />
@@ -178,7 +184,7 @@ const Home = () => {
       {/* --- Administration SECTION (ADMIN ONLY) --- */}
       {isAdmin && (
         <section className="mb-5">
-          <h3 className="mb-4 border-bottom pb-2">Administrative Management</h3>
+          <h3 className="mb-4 border-bottom pb-2">Administration</h3>
           <Row>
 
             <DashboardCard title="Enrollment Management" text="Register and track student enrollments." link="/EnrollmentManagement" icon="📋" variant="success" />

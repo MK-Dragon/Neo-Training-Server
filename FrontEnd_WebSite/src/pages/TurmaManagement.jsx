@@ -223,7 +223,7 @@ const TurmaManagement = () => {
       <Table striped bordered hover responsive>
         <thead className="table-dark text-nowrap">
           <tr>
-            <th onClick={() => requestSort('TurmaId')} style={{cursor:'pointer'}}>ID {sortConfig.key === 'TurmaId' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
+            {/*<th onClick={() => requestSort('TurmaId')} style={{cursor:'pointer'}}>ID {sortConfig.key === 'TurmaId' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th> */}
             <th onClick={() => requestSort('TurmaName')} style={{cursor:'pointer'}}>Name {sortConfig.key === 'TurmaName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
             <th onClick={() => requestSort('CourseName')} style={{cursor:'pointer'}}>Course {sortConfig.key === 'CourseName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
             <th onClick={() => requestSort('DateStart')} style={{cursor:'pointer'}}>Start {sortConfig.key === 'DateStart' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</th>
@@ -240,7 +240,7 @@ const TurmaManagement = () => {
 
             return (
               <tr key={id}>
-                <td>{id}</td>
+                {/*<td>{id}</td>*/}
                 <td 
                   onClick={() => handleViewTurma(t)} 
                   className="fw-bold" 
