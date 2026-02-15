@@ -1,5 +1,6 @@
 package com.example.nts_app.screens
 
+import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -29,6 +30,7 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
     val user = viewModel.currentUser
     val context = LocalContext.current
     val imgTimestamp = remember { System.currentTimeMillis() }
+    var id_turma_user = 0
 
     // Surface forces the background to be your "SoftGray"
     Surface(
@@ -94,20 +96,54 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 1.dp, color = Color.LightGray)
 
-            // --- Dashboard Grid ---
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                item { DashboardButton("View Courses", Icons.Default.MenuBook) { onNavigate("view_courses") } }
-                item { DashboardButton("View Teachers", Icons.Default.Person) { onNavigate("view_teachers") } }
-                item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("view_students") } }
-                item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("room_availability") } }
-                item { DashboardButton("Schedules", Icons.Default.CalendarMonth) { onNavigate("schedules") } }
-                item { DashboardButton("Settings", Icons.Default.Settings) { onNavigate("settings") } }
+            Log.d("User Data", "${user?.username} : ${user?.userRole}")
+
+            // --- Dashboard Grid Admin ---
+            if (user?.userRole == "Admin")
+            {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    item { DashboardButton("View Courses", Icons.Default.MenuBook) { onNavigate("view_courses") } }
+                    item { DashboardButton("View Teachers", Icons.Default.Person) { onNavigate("view_teachers") } }
+                    item { DashboardButton("View Students", Icons.Default.Groups) { onNavigate("view_students") } }
+                    item { DashboardButton("Room Availability", Icons.Default.MeetingRoom) { onNavigate("room_availability") } }
+                    item { DashboardButton("Schedules", Icons.Default.CalendarMonth) { onNavigate("schedules") } }
+                    item { DashboardButton("Settings", Icons.Default.Settings) { onNavigate("settings") } }
+                }
             }
+
+            // --- Dashboard Grid Student ---
+            if (user?.userRole == "Student")
+            {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    item { DashboardButton("Schedules", Icons.Default.CalendarMonth) { onNavigate("schedules") } }
+                    item { DashboardButton("Settings", Icons.Default.Settings) { onNavigate("settings") } }
+                }
+            }
+
+            // --- Dashboard Grid Teacher ---
+            if (user?.userRole == "Teacher")
+            {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    item { DashboardButton("Teacher Schedules", Icons.Default.CalendarMonth) { onNavigate("teacher_schedules") } }
+                    item { DashboardButton("Settings", Icons.Default.Settings) { onNavigate("settings") } }
+                }
+            }
+
         }
     }
 }

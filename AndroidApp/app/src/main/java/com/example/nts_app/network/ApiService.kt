@@ -66,7 +66,7 @@ interface ApiService {
 
 
     @GET("api/Student/student/{id}/enrolled-turmas")
-    suspend fun getStudentEnrollments(@Path("id") userId: Int): Response<List<StudentEnrollmentDTO>>
+    suspend fun getStudentEnrollments(@Path("id") userId: Int): Response<List<TurmaDTO>>
 
     @GET("api/Statistics/courses-history/{id}")
     suspend fun getTeacherCourses(@Path("id") userId: Int): Response<List<TeacherCourseDTO>>
@@ -114,4 +114,16 @@ interface ApiService {
         @Query("end") end: String,
         @Query("turmaId") turmaId: Int
     ): List<ScheduleDTO>
-}
+
+    @GET("api/Shcedule/teacher/{teacherId}/schedule")
+    suspend fun getTeacherSchedule(
+        @Path("teacherId") teacherId: Int,
+        @Query("start") start: String,
+        @Query("end") end: String
+    ): retrofit2.Response<List<TeacherScheduleDetailDTO>>
+
+    @POST("api/Shcedule/update-past-progress")
+    suspend fun updatePastProgress(): retrofit2.Response<ResponseBody>
+
+
+} // end

@@ -2,6 +2,7 @@ package com.example.nts_app.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -57,6 +58,31 @@ fun LoginScreen(viewModel: UserViewModel, onLoginSuccess: () -> Unit) {
     val sheetState = rememberModalBottomSheetState()
 
     Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        )
+        {
+            // --- TITLE ---
+            Spacer(modifier = Modifier.height(48.dp))
+            Text(
+                text = "Neo",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Text(
+                text = "Training Server",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+        }
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -70,6 +96,9 @@ fun LoginScreen(viewModel: UserViewModel, onLoginSuccess: () -> Unit) {
                 Spacer(modifier = Modifier.height(24.dp))
                 TextButton(onClick = { viewModel.isWaitingFor2FA = false }) { Text("Back to Login") }
             } else {
+
+
+
                 Text(text = "Login", fontSize = 32.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(24.dp))
 

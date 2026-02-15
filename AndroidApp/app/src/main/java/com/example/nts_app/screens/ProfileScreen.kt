@@ -56,7 +56,7 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
     val scope = rememberCoroutineScope()
 
     // State for API data
-    var studentEnrollments by remember { mutableStateOf<List<StudentEnrollmentDTO>>(emptyList()) }
+    var studentEnrollments by remember { mutableStateOf<List<TurmaDTO>>(emptyList()) }
     var teacherCourses by remember { mutableStateOf<List<TeacherCourseDTO>>(emptyList()) }
     var teacherModules by remember { mutableStateOf<List<TeacherModuleDTO>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -190,7 +190,7 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
                 CircularProgressIndicator()
             } else {
                 when (user?.userRole?.lowercase()) {
-                    "student" -> StudentHistoryList(studentEnrollments)
+                    //"student" -> StudentHistoryList(studentEnrollments)
                     "teacher" -> TeacherHistoryList(teacherCourses, teacherModules)
                 }
             }
@@ -212,8 +212,8 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
     }
 }
 
-@Composable
-fun StudentHistoryList(enrollments: List<StudentEnrollmentDTO>) {
+/*@Composable
+fun StudentHistoryList(enrollments: List<TurmaDTO>) {
     Text("Academic Enrollments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     Spacer(modifier = Modifier.height(8.dp))
     enrollments.forEach { enrollment ->
@@ -224,7 +224,7 @@ fun StudentHistoryList(enrollments: List<StudentEnrollmentDTO>) {
             }
         }
     }
-}
+}*/
 
 @Composable
 fun TeacherHistoryList(courses: List<TeacherCourseDTO>, modules: List<TeacherModuleDTO>) {

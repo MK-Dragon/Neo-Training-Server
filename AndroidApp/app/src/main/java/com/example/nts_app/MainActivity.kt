@@ -30,6 +30,7 @@ import com.example.nts_app.screens.StudentsScreen
 import com.example.nts_app.screens.RoomsScreen
 import com.example.nts_app.screens.ProfileScreen
 import com.example.nts_app.screens.ScheduleScreen
+import com.example.nts_app.screens.TeacherScheduleScreen
 import com.example.nts_app.screens.SettingsScreen
 
 // Theme
@@ -119,6 +120,14 @@ class MainActivity : ComponentActivity() {
 
                         composable("schedules") {
                             ScheduleScreen(
+                                userViewModel = userViewModel,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable("teacher_schedules") {
+                            TeacherScheduleScreen(
+                                userViewModel = userViewModel,
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }
