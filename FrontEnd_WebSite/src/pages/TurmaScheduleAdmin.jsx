@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Card, Table, Form, Row, Col, Button, Badge, Spinner, Alert, Modal, ListGroup, ProgressBar } from 'react-bootstrap';
 import { format, startOfWeek, addDays, addHours, isSameHour, parseISO } from 'date-fns';
-import { FaDesktop, FaTools, FaCalendarPlus, FaTrash, FaEdit, FaClock, FaChalkboardTeacher, FaBookOpen, FaDoorOpen } from 'react-icons/fa';
+import { FaDesktop, FaTools, FaMagic, FaCalendarCheck, FaCalendarPlus, FaTrash, FaEdit, FaClock, FaChalkboardTeacher, FaBookOpen, FaDoorOpen } from 'react-icons/fa';
 
 const ServerIP = import.meta.env.VITE_IP_PORT_AUTH_SERVER;
 
@@ -229,6 +229,38 @@ const TurmaScheduleAdmin = () => {
     finally { setModalLoading(false); }
   };
 
+  const handleAutoSchedule = async (isFullWeek = false) => {
+    if (!selectedTurmaId || selectedSlots.length === 0) return;
+    
+    setModalLoading(true);
+    const sorted = [...selectedSlots].sort((a, b) => a.hour - b.hour);
+    const dayStr = format(sorted[0].day, 'yyyy-MM-dd');
+    const start = `${dayStr}T${String(sorted[0].hour).padStart(2, '0')}:00:00`;
+    const end = `${dayStr}T${String(sorted[sorted.length - 1].hour).padStart(2, '0')}:00:00`;
+
+    const endpoint = isFullWeek 
+      ? `auto-schedule-full-week/${selectedTurmaId}` 
+      : `auto-schedule/${selectedTurmaId}`;
+
+    try {
+      const res = await fetch(`${ServerIP}/api/Shcedule/${endpoint}?start=${start}&end=${end}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert(data.message);
+        setShowModal(false);
+        setSelectedSlots([]);
+        fetchSchedule(); // Refresh the grid
+      } else {
+        alert(`Error: ${data.error || data.message}`);
+      }
+    } catch (err) {
+      alert("Network error calling Auto-Scheduler.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const days = [...Array(7)].map((_, i) => addDays(currentWeek, i));
   const hours = [...Array(15)].map((_, i) => i + 8); 
 
@@ -336,12 +368,49 @@ const TurmaScheduleAdmin = () => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light">
-          
+
+          {/* SECTION 0: AUTO-SCHEDULER (Prioritized at the top) */}
+          {!isEditMode && (
+            <Card className="border-0 shadow-sm mb-4" style={{ borderLeft: '5px solid #0d6efd' }}>
+              <Card.Body>
+                <Form.Label className="small fw-bold text-primary text-uppercase d-block mb-2">
+                  <FaMagic className="me-1"/> Option A: Smart Auto-Scheduler
+                </Form.Label>
+                <div className="d-flex gap-2">
+                  <Button 
+                    variant="primary" 
+                    className="flex-grow-1 py-2"
+                    onClick={() => handleAutoSchedule(false)}
+                    disabled={modalLoading}
+                  >
+                    {modalLoading ? <Spinner size="sm" /> : <><FaMagic className="me-2" /> Fill This Block</>}
+                  </Button>
+                  <Button 
+                    variant="dark" 
+                    className="flex-grow-1 py-2"
+                    onClick={() => handleAutoSchedule(true)}
+                    disabled={modalLoading}
+                  >
+                    {modalLoading ? <Spinner size="sm" /> : <><FaCalendarCheck className="me-2" /> Fill Full Week</>}
+                  </Button>
+                </div>
+                <Form.Text className="text-muted mt-2 d-block">
+                  Automatically finds the best teacher, module, and room based on priorities.
+                </Form.Text>
+              </Card.Body>
+            </Card>
+          )}
+
+          <div className="text-muted text-center mb-3 small fw-bold">
+            {!isEditMode && <span>— OR MANUALLY CONFIGURE —</span>}
+          </div>
+
+          {/* SECTION 1: MANUAL SELECTION (TEACHER/MODULE) */}
           <h5 className="mb-3">1. Select Teacher & Module</h5>
           {suggestions.length === 0 && !isEditMode ? (
             <Alert variant="warning">No suggestions available for this range.</Alert>
           ) : (
-            <ListGroup className="shadow-sm mb-4" style={{maxHeight: '400px', overflowY: 'auto'}}>
+            <ListGroup className="shadow-sm mb-4" style={{maxHeight: '280px', overflowY: 'auto'}}>
               {suggestions.map((s, idx) => {
                 const prog = progressData[s.moduleId];
                 const isSelected = selectedSuggestion?.teacherId === s.teacherId && selectedSuggestion?.moduleId === s.moduleId;
@@ -377,7 +446,7 @@ const TurmaScheduleAdmin = () => {
                             <div className="text-end text-muted fw-bold" style={{fontSize: '0.65rem'}}>Goal: {prog.targetDuration}h</div>
                           </div>
                         ) : (
-                          <div className="text-center small text-muted italic">Loading progress...</div>
+                          <div className="text-center small text-muted italic">Loading...</div>
                         )}
                       </Col>
                     </Row>
@@ -387,18 +456,22 @@ const TurmaScheduleAdmin = () => {
             </ListGroup>
           )}
 
+          {/* SECTION 2: MANUAL SELECTION (ROOM & CONFIRM) */}
           <div className="bg-white p-3 rounded border shadow-sm">
             <h5 className="mb-3">2. Choose Room & Confirm</h5>
             <Row>
-              <Col xs={12} className="mb-3">
+              <Col xs={12} className="mb-4">
                 <Form.Label className="small fw-bold text-muted text-uppercase">Room Selection</Form.Label>
                 <Form.Select 
                   value={selectedRoomId} 
                   onChange={(e) => setSelectedRoomId(e.target.value)}
+                  disabled={modalLoading}
                 >
                   <option value="">-- Select a Room --</option>
                   {availableRooms.map(room => (
-                    <option key={room.id} value={room.id}>{room.nome}</option>
+                    <option key={room.id} value={room.id}>
+                      {room.nome} {room.temPcs ? '(💻)' : ''} {room.temOficina ? '(🛠️)' : ''}
+                    </option>
                   ))}
                 </Form.Select>
               </Col>
@@ -411,13 +484,16 @@ const TurmaScheduleAdmin = () => {
                     <FaTrash className="me-2" /> Delete
                   </Button>
                 )}
+                <Button variant="secondary" onClick={() => setShowModal(false)} disabled={modalLoading}>
+                  Cancel
+                </Button>
                 <Button 
                   variant={isEditMode ? "warning" : "success"} 
                   onClick={handleSave} 
                   disabled={!selectedRoomId || !selectedSuggestion || modalLoading}
-                  className={isEditMode ? "text-dark fw-bold" : ""}
+                  className={isEditMode ? "text-dark fw-bold px-4" : "px-4"}
                 >
-                  {modalLoading ? <Spinner size="sm" /> : isEditMode ? 'Update Session' : 'Confirm Booking'}
+                  {modalLoading ? <Spinner size="sm" /> : isEditMode ? 'Update Session' : 'Confirm Manual Booking'}
                 </Button>
               </Col>
             </Row>

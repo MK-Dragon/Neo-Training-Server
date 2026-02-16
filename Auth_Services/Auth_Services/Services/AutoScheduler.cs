@@ -3,9 +3,10 @@
 using Auth_Services.DTOs;
 using Auth_Services.Models;
 using Auth_Services.Services;
-using System.Timers;
-using System.Text.Json;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Timers;
 
 public class AutoScheduler
 {
@@ -69,12 +70,45 @@ public class AutoScheduler
         _teacher_schedule = await _dbServices.GetTeacherScheduleByRange(teacherId, start, end);
     }
 
+    private async Task<Dictionary<int, int>> GetModuleProgress(List<TurmaModuleDetails> modules)
+    {
+        // Key: ModuleId (int), Value: TotalScheduled (int)
+        var moduleProgressMap = new Dictionary<int, int>();
+
+        foreach (var item in modules)
+        {
+            // 1. Call the service (assuming it's async based on your context)
+            var mp = await _dbServices.GetModuleProgress(item.TurmaId, item.ModuleId);
+
+            if (mp != null)
+            {
+                // 2. Add to Dictionary: Key is the ID, Value is the Scheduled hours
+                // We use the indexer [] to avoid errors if the same ID appears twice
+                moduleProgressMap[item.ModuleId] = mp.TotalScheduled;
+            }
+            else
+            {
+                // If no progress found:  0 hours scheduled
+                moduleProgressMap[item.ModuleId] = 0;
+            }
+        }
+
+        return moduleProgressMap;
+    }
+
 
     public async Task<List<ScheduleRequest>> ScheduleClasses(DateTime start, DateTime end)
     {
         List<ScheduleRequest> book_classes = new List<ScheduleRequest>();
 
-        var allModules = _modules_to_book.Concat(_modules_to_book_1up).ToList();
+        //Sort both lists by HoursCompleted
+        var sortedCurrent = _modules_to_book.OrderBy(m => m.HoursCompleted).ToList();
+        var sortedNext = _modules_to_book_1up.OrderBy(m => m.HoursCompleted).ToList();
+
+        // Join them (Current tier first, then Next tier)
+        var allModules = sortedCurrent.Concat(sortedNext).ToList();
+
+        Dictionary<int, int> moduleScheduledMap = await GetModuleProgress(allModules);
 
         foreach (var module in allModules)
         {
@@ -93,7 +127,7 @@ public class AutoScheduler
                 bool turmaBusy = _schedule_turma.Any(s => s.DateTime == teacher_av.DataHora);
 
                 // Only book if BOTH are free
-                if (!teacherBusy && !turmaBusy)
+                if (!teacherBusy && !turmaBusy && module.TotalDuration > moduleScheduledMap[module.ModuleId])
                 {
                     book_classes.Add(new ScheduleRequest
                     {
@@ -103,6 +137,9 @@ public class AutoScheduler
                         DateTime = teacher_av.DataHora, // The slot we found
                         SalaId = 0
                     });
+
+                    // increment the Scheduled
+                    moduleScheduledMap[module.ModuleId] += 1;
 
                     // Book Class!
                     _schedule_turma.Add(new TurmaScheduleDetailDTO { DateTime = teacher_av.DataHora });
