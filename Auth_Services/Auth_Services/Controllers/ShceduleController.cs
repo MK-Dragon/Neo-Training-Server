@@ -175,6 +175,8 @@ namespace Auth_Services.Controllers
 
             try
             {
+                // ^_^ update please...
+                var result = await _dbServices.UpdateProgressToPresent();
                 // Return type: Task<List<TeacherScheduleDetailDTO>>
                 var schedule = await _dbServices.GetTeacherScheduleByRange(teacherId, start, end);
 
