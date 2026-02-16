@@ -156,28 +156,31 @@ public class AutoScheduler
 
     public async Task<List<ScheduleRequest>> FindRoom(List<ScheduleRequest>  book_classes, DateTime start, DateTime end)
     {
-        List<Sala> salas = await _dbServices.GetAvailableSalas(start, end);
+        // Track rooms booked per time slot to prevent double-booking
+        // Key: DateTime slot, Value: Set of room IDs already assigned at that slot
+        var bookedRoomsPerSlot = new Dictionary<DateTime, HashSet<int>>();
 
-        // All classes in one Room :)
-        if (salas.Count > 0)
+        foreach (var bc in book_classes)
         {
-            foreach (var bc in book_classes)
+            // Get rooms that are available at this specific time slot
+            List<Sala> salas = await _dbServices.GetAvailableSalas(bc.DateTime, bc.DateTime);
+
+            // Initialize tracking for this slot if needed
+            if (!bookedRoomsPerSlot.ContainsKey(bc.DateTime))
+                bookedRoomsPerSlot[bc.DateTime] = new HashSet<int>();
+
+            // Find a room that is available AND not already booked by us in this batch
+            var availableRoom = salas.FirstOrDefault(s => !bookedRoomsPerSlot[bc.DateTime].Contains(s.Id));
+
+            if (availableRoom != null)
             {
-                bc.SalaId = salas[0].Id;
+                bc.SalaId = availableRoom.Id;
+                bookedRoomsPerSlot[bc.DateTime].Add(availableRoom.Id);
             }
-        }
-        // well... gonna have to move from class to class... :/
-        else
-        {
-            foreach (var bc in book_classes)
-            {
-                salas = await _dbServices.GetAvailableSalas(bc.DateTime, bc.DateTime);
-                if (salas.Count > 0)
-                { bc.SalaId = salas[0].Id; }
-            }
+            // else SalaId remains 0 and will be removed below
         }
 
-        // Clean up and return! :)
+        // Clean up entries where no room was found
         book_classes.RemoveAll(bc => bc.SalaId == 0);
         return book_classes;
     }

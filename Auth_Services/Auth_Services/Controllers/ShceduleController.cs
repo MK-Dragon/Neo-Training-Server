@@ -285,7 +285,7 @@ namespace Auth_Services.Controllers
             try
             {
                 // Start Scheduler
-                await autoScheduler.GetAllInfo(6, start, end);
+                await autoScheduler.GetAllInfo(turmaId, start, end);
                 // Get Classes to be Booked
                 List<ScheduleRequest> classes_to_book = await autoScheduler.ScheduleClasses(start, end);
                 // find Class Room

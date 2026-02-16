@@ -12,7 +12,7 @@ const TeacherAvailability = () => {
   const [processingSlot, setProcessingSlot] = useState(null);
   const [error, setError] = useState('');
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  
+
   const username = localStorage.getItem('username');
   const userRole = localStorage.getItem('userRole');
   const userIsTeacher = (userRole === 'Teacher');
@@ -28,7 +28,7 @@ const TeacherAvailability = () => {
       const response = await fetch(
         `${ServerIP}/api/Availabilaty/teacher-availability?formadorId=${teacherId}&start=${start}&end=${end}`
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         const normalizedData = (Array.isArray(data) ? data : []).map(item => ({
@@ -51,12 +51,12 @@ const TeacherAvailability = () => {
 
   const handleToggleSlot = async (dateHour) => {
     const timeKey = dateHour.toISOString();
-    if (processingSlot === timeKey) return; 
+    if (processingSlot === timeKey) return;
 
-    const existingSlot = availability.find(a => 
+    const existingSlot = availability.find(a =>
       a.DataHora ? isSameHour(parseISO(a.DataHora), dateHour) : false
     );
-    
+
     setProcessingSlot(timeKey);
     setError('');
 
@@ -64,9 +64,9 @@ const TeacherAvailability = () => {
       let response;
       if (existingSlot) {
         const updateBody = {
-            FormadorId: parseInt(teacherId),
-            Disponivel: existingSlot.Disponivel === 1 ? 0 : 1,
-            DataHora: timeKey
+          FormadorId: parseInt(teacherId),
+          Disponivel: existingSlot.Disponivel === 1 ? 0 : 1,
+          DataHora: timeKey
         };
         response = await fetch(`${ServerIP}/api/Availabilaty/update-availability`, {
           method: 'PUT',
@@ -77,7 +77,7 @@ const TeacherAvailability = () => {
         const createBody = {
           FormadorId: parseInt(teacherId),
           DataHora: timeKey,
-          Disponivel: 1 
+          Disponivel: 1
         };
         response = await fetch(`${ServerIP}/api/Availabilaty/set-availability`, {
           method: 'POST',
@@ -100,7 +100,7 @@ const TeacherAvailability = () => {
   };
 
   const days = [...Array(7)].map((_, i) => addDays(currentWeek, i));
-  
+
   // --- UPDATED: HOURS FROM 08:00 TO 22:00 ---
   // Array(15) creates slots for 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22
   const hours = [...Array(15)].map((_, i) => i + 8);
@@ -119,34 +119,34 @@ const TeacherAvailability = () => {
           </div>
         </Card.Header>
         <Card.Body className="p-0"> {/* p-0 helps the scroll area reach the edges */}
-          <div className="p-3 bg-light border-bottom d-flex gap-3 small">
-             <div className="d-flex align-items-center"><Badge bg="success" className="me-1">&nbsp;</Badge> Available</div>
-             <div className="d-flex align-items-center"><Badge bg="danger" className="me-1">&nbsp;</Badge> Busy</div>
-             <div className="d-flex align-items-center"><Badge bg="light" text="dark" className="me-1 border">-</Badge> Not Set</div>
+          <div className="p-3 border-bottom d-flex gap-3 small" style={{ backgroundColor: 'var(--avail-legend-bg, #f8f9fa)' }}>
+            <div className="d-flex align-items-center"><Badge bg="success" className="me-1">&nbsp;</Badge> Available</div>
+            <div className="d-flex align-items-center"><Badge bg="danger" className="me-1">&nbsp;</Badge> Busy</div>
+            <div className="d-flex align-items-center"><Badge bg="light" text="dark" className="me-1 border">-</Badge> Not Set</div>
           </div>
 
           {error && <Alert variant="danger" className="m-3" dismissible onClose={() => setError('')}>{error}</Alert>}
-          
+
           {loading ? (
             <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
           ) : (
             /* --- FIXED SCROLL WRAPPER --- */
-            <div style={{ 
-              height: "65vh", 
-              overflowY: "auto", 
-              overflowX: "auto", 
+            <div style={{
+              height: "65vh",
+              overflowY: "auto",
+              overflowX: "auto",
               display: "block",
-              position: "relative" 
+              position: "relative"
             }}>
               <Table bordered className="text-center align-middle m-0" style={{ borderCollapse: "separate", borderSpacing: 0, minWidth: "850px" }}>
-                <thead style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: "#fff" }}>
+                <thead style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: 'var(--avail-header-bg, #fff)' }}>
                   <tr>
-                    <th style={{ 
-                      position: "sticky", left: 0, zIndex: 11, backgroundColor: "#f8f9fa",
-                      width: "100px", borderRight: "2px solid #dee2e6" 
+                    <th style={{
+                      position: "sticky", left: 0, zIndex: 11, backgroundColor: 'var(--avail-header-bg, #f8f9fa)',
+                      color: 'var(--avail-header-color, inherit)', width: "100px", borderRight: "2px solid var(--avail-border, #dee2e6)"
                     }}>Hour</th>
                     {days.map(day => (
-                      <th key={day.toString()} style={{ backgroundColor: "#f8f9fa", minWidth: "110px", borderBottom: "2px solid #dee2e6" }}>
+                      <th key={day.toString()} style={{ backgroundColor: 'var(--avail-header-bg, #f8f9fa)', color: 'var(--avail-header-color, inherit)', minWidth: "110px", borderBottom: "2px solid var(--avail-border, #dee2e6)" }}>
                         <div className="fw-bold">{format(day, 'EEE')}</div>
                         <div className="text-muted small">{format(day, 'dd/MM')}</div>
                       </th>
@@ -156,25 +156,25 @@ const TeacherAvailability = () => {
                 <tbody>
                   {hours.map(hour => (
                     <tr key={hour}>
-                      <td style={{ 
-                        position: "sticky", left: 0, zIndex: 5, backgroundColor: "#f8f9fa", 
-                        fontWeight: "bold", borderRight: "2px solid #dee2e6" 
+                      <td style={{
+                        position: "sticky", left: 0, zIndex: 5, backgroundColor: 'var(--avail-header-bg, #f8f9fa)',
+                        color: 'var(--avail-header-color, inherit)', fontWeight: "bold", borderRight: "2px solid var(--avail-border, #dee2e6)"
                       }}>{hour}:00</td>
                       {days.map(day => {
                         const slotTime = addHours(day, hour);
-                        const slotData = availability.find(a => 
+                        const slotData = availability.find(a =>
                           a.DataHora ? isSameHour(parseISO(a.DataHora), slotTime) : false
                         );
-                        
+
                         const isAvailable = slotData?.Disponivel === 1;
                         const isBusy = slotData?.Disponivel === 0;
                         const isProcessing = processingSlot === slotTime.toISOString();
 
                         return (
-                          <td 
-                            key={day.toString()} 
+                          <td
+                            key={day.toString()}
                             onClick={() => !isProcessing && handleToggleSlot(slotTime)}
-                            style={{ 
+                            style={{
                               cursor: isProcessing ? 'not-allowed' : 'pointer',
                               backgroundColor: isAvailable ? '#d1e7dd' : isBusy ? '#f8d7da' : 'transparent',
                               height: '55px',

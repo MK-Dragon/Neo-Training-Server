@@ -105,7 +105,8 @@ const Login = () => {
         {/* Conditional Rendering starts here */}
         {!isWaitingFor2FA ? (
           <>
-            <h2 className="text-center mb-4">Login</h2>
+            <h2 className="text-center mb-2 text-primary fw-bold">Neo Training Server</h2>
+            <h4 className="text-center mb-4">Login</h4>
             {error && <div className="alert alert-danger">{error}</div>}
 
             <form onSubmit={handleLogin}>

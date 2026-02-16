@@ -1,6 +1,6 @@
 // /src/components/NavBar.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -13,15 +13,28 @@ function NavBar() {
   const username = localStorage.getItem('username') || "Profile";
   const userRole = localStorage.getItem('userRole');
 
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
   const closeNav = () => setExpanded(false);
 
-  // ... handleLogout function remains the same ...
   const handleLogout = async (e) => {
     e.preventDefault();
     closeNav();
     const token = localStorage.getItem('token');
     try {
-      await fetch(`https://${ServerIP}/api/Api/logout`, {
+      await fetch(`${ServerIP}/api/Api/logout`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
@@ -33,11 +46,11 @@ function NavBar() {
   return (
     <>
 
-      <Navbar 
-        expand="lg" 
-        bg="primary" 
-        data-bs-theme="dark" 
-        className="shadow-sm" 
+      <Navbar
+        expand="lg"
+        bg="primary"
+        data-bs-theme="dark"
+        className="shadow-sm"
         fixed="top"
         expanded={expanded}
         onToggle={(nextExpanded) => setExpanded(nextExpanded)}
@@ -51,12 +64,12 @@ function NavBar() {
 
               {/* Note: Pages for all Users */}
               <Nav.Link as={Link} to="/UpcomingCourses" onClick={closeNav}>Upcoming Courses</Nav.Link>
-              
+
               {userRole === 'Admin' && (
-                <NavDropdown 
-                  title="Management" 
-                  id="admin-nav-dropdown" 
-                  className="custom-nav-dropdown" // Applied the custom class
+                <NavDropdown
+                  title="Management"
+                  id="admin-nav-dropdown"
+                  className="custom-nav-dropdown"
                 >
                   <NavDropdown.Item as={Link} to="/UserManagement" onClick={closeNav}>Edit Users</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/CourseManagement" onClick={closeNav}>Manage Courses</NavDropdown.Item>
@@ -67,15 +80,15 @@ function NavBar() {
                   <NavDropdown.Item as={Link} to="/AdminTeacherSchedule" onClick={closeNav}>Teacher Availabilaty</NavDropdown.Item>
                   <NavDropdown.Divider />
                   <NavDropdown.Item as={Link} to="/SalaManagement" onClick={closeNav}>Manage Salas</NavDropdown.Item>
-                  
+
                 </NavDropdown>
               )}
 
               {userRole === 'Admin' && (
-                <NavDropdown 
-                  title="Administration" 
-                  id="admin-nav-dropdown" 
-                  className="custom-nav-dropdown" // Applied the custom class
+                <NavDropdown
+                  title="Administration"
+                  id="admin-admin-dropdown"
+                  className="custom-nav-dropdown"
                 >
                   <NavDropdown.Item as={Link} to="/TurmaScheduleAdmin" onClick={closeNav}>Admin: Turma Schedule</NavDropdown.Item>
                   <NavDropdown.Item as={Link} to="/EnrollmentManagement" onClick={closeNav}>Enrollment Management</NavDropdown.Item>
@@ -86,16 +99,25 @@ function NavBar() {
               )}
 
               {userRole === 'Teacher' && (
-                <Nav.Link as={Link} to="/TeacherAvailability" onClick={closeNav}>Manage Availability</Nav.Link>,
-                <Nav.Link as={Link} to="/TeacherSchedule" onClick={closeNav}>Teacher Schedule</Nav.Link>
+                <>
+                  <Nav.Link as={Link} to="/TeacherAvailability" onClick={closeNav}>Manage Availability</Nav.Link>
+                  <Nav.Link as={Link} to="/TeacherSchedule" onClick={closeNav}>Teacher Schedule</Nav.Link>
+                </>
               )}
 
               {userRole === 'Student' && (
                 <Nav.Link as={Link} to="/StudentSchedule" onClick={closeNav}>Student Schedule</Nav.Link>
               )}
-            </Nav>
 
-            <Nav>
+              <Nav.Link
+                as="span"
+                className="dark-mode-toggle-wrapper p-1 me-1"
+                onClick={() => setDarkMode(prev => !prev)}
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                style={{ cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }}
+              >
+                {darkMode ? '☀️' : '🌙'}
+              </Nav.Link>
               <Nav.Link as={Link} to="/userProfile" className="fw-bold text-info" onClick={closeNav}>
                 👤 {username}
               </Nav.Link>

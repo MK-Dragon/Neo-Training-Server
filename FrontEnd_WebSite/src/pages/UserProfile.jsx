@@ -15,7 +15,7 @@ const UserProfile = () => {
     const [teacherModules, setTeacherModules] = useState([]);
     const [studentEnrollments, setStudentEnrollments] = useState([]);
     const [showModal, setShowModal] = useState(false);
-    
+
     const [uploading, setUploading] = useState(false);
     const [imgTimestamp, setImgTimestamp] = useState(Date.now());
     const fileInputRef = useRef(null);
@@ -25,20 +25,20 @@ const UserProfile = () => {
     const [msg, setMsg] = useState({ text: '', isError: false });
 
     useEffect(() => { fetchProfile(); }, []);
-    
-    useEffect(() => { 
-        if (user) { 
-            fetchRoleSpecificProfile(); 
+
+    useEffect(() => {
+        if (user) {
+            fetchRoleSpecificProfile();
             if (user.role.toLowerCase() === 'teacher') {
                 fetchTeacherHistory();
             } else if (user.role.toLowerCase() === 'student') {
                 fetchStudentHistory();
             }
-        } 
+        }
     }, [user]);
 
     const fetchProfile = async () => {
-        const storedUsername = localStorage.getItem('username'); 
+        const storedUsername = localStorage.getItem('username');
         try {
             const res = await fetch(`${ServerIP}/api/User/users/${storedUsername}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -63,7 +63,7 @@ const UserProfile = () => {
             const res = await fetch(`${ServerIP}/api/Student/student/${user.id}/enrolled-turmas`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             if (res.ok) {
                 const turmas = await res.json();
                 const detailedTurmas = await Promise.all(turmas.map(async (t) => {
@@ -109,17 +109,59 @@ const UserProfile = () => {
         } catch (err) { console.error("Error fetching teacher history:", err); }
     };
 
-    const downloadPDF = () => {
+    const downloadPDF = async () => {
         const input = pdfRef.current;
-        html2canvas(input, { useCORS: true, logging: false }).then((canvas) => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
-            pdf.save(`Profile_${user.username}.pdf`);
+        const canvas = await html2canvas(input, {
+            useCORS: true,
+            logging: false,
+            scale: 3,
+            backgroundColor: '#ffffff',
         });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2;
+
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = usableWidth / imgWidth;
+        const scaledHeight = imgHeight * ratio;
+
+        if (scaledHeight <= usableHeight) {
+            pdf.addImage(imgData, 'PNG', margin, margin, usableWidth, scaledHeight);
+        } else {
+            // Multi-page: slice the canvas into page-sized chunks
+            const sliceHeight = Math.floor(usableHeight / ratio);
+            let position = 0;
+            let page = 0;
+
+            while (position < imgHeight) {
+                const currentSlice = Math.min(sliceHeight, imgHeight - position);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = imgWidth;
+                pageCanvas.height = currentSlice;
+                const ctx = pageCanvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, imgWidth, currentSlice);
+                ctx.drawImage(canvas, 0, position, imgWidth, currentSlice, 0, 0, imgWidth, currentSlice);
+
+                const pageImgData = pageCanvas.toDataURL('image/png');
+                const renderedHeight = currentSlice * ratio;
+
+                if (page > 0) pdf.addPage();
+                pdf.addImage(pageImgData, 'PNG', margin, margin, usableWidth, renderedHeight);
+
+                position += currentSlice;
+                page++;
+            }
+        }
+
+        pdf.save(`Profile_${user.username}.pdf`);
     };
 
     const handleImageUpload = async (e) => {
@@ -185,10 +227,10 @@ const UserProfile = () => {
                     <Col xs="auto">
                         <div className="position-relative" style={{ cursor: 'pointer' }} onClick={() => fileInputRef.current.click()}>
                             <div style={{ width: '150px', height: '150px', borderRadius: '50%', overflow: 'hidden', border: '4px solid #0d6efd' }}>
-                                <img 
+                                <img
                                     crossOrigin="anonymous"
-                                    src={`${ServerIP}/api/DownloadUpload/profile-image/${user.id}?t=${imgTimestamp}`} 
-                                    alt="Profile" 
+                                    src={`${ServerIP}/api/DownloadUpload/profile-image/${user.id}?t=${imgTimestamp}`}
+                                    alt="Profile"
                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${user.username}&background=random&size=150`; }}
                                 />
@@ -239,16 +281,16 @@ const UserProfile = () => {
                                             <td><span className="fs-5 fw-bold">{t.average}</span> <small className="text-muted">/ 20</small></td>
                                             <td>
                                                 <Badge bg={
-                                                    t.status === 'Passed' ? 'success' : 
-                                                    t.status === 'Failed' ? 'danger' : 
-                                                    t.status === 'In Progress' ? 'warning text-dark' : 'secondary'
+                                                    t.status === 'Passed' ? 'success' :
+                                                        t.status === 'Failed' ? 'danger' :
+                                                            t.status === 'In Progress' ? 'warning text-dark' : 'secondary'
                                                 }>
                                                     {t.status}
                                                 </Badge>
                                             </td>
                                             <td className="text-end">
-                                                <Button 
-                                                    variant="outline-primary" 
+                                                <Button
+                                                    variant="outline-primary"
                                                     size="sm"
                                                     onClick={() => navigate(`/student-report/${t.turmaId ?? t.TurmaId}`)}
                                                 >
@@ -323,16 +365,16 @@ const UserProfile = () => {
                     <Form onSubmit={handlePasswordChange}>
                         <Form.Group className="mb-3">
                             <Form.Label>Current Password</Form.Label>
-                            <Form.Control type="password" required value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} />
+                            <Form.Control type="password" required value={passwords.old} onChange={e => setPasswords({ ...passwords, old: e.target.value })} />
                         </Form.Group>
                         <hr />
                         <Form.Group className="mb-3">
                             <Form.Label>New Password</Form.Label>
-                            <Form.Control type="password" required value={passwords.new1} onChange={e => setPasswords({...passwords, new1: e.target.value})} />
+                            <Form.Control type="password" required value={passwords.new1} onChange={e => setPasswords({ ...passwords, new1: e.target.value })} />
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>Confirm New Password</Form.Label>
-                            <Form.Control type="password" required value={passwords.new2} onChange={e => setPasswords({...passwords, new2: e.target.value})} />
+                            <Form.Control type="password" required value={passwords.new2} onChange={e => setPasswords({ ...passwords, new2: e.target.value })} />
                         </Form.Group>
                         <Button variant="primary" type="submit" className="w-100 py-2">Update Password</Button>
                     </Form>

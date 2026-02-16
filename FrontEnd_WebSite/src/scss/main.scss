@@ -9,7 +9,8 @@
 
 $body-bg: #f43f5e; // Your Rose color
 
-.card, .container-main {
+.card,
+.container-main {
   background: rgba(255, 255, 255, 0.8) !important;
   backdrop-filter: blur(10px); // This creates the "frosted glass" look
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -38,6 +39,7 @@ $dropdown-border-radius: 0.5rem; // Match your global border-radius!
 
 .card {
   transition: transform 0.2s ease-in-out;
+
   &:hover {
     transform: translateY(-5px);
   }
@@ -48,17 +50,17 @@ footer {
   color: #f8fafc;
   padding: 3rem 0;
   margin-top: 5rem;
-  
+
   a {
     color: rgba(255, 255, 255, 0.7);
     text-decoration: none;
     transition: color 0.2s;
-    
+
     &:hover {
       color: $primary; // Uses your Rose color!
     }
   }
-  
+
   .footer-bottom {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: 2rem;
@@ -68,20 +70,23 @@ footer {
 }
 
 footer.custom-footer {
-  background-color: darken($body-bg, 7%) !important; 
+  background-color: darken($body-bg, 7%) !important;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
 
   // This targets all text and icons within the footer
-  p, span, i, .social-icons a {
-    color: #1e293b !important; 
+  p,
+  span,
+  i,
+  .social-icons a {
+    color: #1e293b !important;
   }
 
   .social-icons a {
     transition: transform 0.2s ease, color 0.2s ease;
-    
+
     &:hover {
       // Keep the hover color as your primary Rose for a pop of color
-      color: $primary !important; 
+      color: $primary !important;
       transform: translateY(-3px);
     }
   }
@@ -97,7 +102,7 @@ footer.custom-footer {
 thead th {
   user-select: none; // Prevents text highlighting on double click
   transition: background-color 0.2s;
-  
+
   &:hover {
     background-color: #2d3748 !important; // Slightly lighter than table-dark
   }
@@ -105,8 +110,8 @@ thead th {
 
 th[style*="cursor: pointer"] {
   white-space: nowrap; // Keeps "Duration ↕" on one line
-  min-width: 120px;    // Prevents the column from shrinking/growing when sorting
-  
+  min-width: 120px; // Prevents the column from shrinking/growing when sorting
+
   &:active {
     opacity: 0.7; // Visual feedback when clicked
   }
@@ -119,16 +124,30 @@ th[style*="cursor: pointer"] {
   border: 1px solid #dee2e6; // A single, clean border
   //overflow: hidden; // Clips the table corners inside the roundness
   overflow: auto; // Clips the table corners inside the roundness
-  
+
   table {
     margin-bottom: 0 !important; // Removes the bottom gap
     border: none !important; // Removes the default outer table border
-    
+
     // Removes the "peeking" borders from the top and bottom cells
-    tr:first-child th, tr:first-child td { border-top: none; }
-    tr:last-child td { border-bottom: none; }
-    th:first-child, td:first-child { border-left: none; }
-    th:last-child, td:last-child { border-right: none; }
+    tr:first-child th,
+    tr:first-child td {
+      border-top: none;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    th:first-child,
+    td:first-child {
+      border-left: none;
+    }
+
+    th:last-child,
+    td:last-child {
+      border-right: none;
+    }
   }
 }
 
@@ -138,6 +157,239 @@ th[style*="cursor: pointer"] {
   border-radius: 20px;
   border: 1px solid #e9ecef;
   padding: 1.5rem;
+}
+
+// ========= DARK MODE =========
+
+// Smooth transition for everything
+body,
+.card,
+.container-main,
+.modal-content,
+.table,
+.form-control,
+.form-select,
+footer,
+.navbar {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] {
+  // CSS Custom Properties for Availability table
+  --avail-header-bg: #16213e;
+  --avail-header-color: #e2e8f0;
+  --avail-border: rgba(255, 255, 255, 0.15);
+  --avail-legend-bg: #16213e;
+
+  // Body
+  body,
+  & {
+    background-color: #1a1a2e !important;
+    color: #e2e8f0 !important;
+  }
+
+  // Cards
+  .card,
+  .container-main {
+    background: rgba(30, 30, 50, 0.85) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
+  }
+
+  .card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  // Text
+  .text-muted {
+    color: #94a3b8 !important;
+  }
+
+  .text-dark {
+    color: #e2e8f0 !important;
+  }
+
+  p,
+  span,
+  label,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  li,
+  td,
+  th {
+    color: #e2e8f0;
+  }
+
+  // Tables
+  .table {
+    --bs-table-bg: #16213e;
+    --bs-table-color: #e2e8f0;
+    --bs-table-border-color: rgba(255, 255, 255, 0.08);
+    --bs-table-striped-bg: #1a2744;
+    --bs-table-hover-bg: #1e2d4f;
+  }
+
+  .table-light {
+    --bs-table-bg: #1e2d4f !important;
+    --bs-table-color: #e2e8f0 !important;
+  }
+
+  thead {
+    th {
+      background-color: #0f3460 !important;
+      color: #e2e8f0 !important;
+    }
+  }
+
+  // Forms
+  .form-control,
+  .form-select {
+    background-color: #16213e !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+
+    &::placeholder {
+      color: #64748b !important;
+    }
+
+    &:focus {
+      background-color: #1a2744 !important;
+      border-color: $primary !important;
+      color: #e2e8f0 !important;
+    }
+  }
+
+  // Modals
+  .modal-content {
+    background-color: #1a1a2e !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .modal-header,
+  .modal-footer {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  // Dropdowns
+  .dropdown-menu {
+    background-color: #16213e !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .dropdown-item {
+    color: #e2e8f0 !important;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+  }
+
+  // Alerts
+  .alert-danger {
+    background-color: rgba(220, 38, 38, 0.2) !important;
+    border-color: rgba(220, 38, 38, 0.3) !important;
+    color: #fca5a5 !important;
+  }
+
+  .alert-success {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    border-color: rgba(34, 197, 94, 0.3) !important;
+    color: #86efac !important;
+  }
+
+  // List groups
+  .list-group-item {
+    background-color: #16213e !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  // Footer
+  footer.custom-footer {
+    background-color: #0f0f23 !important;
+    border-top-color: rgba(255, 255, 255, 0.05) !important;
+
+    p,
+    span,
+    i,
+    .social-icons a {
+      color: #94a3b8 !important;
+    }
+  }
+
+  // Filter card
+  .filter-card {
+    background: #16213e !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  // Pagination
+  .page-link {
+    background-color: #16213e !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .page-item.active .page-link {
+    background-color: $primary !important;
+    border-color: $primary !important;
+  }
+
+  // Accordion
+  .accordion-item {
+    background-color: #16213e !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .accordion-button {
+    background-color: #16213e !important;
+    color: #e2e8f0 !important;
+
+    &:not(.collapsed) {
+      background-color: #1a2744 !important;
+    }
+  }
+
+  // Bg-white overrides
+  .bg-white {
+    background-color: #1a1a2e !important;
+  }
+
+  .bg-light {
+    background-color: #16213e !important;
+  }
+
+  // Spinner
+  .spinner-border,
+  .spinner-grow {
+    color: $primary !important;
+  }
+}
+
+// Dark mode toggle button style
+.dark-mode-toggle {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  padding: 0;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(20deg);
+  }
 }
 
 // Theme END
