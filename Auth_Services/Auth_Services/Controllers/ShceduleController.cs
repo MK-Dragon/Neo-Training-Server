@@ -269,5 +269,91 @@ namespace Auth_Services.Controllers
             return Ok(progress);
         }
 
+        [HttpGet("auto-schedule/{turmaId}")]
+        public async Task<IActionResult> AutoSchedule(int turmaId, [FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            // Ensure _dbServices isn't null before passing it
+            if (_dbServices == null)
+            {
+                return StatusCode(500, new { error = "Database service not initialized in controller." });
+            }
+
+            var autoScheduler = new AutoScheduler(_dbServices);
+
+            try
+            {
+                // Start Scheduler
+                await autoScheduler.GetAllInfo(6, start, end);
+                // Get Classes to be Booked
+                List<ScheduleRequest> classes_to_book = await autoScheduler.ScheduleClasses(start, end);
+                // find Class Room
+                List<ScheduleRequest> classes_with_rooms = await autoScheduler.FindRoom(classes_to_book, start, end);
+                
+                // Book classes
+                int num_booked = 0;
+                foreach (var item in classes_with_rooms)
+                {
+                    string resp = await _dbServices.CreateSchedule(item);
+                    if (resp == "Success") num_booked++;
+                }
+
+                return Ok(new { message = $"Auto Scheduler OK. {classes_with_rooms.Count}/{classes_to_book.Count} - {num_booked} booked."});
+            }
+            catch (Exception ex)
+            {
+                // This will catch the NullReference if _dbServices was still null
+                return StatusCode(500, new { message = "Auto Scheduler Failed.", error = ex.Message });
+            }
+        }
+
+        [HttpGet("auto-schedule-full-week/{turmaId}")]
+        public async Task<IActionResult> AutoScheduleWeek(int turmaId, [FromQuery] DateTime start, [FromQuery] DateTime end)
+        {
+            if (_dbServices == null) return StatusCode(500, new { error = "DB Error" });
+
+            // 1. Save the specific TIME the user picked
+            TimeSpan startTimeOfDay = start.TimeOfDay;
+            TimeSpan endTimeOfDay = end.TimeOfDay;
+
+            // 2. Find the Monday of the week picked by the user
+            int diff = (7 + (start.DayOfWeek - DayOfWeek.Monday)) % 7;
+            DateTime mondayDate = start.AddDays(-1 * diff).Date;
+
+            int to_book = 0, w_room = 0, num_booked = 0;
+            var autoScheduler = new AutoScheduler(_dbServices);
+
+            for (int i = 0; i < 5; i++)
+            {
+                // 3. Create a NEW DateTime for each day with the SAME time
+                DateTime currentDayStart = mondayDate.AddDays(i).Add(startTimeOfDay);
+                DateTime currentDayEnd = mondayDate.AddDays(i).Add(endTimeOfDay);
+
+                Console.WriteLine($"Scheduling for {currentDayStart.DayOfWeek}: {currentDayStart} to {currentDayEnd}");
+
+                try
+                {
+                    await autoScheduler.GetAllInfo(turmaId, currentDayStart, currentDayEnd);
+
+                    List<ScheduleRequest> classes_to_book = await autoScheduler.ScheduleClasses(currentDayStart, currentDayEnd);
+                    to_book += classes_to_book.Count;
+
+                    List<ScheduleRequest> classes_with_rooms = await autoScheduler.FindRoom(classes_to_book, currentDayStart, currentDayEnd);
+                    w_room += classes_with_rooms.Count;
+
+                    foreach (var item in classes_with_rooms)
+                    {
+                        string resp = await _dbServices.CreateSchedule(item);
+                        if (resp == "Success") num_booked++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error on {currentDayStart.DayOfWeek}: {ex.Message}");
+                }
+            }
+
+            return Ok(new { message = $"Week logic complete. {num_booked} classes confirmed." });
+        }
+
     } // the end
 }
