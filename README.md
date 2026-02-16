@@ -2,25 +2,37 @@
 Final Project for TPSI
 
 
-
+<br>
+<br>
 
 # How to Run:
 1) Start the dockers with MySQL DB and Redis DB
 2) Run the Auth_Service the
 3) Start the React WebSite 
 
-### Note: <br>
-You will need to create a .env file with this format:
+<br>
 
-```env
-VITE_GOOGLE_CLIENT_ID=909847643981-[code from google].apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-[secrete code from google]
-VITE_IP_PORT_AUTH_SERVER=https://[C#'s IP]:[C#'s Port]
+# Install <br>
+<br>
+Before running the project you will need to setup 2 files with IPs as Keys and the Docker conteiners with the Database.
+
+### 1 - The .env File for the Website and Backend
+You will need to create a .env file with this format next to this ReadMe:
+
+```.env
+VITE_GOOGLE_CLIENT_ID=[code from google].apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=[secrete code from google]
+VITE_IP_PORT_WEBSITE=http://[IP Website]:5173
+VITE_IP_PORT_AUTH_SERVER=https://[C#'s IP]:7089
+VITE_USER_GITHUB=https://github.com
+VITE_USER_LINKEDIN=https://www.linkedin.com
 ```
 <br>
+
+### 2 - The MySettings.json File for the Backend
 You will also need to create or edit the MySettings.json file at Auth_Services\Auth_Services\MySettings.json:
 
-```env
+```.json
 {
   "UserDb": "MySQL username",
   "PassDb": "MySQL passwod",
@@ -32,6 +44,10 @@ You will also need to create or edit the MySettings.json file at Auth_Services\A
   "MailKey": "[gmail mail key]"
 }
 ```
+<br>
+
+### 3 - The Database and Caching
+The MySQL Database and Redis Cache both run in Docker, so just run the Docker-Compose to setup.
 
 <br><br><hr><hr><br><br>
 
@@ -43,7 +59,7 @@ QuestPDF: https://www.questpdf.com/invoice-tutorial.html
 
 <br><br><hr><hr><br><br>
 
-# Database Deployment
+# Database Deployment (stand alone version)
 
 ## Deploy MySQL in Docker
 Links:
