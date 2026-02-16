@@ -189,7 +189,7 @@ public class AutoScheduler
 
     public void DumpDebugInfo()
     {
-        //return; // debug switch! XD
+        return; // debug switch! XD
 
         var options = new JsonSerializerOptions { WriteIndented = true };
 
