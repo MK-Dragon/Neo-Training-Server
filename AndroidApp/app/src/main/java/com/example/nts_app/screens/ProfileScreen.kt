@@ -37,6 +37,8 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import coil.ImageLoader
+import coil.compose.AsyncImage
 
 
 
@@ -139,12 +141,19 @@ fun ProfileScreen(viewModel: UserViewModel, apiService: ApiService, onNavigateBa
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // --- Profile Photo Section ---
+            val context = LocalContext.current
+            val customImageLoader = remember {
+                ImageLoader.Builder(context)
+                    .okHttpClient { RetrofitClient.okHttpClient }
+                    .build()
+            }
             Box(contentAlignment = Alignment.BottomEnd) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(RetrofitClient.getProfileImageUrl(user?.userId)) // NO HARDCODED IP!
+                    model = ImageRequest.Builder(context)
+                        .data("${RetrofitClient.getProfileImageUrl(user?.userId)}?t=$imgTimestamp")
                         .crossfade(true)
                         .build(),
+                    imageLoader = customImageLoader, // <-- PASS IT HERE
                     contentDescription = "Profile Picture",
                     modifier = Modifier
                         .size(130.dp)

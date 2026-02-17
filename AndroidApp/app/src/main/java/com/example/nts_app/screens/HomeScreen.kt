@@ -23,6 +23,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.Color
+import coil.ImageLoader
 import com.example.nts_app.network.RetrofitClient
 
 @Composable
@@ -46,11 +47,18 @@ fun HomeScreen(viewModel: UserViewModel, onNavigate: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val context = LocalContext.current
+                val customImageLoader = remember {
+                    ImageLoader.Builder(context)
+                        .okHttpClient { RetrofitClient.okHttpClient }
+                        .build()
+                }
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(RetrofitClient.getProfileImageUrl(user?.userId)) // NO HARDCODED IP!
+                    model = ImageRequest.Builder(context)
+                        .data("${RetrofitClient.getProfileImageUrl(user?.userId)}?t=$imgTimestamp")
                         .crossfade(true)
                         .build(),
+                    imageLoader = customImageLoader,
                     contentDescription = "Profile Picture",
                     modifier = Modifier
                         .size(80.dp)

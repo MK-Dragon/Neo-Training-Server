@@ -54,6 +54,14 @@ fun TeachersScreen(onBack: () -> Unit) {
     var history by remember { mutableStateOf<List<TeacherModuleHistoryDTO>>(emptyList()) }
     var isLoadingDetails by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val customImageLoader = remember {
+        coil.ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.okHttpClient }
+            .build()
+    }
+    val imgTimestamp = remember { System.currentTimeMillis() }
+
     // Filter AND Sort Logic
     val filteredTeachers = remember(teachers, sortOrder, searchQuery) {
         val filtered = if (searchQuery.isEmpty()) {
@@ -153,9 +161,10 @@ fun TeachersScreen(onBack: () -> Unit) {
                                 // In the LazyColumn items
                                 AsyncImage(
                                     model = ImageRequest.Builder(LocalContext.current)
-                                        .data(RetrofitClient.getProfileImageUrl(teacher.userId)) // NO HARDCODED IP!
+                                        .data("${RetrofitClient.getProfileImageUrl(teacher.userId)}?t=$imgTimestamp")
                                         .crossfade(true)
                                         .build(),
+                                    imageLoader = customImageLoader,
                                     placeholder = painterResource(R.drawable.user),
                                     error = painterResource(R.drawable.user),
                                     contentDescription = null,
@@ -184,7 +193,7 @@ fun TeachersScreen(onBack: () -> Unit) {
 
         if (showSheet) {
             ModalBottomSheet(onDismissRequest = { showSheet = false }, sheetState = sheetState) {
-                TeacherDetailContent(selectedTeacher, detailedUser, history, isLoadingDetails)
+                TeacherDetailContent(selectedTeacher, detailedUser, history, isLoadingDetails, customImageLoader)
             }
         }
     }
@@ -195,16 +204,18 @@ fun TeacherDetailContent(
     selectedTeacher: UserSimple?,
     detailedUser: AppUser?,
     history: List<TeacherModuleHistoryDTO>,
-    isLoadingDetails: Boolean
+    isLoadingDetails: Boolean,
+    imageLoader: coil.ImageLoader
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 32.dp)) {
         // --- Profile Header ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(RetrofitClient.getProfileImageUrl(selectedTeacher?.userId)) // NO HARDCODED IP!
+                    .data(RetrofitClient.getProfileImageUrl(selectedTeacher?.userId))
                     .crossfade(true)
                     .build(),
+                imageLoader = imageLoader,
                 contentDescription = null,
                 modifier = Modifier
                     .size(85.dp)

@@ -51,6 +51,14 @@ fun StudentsScreen(onBack: () -> Unit) {
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
+    val context = LocalContext.current
+    val customImageLoader = remember {
+        coil.ImageLoader.Builder(context)
+            .okHttpClient { RetrofitClient.okHttpClient }
+            .build()
+    }
+    val imgTimestamp = remember { System.currentTimeMillis() }
+
     LaunchedEffect(Unit) {
         try {
             stats = RetrofitClient.apiService.getOngoingStats()
@@ -104,6 +112,8 @@ fun StudentsScreen(onBack: () -> Unit) {
                         turma = turma,
                         isExpanded = expandedTurmaId == turma.turmaId,
                         students = studentsMap[turma.turmaId],
+                        imageLoader = customImageLoader,
+                        imgTimestamp = imgTimestamp,
                         onClick = {
                             if (expandedTurmaId == turma.turmaId) {
                                 expandedTurmaId = null
@@ -151,6 +161,8 @@ fun TurmaExpandableItem(
     turma: TurmaDTO,
     isExpanded: Boolean,
     students: List<StudentInTurmaDTO>?,
+    imageLoader: coil.ImageLoader,
+    imgTimestamp: Long,
     onClick: () -> Unit
 ) {
     Card(
@@ -196,9 +208,10 @@ fun TurmaExpandableItem(
                                     leadingContent = {
                                         AsyncImage(
                                             model = ImageRequest.Builder(LocalContext.current)
-                                                .data(RetrofitClient.getProfileImageUrl(student.userId)) // NO HARDCODED IP!
+                                                .data("${RetrofitClient.getProfileImageUrl(student.userId)}?t=$imgTimestamp")
                                                 .crossfade(true)
                                                 .build(),
+                                            imageLoader = imageLoader,
                                             placeholder = painterResource(R.drawable.user),
                                             error = painterResource(R.drawable.user),
                                             contentDescription = null,
