@@ -7,8 +7,9 @@ Final Project for TPSI
 
 # How to Run:
 1) Start the dockers with MySQL DB and Redis DB
-2) Run the Auth_Service the
-3) Start the React WebSite 
+2) Open Auth_Service in Visual Studio and Run the Project
+3) Open CMD inside FrontEnd_WebSite and run ``npm run dev`` to Start the React WebSite
+4) Go to: http://localhost:5173
 
 <br>
 
